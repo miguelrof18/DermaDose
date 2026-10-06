@@ -1,28 +1,30 @@
-# Memoria en LaTeX
+# Memoria DermaDose en LaTeX
 
-La fuente científica canónica se mantiene en \`docs/Memoria_Calculador_Dosis_Piel.md\`.
-\`main.tex\` permite compilar esa misma versión desde LaTeX mediante el paquete
-\`markdown\`, evitando mantener dos memorias divergentes.
+La fuente científica canónica es `docs/Memoria_Calculador_Dosis_Piel.md`.
+El archivo `docs/latex/main.tex` compila directamente esa versión para evitar mantener
+dos memorias divergentes.
 
-La memoria fue actualizada el 6 de octubre de 2026 para incorporar la implementación
-de los factores tabulados de Benmakhlouf, Fransson y Andreo (KS-ASF-201101-IR):
-\`k_BS\`, \`k_f\`, selección/interpolación, trazabilidad, prevención de doble conteo,
-límites físicos y las 33 pruebas específicas añadidas (87 pruebas totales).
+La versión del 6 de octubre de 2026 incorpora:
 
-## Compilar
+- factores tabulados de Benmakhlouf, Fransson y Andreo (`k_BS` y `k_f`);
+- selección e interpolación dentro del dominio publicado, sin extrapolación silenciosa;
+- controles contra doble contabilización de factores;
+- verificación numérica independiente y ampliación a 87 pruebas;
+- limitaciones físicas actualizadas;
+- plan experimental ampliado para C_K, HVL, transmisión de mesa/colchoneta,
+  comprobación de k_BS·k_f, geometría, perfiles, oblicuidad e incertidumbre.
 
-Desde \`docs/latex\`:
+## Compilación en VS Code
 
-\`\`\`bash
-lualatex --shell-escape main.tex
-lualatex --shell-escape main.tex
-\`\`\`
+Usa LuaLaTeX. Con LaTeX Workshop selecciona una receta `latexmk -lualatex` o ejecuta:
 
-o con LaTeX Workshop/latexmk:
-
-\`\`\`bash
+```bash
 latexmk -lualatex -shell-escape main.tex
-\`\`\`
+```
 
-La opción \`--shell-escape\` puede ser necesaria para el paquete \`markdown\`,
-dependiendo de la distribución TeX instalada.
+La fuente monoespaciada se fija en Consolas para evitar el problema anterior con
+DejaVu Sans Mono en Windows.
+
+Las imágenes se buscan con rutas relativas a `docs/`. Si una copia local no contiene
+los ficheros gráficos referenciados por la memoria, LaTeX informará de ello aunque el
+texto científico siga siendo la fuente canónica.
