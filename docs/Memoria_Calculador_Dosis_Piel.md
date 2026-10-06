@@ -543,77 +543,108 @@ Hay riesgos de uso no resueltos: factores escalares sin rango declarado, normali
 
 ## Límites físicos
 
-La formulación describe entrada primaria con correcciones multiplicativas. Excluye transporte en tejido, heterogeneidad, dosis de salida y dispersión lateral fuera de la huella. El BSF local no representa explícitamente el acoplamiento espacial entre regiones. La calidad del haz interviene únicamente a través de datos tabulados; las constantes sintéticas no cambian con kVp ni espesor. No existe predicción de profundidad ni de respuesta biológica.
+La formulación calcula una magnitud superficial mediante una cadena multiplicativa y una geometría de primera entrada. No simula transporte de fotones y electrones en el paciente, heterogeneidades internas, dosis de salida ni dispersión lateral fuera de la huella primaria. Un factor local de retrodispersión modifica la dosis dentro del campo, pero no distribuye espacialmente fotones dispersos hacia regiones vecinas.
 
-La mesa es un plano acotado con transmisión efectiva. Un rayo que atraviese un raíl o un accesorio no se distingue por material. Tampoco se modelan colimadores asimétricos, filtros de cuña ni penumbra de foco finito. Estas limitaciones pueden ser especialmente importantes en oblicuidades, campos pequeños y regiones cercanas a bordes. Son límites del modelo, no fallos que desaparezcan con más pruebas unitarias.
+La incorporación de Benmakhlouf mejora de forma sustancial la base física de (k_{BS}) y (k_f), pero no elimina estas limitaciones. Sus tablas se obtuvieron para geometrías y materiales definidos, en particular una superficie plana de agua y campos/calidades concretos. Aplicarlas localmente sobre una malla anatómica constituye una aproximación. El resultado de esta vía debe denominarse **dosis superficial equivalente en agua**; no puede transformarse en dosis en piel real cambiando una etiqueta.
+
+El proveedor tabulado tampoco calcula el endurecimiento del haz debido a mesa o colchoneta. Una transmisión escalar (T) puede modificar la amplitud sin cambiar la calidad utilizada para seleccionar (k_{BS}) y (k_f). Hasta disponer de medidas de HVL o de un modelo espectral posterior al soporte, esta interacción debe considerarse una fuente de incertidumbre de modelo.
 
 ## Límites geométricos y numéricos
 
-XCAT es una anatomía de referencia colocada de forma aproximada. No hay segmentación individual, registro automático, deformación ni aplanamiento por apoyo. La distancia fuente-piel y la coincidencia de campos pueden ser erróneas aun con cálculo geométrico perfecto. Una malla cerrada y de volumen positivo no garantiza ausencia de autointersecciones.
+La anatomía XCAT empleada es una referencia y no una reconstrucción del paciente. No existe segmentación individual, registro automático, deformación por apoyo ni seguimiento de movimientos durante el procedimiento. Un error en la posición del paciente altera simultáneamente distancia foco-piel y superposición de campos, por lo que puede dominar sobre la precisión numérica del *ray tracing*.
 
-La dosis por centroide aproxima toda una cara. Las métricas de área y el máximo son sensibles a bordes y a resolución desigual. La media local de 1 cm² tiene área variable y distancia de grafo aproximada. Las tolerancias de primera entrada necesitan más casos degenerados. El cilindro abierto solo es admisible en el dominio geométrico controlado por el programa.
+La dosis se asocia a elementos discretos de la superficie. El máximo y las métricas dosis-área son sensibles a la resolución cerca de bordes y gradientes. El refinamiento mejora el muestreo de la misma frontera geométrica, pero no añade composición interna ni corrige un modelo físico incompleto.
+
+La equivalencia de un campo rectangular con un cuadrado de igual área es una opción explícita y no validada por la fuente bibliográfica. Cuando se active, debe interpretarse como aproximación y quedar reflejada en la trazabilidad.
 
 ## Límites de implementación y evidencia
 
-El lector RDSR cubre un subconjunto y un filtro Cu; no es compatible por demostración con todos los fabricantes. Como avance práctico derivado de las notas de revisión, se ha añadido un comando de búsqueda automática de RDSR en carpetas DICOM. Esta herramienta no amplía la física del modelo, pero reduce un problema operativo real: distinguir el informe estructurado de dosis de las imágenes XA/RF de un procedimiento. El comando solo lee metadatos, resume los objetos no candidatos y devuelve hashes de UIDs en lugar de identificadores directos. No hay corpus clínico independiente ni comparación con la consola de un equipo real. El cálculo biplano depende de caracterizar cada plano y de registrar el mismo paciente. Los barridos uniformes no sustituyen logs temporales.
+El lector RDSR cubre un subconjunto de objetos y campos necesarios para el calculador; la compatibilidad no está demostrada para todos los fabricantes y versiones. Los parámetros de calidad ausentes no se pueden reconstruir de forma unívoca. La configuración debe declarar la filtración requerida por el proveedor o rechazar la consulta.
 
-La memoria crece con caras y eventos; la exportación HTML duplica representaciones y puede ser pesada. No hay servicio en tiempo real ni pruebas de rendimiento en Windows. La lógica del visor se prueba con un sustituto de DOM/Plotly, no con renderizado WebGL real en esta auditoría. Las capturas estáticas verificadas no garantizan fluidez ni ausencia de problemas gráficos en todos los navegadores.
+Las **87 pruebas actuales** verifican invariantes de software, geometría, interpolación e integración de factores. No constituyen validación clínica. La concordancia de la implementación con las tablas de Benmakhlouf demuestra fidelidad respecto a esa fuente, no respecto a un equipo hospitalario. Faltan calibración local de (K_{a,r}), medida de HVL, transmisión de soporte, perfiles, registro de paciente y comparación con una referencia experimental independiente.
 
-La exactitud física y clínica sigue sin cuantificar. No hay calibración real, medidas independientes ni validación de dosis a una profundidad definida. La incertidumbre paramétrica depende de hipótesis incompletas. Ningún porcentaje de convergencia, prueba superada o acuerdo con valores sintéticos puede convertirse en un error clínico global.
+La incertidumbre asociada a los factores tabulados no se presenta como una incertidumbre total de la PSD. Deben distinguirse incertidumbre de la fuente, interpolación, calibración, geometría y discrepancia del modelo, incluyendo correlaciones entre eventos. Un intervalo numérico estrecho no compensa la ausencia de una fuente de error relevante.
+
+El visor 3D y los informes facilitan auditoría, pero no aumentan por sí mismos la exactitud física. Un mapa visualmente plausible puede conservar un sesgo de escala o de registro; por ello, la interpretación debe mantener unida cada salida a su etapa, medio, configuración, dominio de validez y procedencia de factores.
 
 # Conclusiones
 
-Se ha desarrollado un prototipo modular capaz de leer eventos RDSR, reconstruir geometría, seleccionar primera entrada sobre mallas triangulares y acumular dosis superficial mediante factores configurables. La salida conserva trazabilidad y permite explorar mapas, áreas y contribuciones individuales. Además de conservar los mapas por evento, la versión actual ordena las contribuciones de cada evento en el punto de PSD acumulada, lo que permite interpretar si el máximo procede de un campo dominante o de la superposición de varios campos. El refinamiento real de la malla y la separación entre cálculo y visualización resuelven necesidades computacionales concretas del proyecto.
+Se ha desarrollado una plataforma modular capaz de interpretar eventos RDSR, reconstruir la geometría del haz y de la mesa, identificar la primera entrada sobre superficies triangulares, acumular contribuciones espaciales y generar mapas, PSD y métricas dosis-área con trazabilidad por evento. La arquitectura separa las entradas, la geometría, los factores físicos y la representación, lo que permite verificar cada componente de forma independiente.
 
-La nueva evaluación confirma 54 pruebas superadas, consistencia con soluciones geométricas y estabilidad del máximo en la demostración XCAT. El refinamiento de 10 a 5 mm cambia la PSD un 0,0165 %, con mayor variación en áreas y mayor coste. El rendimiento depende de preparación, ángulo, número de candidatos y repetición exacta de geometrías; no de un único tiempo universal por evento.
+El desarrollo más reciente sustituye, para la vía de investigación, la pareja sintética de retrodispersión y conversión de medio por los factores tabulados (k_{BS}) y (k_f) del informe KS-ASF-201101-IR de Benmakhlouf, Fransson y Andreo. Los datos se almacenan de forma versionada, se interpolan únicamente dentro de familias compatibles y se rechazan extrapolaciones y dobles conteos. La extracción de 2.577 celdas se verificó sin discrepancias y la comparación numérica independiente reproduce nodos e interpolaciones hasta el redondeo de coma flotante.
 
-El objetivo de construir una plataforma de investigación verificable está cumplido. El de estimar dosis clínica con precisión conocida no lo está: faltan datos de equipo, registro anatómico y validación externa. La aportación actual es una implementación auditable del formalismo aproximado y una base de pruebas reproducibles, acompañada de una delimitación explícita de lo que todavía no demuestra.
+La suite completa alcanza **87 pruebas superadas**, 33 de ellas específicas de los factores superficiales. Esta evidencia confirma la consistencia de la implementación, no una exactitud clínica. Los resultados de convergencia muestran que el máximo puntual puede estabilizarse antes que las métricas de área y que el aumento de resolución tiene un coste computacional importante; por tanto, la resolución debe elegirse mediante estudios de convergencia y no por una cifra fija.
 
-# Líneas futuras de desarrollo
+El objetivo de disponer de un calculador de investigación transparente, auditable y extensible está cumplido. El objetivo de estimar dosis clínica con una incertidumbre conocida permanece abierto. Para alcanzarlo es necesario caracterizar el equipo y validar la cadena completa: indicador de dosis, calidad de haz, mesa y colchoneta, geometría, perfiles, oblicuidad, anatomía y registro. La siguiente fase del trabajo no consiste en añadir más complejidad indiscriminadamente, sino en medir qué términos dominan el error y ampliar el modelo solo cuando una comparación independiente lo justifique.
 
-## Caracterización dosimétrica y control del dominio
+DermaDose queda preparado para esa transición: la misma interfaz que consume las tablas de Benmakhlouf puede alojar en el futuro tablas experimentales propias con metadatos, dominio e incertidumbre explícitos, sin reescribir el motor geométrico ni perder reproducibilidad.
 
-La prioridad es sustituir factores sintéticos por medidas trazables para equipo, modo, calidad, campo y ángulo. Deben definirse con precisión las magnitudes de CF, transmisión, BSF y conversión para evitar doble conteo. La configuración debería exigir rangos válidos incluso para constantes, registrar incertidumbre y fecha de calibración, y rechazar perfiles incompatibles con su normalización. Esta propuesta responde directamente a la invariancia artificial observada con kVp y espesor, y al problema de caracterización señalado por la literatura [2, 5, 27].
+# Líneas futuras de desarrollo y validación experimental
 
-La salida de incertidumbre parcial debería expresar «no cuantificada» cuando no existe ninguna componente conocida, en lugar de ofrecer un cero aislado. La interfaz debe mostrar junto al máximo etapa, medio, estado de calibración y dominio. Es una mejora de interpretación verificable con pruebas de informes y casos incompletos, sin alterar la ecuación de dosis.
+La siguiente fase del proyecto debe convertir los factores que todavía dependen de configuraciones genéricas en datos caracterizados para el equipo real. El procedimiento se plantea de forma escalonada, de modo que cada ampliación tenga una pregunta física, un montaje reproducible, un dominio de validez y una comparación independiente antes de incorporarse al cálculo validado.
 
-## Anatomía, registro y datos clínicos
+## Definición de la magnitud y auditoría de entradas
 
-La siguiente mejora geométrica es registrar una superficie medida o segmentada en el sistema de mesa. Deben evaluarse distancias de superficie, landmarks y sensibilidad de PSD al error de posición. El escalado antropométrico de una referencia es una opción intermedia, pero no garantiza reproducir apoyo y concavidades. Johnson et al. mostraron que el beneficio del ajuste anatómico depende de la proyección; Omar et al. abordaron explícitamente la reconstrucción de posición desde datos radiológicos [3, 8].
+Antes de iniciar una campaña experimental debe fijarse la magnitud de salida. Para mantener coherencia con la implementación de Benmakhlouf, la primera referencia recomendable es dosis superficial equivalente en agua. Si posteriormente se desea informar dosis en piel, deberán definirse composición, densidad y profundidad de evaluación y documentarse las aproximaciones necesarias.
 
-El lector necesita un corpus de RDSR reales anonimizados, pruebas de jerarquía y perfiles por fabricante/modelo/versión. Enhanced RDSR puede facilitar marcos y transformaciones, pero requiere otro soporte explícito [15]. La integración PACS o DICOMweb solo debería realizarse después de resolver identidad, unidades, dominio y trazabilidad. La ampliación a movimiento demanda logs temporales o seguimiento; no debe inferirse movimiento no registrado.
+Para cada campo procedente del RDSR se registrarán nombre, unidad, punto de referencia y carácter incremental o acumulado. Debe verificarse que (K_{a,r}) corresponde al evento correcto y que no incorpora correcciones que el programa vaya a aplicar de nuevo. El programa debe conservar el valor original junto con la magnitud convertida y asociarlo al identificador del evento.
 
-## Resolución y cálculo eficiente
+## Calibración del indicador (C_K)
 
-Se propone refinamiento guiado por error: comparar centroides con submuestras en caras cercanas a bordes y máximos, refinar donde PSD o área no alcancen una tolerancia y conservar topología. Su aceptación exige casos de campo estrecho, oblicuidad, autosombra y mapas con varios máximos. El criterio debería incluir área e integral, no solo PSD. La diferencia entre refinamientos no debe llamarse intervalo probabilístico.
+La primera medida física debe comprobar la indicación de kerma en aire. Con un dosímetro trazable para radiodiagnóstico se medirá en aire libre, sin mesa ni fantoma en el trayecto, con geometría conocida y técnica estable. Si la referencia se encuentra a otra distancia, la lectura se transportará mediante la ley del inverso del cuadrado antes de formar
 
-El perfil medido justifica evaluar BVH/Embree para primera entrada, acumulación por bloques para reducir memoria y caché configurable para secuencias repetidas. La propagación admite paralelización por realizaciones con control de RSS. La GPU se considerará después de un benchmark equivalente que incluya transferencias y precisión, siguiendo la lección de Takata sobre conservar datos en memoria del dispositivo [7]. No se presupone que añadir GPU sea la mejora dominante para dos eventos.
+[
+C_K=rac{K_{mathrm{medido,ref}}}{K_{mathrm{indicado,ref}}}.
+]
 
-## Física adicional y validación
+Se estudiarán calidades frecuentes y extremos, fluoroscopia y adquisición cuando proceda, con repeticiones y referencias intercaladas para detectar deriva. La decisión final será mantener una constante o una tabla dependiente de calidad/modo según la dispersión y los puntos reservados de validación. El software deberá registrar si la entrada ya está calibrada para impedir aplicar (C_K) dos veces.
 
-Para abordar dispersión fuera del campo o salida, se propone primero comparar con transporte independiente y medir perfiles. Si el sesgo es sistemático y parametrizable, podrían construirse kernels o tablas validadas. Para dosis en profundidad o heterogeneidades sería necesario un modelo volumétrico. No se recomienda añadir factores heurísticos sin separar datos de ajuste y validación.
+## Calidad del haz: kVp, filtración y HVL
 
-La validación por componentes de García Balcaza y la preocupación por posición y automatización de Fernández Bosman son trasladables al protocolo, aunque sus sistemas de transporte y dosimetría ocupacional son diferentes [9, 10]. Las líneas futuras de SkinCare subrayan ampliar validación clínica y montajes [4]. Han et al. proponen integración en NCIRF y biblioteca anatómica ampliada [12]; aquí ello inspira una biblioteca versionada de superficies y casos, no una declaración de integración ya realizada.
+Debe construirse un catálogo real de calidades del equipo. Para cada familia se registrarán kVp, filtración inherente y añadida, modo y primera capa hemirreductora. La HVL se medirá con aluminio de espesor conocido en geometría de haz estrecho, obteniendo lecturas a ambos lados de (0{,}5K_0) y realizando una interpolación local documentada.
 
-## Usabilidad y criterios de avance
+La HVL no determina un espectro único, por lo que cualquier reconstrucción espectral deberá conservar sus hipótesis. Si mesa o colchoneta endurecen el haz, se estudiará una calidad posterior al soporte cuando sea necesario para seleccionar factores compatibles.
 
-El visor debe someterse a pruebas WebGL en Windows, con mallas grandes, varias resoluciones de pantalla y medición de latencia al mover cortes. Es conveniente un modo gráfico ligero con correspondencia inequívoca hacia los valores originales. Un selector de caso y configuración reduciría confusión entre demo, investigación y ejemplo, pero debe conservar comandos reproducibles y mensajes de error completos.
+## Retrodispersión y conversión de medio
 
-El avance se considerará demostrado cuando existan calibraciones documentadas, reproducción de casos analíticos y externos, tolerancias previamente definidas, presupuesto de incertidumbre adecuado al uso, corpus multiequipo y controles de regresión tras cada cambio. Hasta entonces, ampliar la complejidad física o mejorar la apariencia 3D no sustituye la evidencia que falta.
+La implementación de Benmakhlouf constituye la referencia bibliográfica inicial. El siguiente paso no es medir (k_{BS}) y (k_f) por separado a cualquier precio, sino comprobar el producto (k_{BS}k_f) frente a una referencia superficial compatible. La respuesta de un detector puede cambiar entre el espectro primario y el primario más dispersado, por lo que el cociente de lecturas con/sin fantoma no debe identificarse automáticamente con (k_{BS}).
 
-## Comentarios de revisión incorporados
+Se utilizará un fantoma de agua o equivalente caracterizado, con espesor y extensión suficientes. Para calidades y campos representativos se comparará la predicción (K_{mathrm{inc}},k_{BS},k_f) con una medida expresada en dosis a agua o con una referencia cuyo formalismo sea compatible. Los casos empleados para ajustar cualquier corrección se separarán de los usados para validarla.
 
-Comentario añadido sobre RDSR reales: una carpeta de procedimiento no debe introducirse completa en el motor de cálculo sin identificar antes el objeto `X-Ray Radiation Dose SR`. Por ello se ha implementado `find-rdsr`, que localiza candidatos RDSR y señala de forma explícita los ficheros que son imágenes angiográficas u otros DICOM no utilizables como entrada principal. Esta mejora ya está incorporada al calculador y validada con pruebas sintéticas.
+## Mesa y colchoneta: (T_{mathrm{ef}})
 
-Comentario añadido sobre compatibilidad de RDSR reales: se ha incorporado `compatibility-report`, que genera un informe previo para RDSR o carpetas DICOM. Este informe comprueba lectura del RDSR, campos críticos por evento, disponibilidad de calidad de haz para la etapa solicitada y coincidencia de fabricante/modelo con la configuración. No equivale a validación física, pero responde a la necesidad de aceptar RDSR reales anonimizados de forma controlada.
+La transmisión efectiva se medirá manteniendo fijos foco, detector, colimación y técnica, comparando lecturas con y sin soporte en el mismo punto. Cuando sea posible se evitará que el control automático modifique la técnica; en caso contrario se registrarán kVp, filtración, carga y pulsos para no confundir compensación del equipo con transmisión.
 
-Comentario añadido sobre análisis por evento: el cálculo acumulado puede ocultar qué evento origina el máximo. La nueva clave `global_psd_event_contributions` cuantifica la contribución de cada evento en el punto de PSD acumulada. Esta función no modifica la dosis, pero mejora la interpretación del resultado y responde al objetivo de aprovechar mejor la información evento a evento del RDSR.
+Se caracterizarán incidencia normal, calidades extremas, varias regiones del tablero y angulaciones relevantes. El resultado deberá declarar si representa transmisión primaria o una corrección efectiva que incluye dispersión del soporte. En la integración se aplicará únicamente cuando el rayo interseque realmente la mesa o el colchón.
 
-Comentario añadido sobre trazabilidad de factores: las notas insistían en diferenciar factores sintéticos, medidos, tabulados o calculados, y en conservar su rango de validez e incertidumbre. Por ello se ha añadido `factor_metadata` a la salida. Este bloque documenta para cada corrección su identificador, procedencia, representación, incertidumbre relativa y dominio tabulado cuando existe. Así, las futuras tablas de \(BSF\), transmisión de mesa o \(f_{\text{skin}}\) podrán incorporarse sin confundirse con valores de demostración.
+## Geometría, tamaño de campo y perfil
 
-Comentario añadido sobre trazabilidad de las anotaciones: se ha creado `NOTAS_IMPLEMENTACION.md`, que agrupa todas las líneas iniciadas por `% Nota:` y declara si cada propuesta está implementada, preparada para datos calibrados o pendiente por requerir medidas, tablas externas o simulaciones.
+Las transformaciones del sistema de coordenadas se verificarán con posiciones conocidas, varias alturas de mesa y proyecciones frontal y lateral. La ley de distancia se comprobará midiendo (K(d_i)d_i^2) en posiciones distintas con técnica constante. Los campos se medirán con película o detector espacial en planos conocidos, comparando centro, dimensiones y bordes con la proyección calculada.
 
-Comentario añadido sobre mejoras no implementadas todavía: la calibración mesa--equipo, las tablas de BSF/transmisión/factor aire--piel, el uso de superficies segmentadas de paciente y la incorporación de modelos antropométricos personalizados se mantienen como líneas prioritarias, pero no deben codificarse como constantes o geometrías ficticias sin medidas, procedencia y rango de validez. En esta versión se ha preparado el software para aceptarlas mediante configuración e interpolación acotada, pero la generación de datos calibrados queda pendiente.
+El perfil (H(u,v)) deberá caracterizarse con orientación ánodo-cátodo, calidad, campo y filtros conocidos. Si la medida incluye retrodispersión, no se utilizará como perfil primario sin separar esa contribución. La normalización deberá ser compatible con la magnitud de entrada: axial para (K_{a,r}) o integral cuando se parta de (P_{KA}).
+
+## Oblicuidad, curvatura y anatomía
+
+La validación espacial comenzará con un plano y continuará con un cilindro de dimensiones conocidas antes de utilizar un fantoma antropomórfico. Para cada rayo se comprobará primera intersección, visibilidad y ángulo respecto a la normal local. No se introducirá una corrección universal (cos	heta) o (1/cos	heta) sin evidencia experimental.
+
+Solo si persiste un residuo reproducible después de corregir geometría, calidad, soporte y respuesta angular del detector se considerará un factor residual de oblicuidad. Su dominio deberá quedar limitado a los materiales, campos y ángulos realmente estudiados.
+
+## Diseño de la campaña y criterios de aceptación
+
+Una campaña inicial puede organizarse en cuatro bloques: calibración y geometría; HVL y soporte; dosis superficial y (k_{BS}k_f); perfiles, oblicuidad y solapamientos. Como diseño de partida pueden seleccionarse tres calidades representativas y una extrema, varios tamaños de campo y los modos clínicamente relevantes. El número de repeticiones se ajustará tras un piloto según la repetibilidad observada.
+
+Cada bloque comenzará y terminará con una condición de referencia para detectar deriva. Se reservarán desde el inicio combinaciones no usadas en el ajuste: una calidad intermedia, un campo rectangular, una angulación y secuencias de solapamiento. Si un caso se usa para corregir un sesgo, deja de ser independiente y deberá sustituirse en el conjunto de validación.
+
+La aceptación de una mejora no se basará en un porcentaje universal. Antes de ajustar se definirán criterios dosimétricos y espaciales coherentes con la incertidumbre de la referencia: diferencias absolutas y relativas donde la señal sea suficiente, posición del máximo, centro de campo, anchura, área por encima de umbral y estabilidad de la PSD con la resolución.
+
+## Tablas, trazabilidad e incertidumbre
+
+Las lecturas originales se conservarán de forma inmutable. A partir de ellas se generarán tablas separadas de lecturas corregidas y factores, cada fila enlazada con el ensayo, fórmula, fecha, equipo, configuración, incertidumbre y versión de calibración. Los factores deberán devolver también un estado: medido, bibliográfico, interpolado, aproximado o fuera de dominio.
+
+La incertidumbre se propagará sobre realizaciones completas del mapa, manteniendo las correlaciones relevantes. Un error de calibración puede ser común a todos los eventos; una perturbación de calidad modifica de forma correlacionada (T), (k_{BS}) y (k_f); un movimiento del paciente afecta a grupos de eventos. La propagación Monte Carlo de incertidumbres no debe confundirse con un Monte Carlo de transporte.
+
+La prioridad final será utilizar este presupuesto para decidir dónde una nueva medida o un modelo más complejo reduce realmente la incertidumbre de la PSD y de su posición. La ampliación anatómica y el transporte volumétrico se abordarán después de validar la cadena superficial básica.
+
 
 # Bibliografía {.unnumbered}
 
