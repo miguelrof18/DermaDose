@@ -87,6 +87,7 @@ class Equipment:
     factors: dict[str, Factor]
     version: str
     factors_by_mode: dict[str, dict[str, Factor]]
+    surface_factor_provider: Any = None
 
     @classmethod
     def load(cls, path: str | Path) -> "Equipment":
@@ -142,7 +143,16 @@ class Equipment:
             if "table_total" in selected and ("table_normal" in selected or "table_angular" in selected):
                 raise InputError(f"Modo {mode}: TAF total y normal/angular causarían doble conteo.")
             modes[str(mode)] = selected
-        return cls(data, factors, str(data["version"]), modes)
+        provider = None
+        if "surface_factors" in data:
+            from .surface_factors import make_event_provider
+            if data.get("dose_medium") != "water":
+                raise InputError("El proveedor superficial agua/aire requiere dose_medium='water'.")
+            for block in [factors, *modes.values()]:
+                if {"bsf", "f_skin"} & block.keys():
+                    raise InputError("surface_factors excluye bsf/f_skin heredados: doble conteo o sustitución ambigua.")
+            provider = make_event_provider(data["surface_factors"], base_directory=base_directory)
+        return cls(data, factors, str(data["version"]), modes, provider)
 
     def factors_for(self, ev: IrradiationEvent) -> dict[str, Factor]:
         if not self.factors_by_mode:
@@ -198,7 +208,7 @@ class Equipment:
         factors = self.factors_for(ev) if stage != "free_air" else self.factors
         if stage != "free_air" and ("cf" not in factors or not ({"table_total"} <= factors.keys() or {"table_normal", "table_angular"} <= factors.keys())):
             raise InputError("Etapa calibrada: faltan CF y transmisión de mesa documentados.")
-        if stage == "skin_dose" and not {"bsf", "f_skin"} <= factors.keys():
+        if stage == "skin_dose" and self.surface_factor_provider is None and not {"bsf", "f_skin"} <= factors.keys():
             raise InputError("Dosis absorbida: faltan BSF y f_skin documentados.")
         if stage == "skin_dose" and self.raw.get("dose_medium") not in ("skin", "water"):
             raise InputError("Dosis absorbida requiere dose_medium='skin' o 'water'.")

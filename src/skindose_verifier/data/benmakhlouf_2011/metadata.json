@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "dataset_id": "KS-ASF-201101-IR",
+  "version": "1.0.0",
+  "formalism": "B_air_times_surface_water_air_ratio",
+  "medium": "water",
+  "source": {
+    "title": "Backscatter factors and mass energy-absorption coefficient ratios for surface dose determination in diagnostic radiology",
+    "authors": [
+      "Hamza Benmakhlouf",
+      "Annette Fransson",
+      "Pedro Andreo"
+    ],
+    "date": "2011-04-07",
+    "institution": "Karolinska University Hospital, Department of Hospital Physics",
+    "report": "KS-ASF-201101-IR",
+    "pdf_filename": "2011BenmakhloufFranssonAndreo_BSFmu_endiagradioldosimetry_ReportKS-ASF-201101-IR.pdf",
+    "pdf_sha256": "0d8ced5181445475d8540fd296d917d020f485ef75d61303003d425312d3f896",
+    "bibliographic_note": "The supplied report has three authors, not Bouchard. No journal-version data have been substituted."
+  },
+  "quantities": {
+    "k_bs": {
+      "definition": "K_air at water entrance surface (primary + backscatter) / incident K_air free in air at same position",
+      "equations": [
+        1,
+        8
+      ],
+      "unit": "1"
+    },
+    "k_f": {
+      "definition": "K_water / K_air, both evaluated with the total primary + backscatter spectrum at water entrance surface",
+      "equations": [
+        2,
+        9
+      ],
+      "unit": "1"
+    },
+    "product": {
+      "definition": "entrance surface water kerma / incident air kerma",
+      "equation": 5,
+      "unit": "1"
+    },
+    "output": {
+      "definition": "entrance surface water kerma, approximated as absorbed dose to water under local electron energy deposition",
+      "unit": "Gy"
+    }
+  },
+  "geometry": {
+    "material": "water",
+    "thickness_cm": 15,
+    "focus_surface_distance_cm": 100,
+    "scoring_voxel_cm": [
+      1,
+      1,
+      0.01
+    ],
+    "position": "centre of flat entrance surface; square field, normal central-axis incidence",
+    "field_side_cm": [
+      5,
+      10,
+      20,
+      25,
+      35
+    ],
+    "field_reference": "phantom entrance surface, plane perpendicular to beam",
+    "lateral_extent_section_3_2": "variable, margin exceeding 5 cm at beam exit",
+    "lateral_extent_table_1_3_caption_cm": [
+      30,
+      30
+    ],
+    "inconsistency": "A fixed 30 x 30 cm phantom conflicts with the 35 x 35 cm field and section 3.2. Both statements are preserved; no resolution is assumed."
+  },
+  "methods": {
+    "transport": "PENELOPE 2008 / PenEasy, electrons deposit locally; photon cutoff 1 keV",
+    "clinical_spectra": "SpekCalc tungsten spectra, kVp and inherent Al / added Cu as tabulated. No numeric anode angle supplied for each Table 3 row.",
+    "mono_database_vs_table": "Text: 44 simulated energies 4-150 keV. Table 1 publishes only 30 energies 5-150 keV in 5 keV steps. No reconstruction below 5 keV.",
+    "spectral_averaging": "Published Tables 3/4 used directly. No spectrum convolution implemented; in particular no substitution of kVp or mean energy for monoenergetic energy.",
+    "uncertainty": "Report estimates ~0.3% for calculated monoenergetic factors; this is not a combined patient-model uncertainty or an independently assigned uncertainty to each clinical factor."
+  },
+  "units": {
+    "energy_kev": "keV",
+    "kvp": "kV",
+    "inherent_al_mm": "mm Al",
+    "added_cu_mm": "mm Cu",
+    "hvl1_mm_al": "mm Al",
+    "h_original": "1",
+    "field_side_cm": "cm",
+    "k_bs": "1",
+    "k_f": "1"
+  },
+  "tables": {
+    "monoenergetic": {
+      "file": "table1_monoenergetic.csv",
+      "source_table": 1,
+      "pages": [
+        25
+      ],
+      "rows": 150,
+      "axes": [
+        "energy_kev",
+        "field_side_cm"
+      ],
+      "groups": [],
+      "domain": {
+        "energy_kev": [
+          5,
+          150
+        ],
+        "field_side_cm": [
+          5,
+          35
+        ]
+      },
+      "use": "monoenergetic lookup only; not inferred from clinical kVp"
+    },
+    "clinical": {
+      "file": "table3_clinical.csv",
+      "source_table": 3,
+      "pages": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "rows": 715,
+      "qualities": 143,
+      "axes": [
+        "kvp",
+        "added_cu_mm",
+        "field_side_cm"
+      ],
+      "groups": [
+        "inherent_al_mm"
+      ],
+      "domain": {
+        "kvp": [
+          50,
+          150
+        ],
+        "field_side_cm": [
+          5,
+          35
+        ],
+        "cu_nodes_by_al_mm": {
+          "2.5": [
+            0,
+            0.3,
+            0.9
+          ],
+          "3.1": [
+            0,
+            0.1,
+            0.2,
+            0.3,
+            0.6,
+            0.9
+          ],
+          "4.1": [
+            0,
+            0.1,
+            0.2
+          ],
+          "5.1": [
+            0
+          ]
+        }
+      },
+      "use": "event calculation for explicitly declared tungsten / Al family; h and HVL retained as descriptors"
+    },
+    "comparison": {
+      "file": "table2_comparison.csv",
+      "source_table": 2,
+      "pages": [
+        26
+      ],
+      "rows": 6,
+      "use": "archive and independent full-MC vs averaging comparison only; not mixed into Table 3 grid"
+    },
+    "mammography": {
+      "file": "table4_mammography.csv",
+      "source_table": 4,
+      "pages": [
+        33
+      ],
+      "rows": 30,
+      "qualities": 6,
+      "use": "archive only, outside interventional event provider; water not glandular dose"
+    }
+  },
+  "interpolation": {
+    "method": "piecewise multilinear in original coordinates, exact at nodes",
+    "clinical": "fixed tabulated Al family; linear, bilinear or trilinear in kVp, Cu and square side",
+    "no_interpolation_between_al_families": true,
+    "out_of_domain": "error; no clamping, nearest-neighbour fallback, or extrapolation",
+    "field_shape_default": "square_only",
+    "optional_shape_approximation": "equal_area: sqrt(width*height), explicitly requested and audited; not validated by report",
+    "hvl_only_lookup": false
+  },
+  "source_issues": [
+    "Table 3 h_original > 1 in 24 quality rows (Al=3.1, kVp=120-150): preserved and flagged; excluded from interpolation.",
+    "Table 2 printed coefficient-ratio differences reach 1.3%, despite smaller BSF differences discussed in text.",
+    "Equation 12 averaging expression is not used to generate new spectra; Eq.9 defines the total-spectrum ratio."
+  ],
+  "clinical_validation": false,
+  "files_sha256": {
+    "table1_monoenergetic.csv": "ba4828c6e343ffe3b0a2042f736521b815a5d6616522911aea081af9818bc250",
+    "table2_comparison.csv": "94ef4cd246848f712054fa59a21a90eb2c319ead0233e40d9757e89673415bd8",
+    "source_tables_layout.txt": "f78c18cc4b049fbff5d6c321536c0401bd0b6e9e005e4d79e56a48363ddc1f5c",
+    "table4_mammography.csv": "0de1a527b3e42edf7d13f6512f10f5f8c57a42fa16b10641d36c8a0a24b43538",
+    "table3_clinical.csv": "768df53da85b8d5d68750f230dd5bd52c281ca3251a39b3b5d24b5a0f7074a53"
+  }
+}

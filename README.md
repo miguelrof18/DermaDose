@@ -6,7 +6,7 @@ El codigo procede de `skindose-verifier` v0.5.3 y se ha reorganizado para trabaj
 
 ## Estado del proyecto
 
-Este software esta en fase de investigacion. Los datos incluidos son sinteticos o de demostracion, y las constantes del fichero de equipo no representan una calibracion clinica. No debe utilizarse para tomar decisiones clinicas sin validacion fisica, caracterizacion local del equipo y revision por radiofisica.
+Este software esta en fase de investigacion. Las configuraciones de demostración son sintéticas y no representan una calibración clínica; las tablas publicadas se identifican por separado con su procedencia y dominio. No debe utilizarse para tomar decisiones clinicas sin validacion fisica, caracterizacion local del equipo y revision por radiofisica.
 
 ## Estructura
 
@@ -68,4 +68,10 @@ Las mallas de demostracion incluidas en `src/skindose_verifier/data/` conservan 
 
 ## Proximos pasos tecnicos
 
-El siguiente bloque natural de trabajo es incorporar tablas publicadas para factores de retrodispersion y conversion aire-medio, con interpolacion acotada y trazabilidad bibliografica.
+Ya se incluyen las tablas del informe KS-ASF-201101-IR (Benmakhlouf et al., 2011), con interpolación acotada y procedencia por valor. El proveedor es opcional y produce dosis superficial equivalente en **agua**; la demostración histórica mantiene sus factores sintéticos.
+
+- [Informe técnico, límites físicos y resultados de verificación](docs/BENMAKHLOUF_2011.md).
+- [Configuración de investigación con factores publicados](examples/equipo_benmakhlouf_investigacion.json).
+- [Datos originales y metadatos](src/skindose_verifier/data/benmakhlouf_2011/).
+
+El proveedor rechaza extrapolaciones y combinaciones con `bsf`/`f_skin` heredados. Los factores de mesa, calibración y geometría del ejemplo siguen siendo sintéticos. La incorporación de tablas publicadas no constituye validación clínica.

@@ -1,0 +1,229 @@
+{
+  "validation_type": "numerical and physical-formalism verification; not clinical validation",
+  "cases": [
+    {
+      "kind": "clinical",
+      "query": {
+        "kvp": 50,
+        "added_cu_mm": 0,
+        "field_side_cm": 5
+      },
+      "inherent_al_mm": 3.1,
+      "independent_decimal": {
+        "k_bs": "1.204",
+        "k_f": "1.016",
+        "product": "1.223264"
+      },
+      "dermadose": {
+        "k_bs": 1.204,
+        "k_f": 1.016,
+        "product": 1.223264
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "tabulated",
+      "dose_max_absolute_error_gy": 3.469446951953614e-18,
+      "dose_points_checked": 100
+    },
+    {
+      "kind": "clinical",
+      "query": {
+        "kvp": 80,
+        "added_cu_mm": 0.1,
+        "field_side_cm": 20
+      },
+      "inherent_al_mm": 3.1,
+      "independent_decimal": {
+        "k_bs": "1.476",
+        "k_f": "1.024",
+        "product": "1.511424"
+      },
+      "dermadose": {
+        "k_bs": 1.476,
+        "k_f": 1.024,
+        "product": 1.511424
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "tabulated",
+      "dose_max_absolute_error_gy": 1.0408340855860843e-17,
+      "dose_points_checked": 1600
+    },
+    {
+      "kind": "clinical",
+      "query": {
+        "kvp": 150,
+        "added_cu_mm": 0.9,
+        "field_side_cm": 35
+      },
+      "inherent_al_mm": 3.1,
+      "independent_decimal": {
+        "k_bs": "1.592",
+        "k_f": "1.067",
+        "product": "1.698664"
+      },
+      "dermadose": {
+        "k_bs": 1.592,
+        "k_f": 1.067,
+        "product": 1.698664
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "tabulated",
+      "dose_max_absolute_error_gy": 1.0408340855860843e-17,
+      "dose_points_checked": 4900
+    },
+    {
+      "kind": "clinical",
+      "query": {
+        "kvp": 85,
+        "added_cu_mm": 0.15,
+        "field_side_cm": 15
+      },
+      "inherent_al_mm": 3.1,
+      "independent_decimal": {
+        "k_bs": "1.458625",
+        "k_f": "1.02825",
+        "product": "1.49983115625"
+      },
+      "dermadose": {
+        "k_bs": 1.458625,
+        "k_f": 1.0282499999999999,
+        "product": 1.49983115625
+      },
+      "absolute_errors": [
+        0.0,
+        2.220446049250313e-16,
+        0.0
+      ],
+      "status": "interpolated",
+      "dose_max_absolute_error_gy": 1.0408340855860843e-17,
+      "dose_points_checked": 900
+    },
+    {
+      "kind": "clinical",
+      "query": {
+        "kvp": 73,
+        "added_cu_mm": 0.24,
+        "field_side_cm": 12
+      },
+      "inherent_al_mm": 3.1,
+      "independent_decimal": {
+        "k_bs": "1.44006",
+        "k_f": "1.025584",
+        "product": "1.47690249504"
+      },
+      "dermadose": {
+        "k_bs": 1.44006,
+        "k_f": 1.025584,
+        "product": 1.47690249504
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "interpolated",
+      "dose_max_absolute_error_gy": 1.0408340855860843e-17,
+      "dose_points_checked": 576
+    },
+    {
+      "kind": "monoenergetic",
+      "query": {
+        "energy_kev": 40,
+        "field_side_cm": 10
+      },
+      "inherent_al_mm": null,
+      "independent_decimal": {
+        "k_bs": "1.403",
+        "k_f": "1.016",
+        "product": "1.425448"
+      },
+      "dermadose": {
+        "k_bs": 1.403,
+        "k_f": 1.016,
+        "product": 1.425448
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "tabulated"
+    },
+    {
+      "kind": "monoenergetic",
+      "query": {
+        "energy_kev": 42.5,
+        "field_side_cm": 15
+      },
+      "inherent_al_mm": null,
+      "independent_decimal": {
+        "k_bs": "1.4655",
+        "k_f": "1.0180",
+        "product": "1.49187900"
+      },
+      "dermadose": {
+        "k_bs": 1.4655,
+        "k_f": 1.018,
+        "product": 1.491879
+      },
+      "absolute_errors": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "interpolated"
+    }
+  ],
+  "source_table2_method_comparison": [
+    {
+      "spectrum": "a",
+      "bs_relative_difference_percent": -0.7531380753138075,
+      "f_relative_difference_percent": 0.0,
+      "product_relative_difference_percent": -0.7531380753138075
+    },
+    {
+      "spectrum": "b",
+      "bs_relative_difference_percent": -0.6065200909780136,
+      "f_relative_difference_percent": 0.6856023506366308,
+      "product_relative_difference_percent": 0.07492394365778841
+    },
+    {
+      "spectrum": "c",
+      "bs_relative_difference_percent": -0.400266844563042,
+      "f_relative_difference_percent": 0.872093023255814,
+      "product_relative_difference_percent": 0.46833547946693144
+    },
+    {
+      "spectrum": "d",
+      "bs_relative_difference_percent": -0.55286800276434,
+      "f_relative_difference_percent": 1.1639185257032008,
+      "product_relative_difference_percent": 0.6046155898320014
+    },
+    {
+      "spectrum": "e",
+      "bs_relative_difference_percent": -0.2570694087403599,
+      "f_relative_difference_percent": 0.9569377990430622,
+      "product_relative_difference_percent": 0.6974083959606893
+    },
+    {
+      "spectrum": "f",
+      "bs_relative_difference_percent": -0.6083650190114068,
+      "f_relative_difference_percent": 1.270772238514174,
+      "product_relative_difference_percent": 0.6546762857323387
+    }
+  ],
+  "max_factor_absolute_error": 2.220446049250313e-16,
+  "max_dose_absolute_error_gy": 1.0408340855860843e-17,
+  "unexplained_implementation_discrepancies": []
+}

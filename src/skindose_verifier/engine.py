@@ -85,6 +85,7 @@ def _dose(ev: IrradiationEvent, equipment: Equipment, surface: SkinSurface,
     mask = geo.visible_mask
     distance = geo.distance_mm[mask]
     components: dict[str, np.ndarray] = {}
+    surface_factor_audit = None
     kerma = float(ev.ka_r_gy) * (geo.beam.irp_distance_mm/distance)**2
     components["inverse_square"] = (geo.beam.irp_distance_mm/distance)**2
     correction = np.ones(len(distance))
@@ -119,8 +120,15 @@ def _dose(ev: IrradiationEvent, equipment: Equipment, surface: SkinSurface,
             correction[table] *= transmission
             components["table_transmission"] = transmission
         if stage == "skin_dose":
-            bsf = _factor(factors, "bsf", context)
-            fskin = _factor(factors, "f_skin", context)
+            if equipment.surface_factor_provider is not None:
+                pair = equipment.surface_factor_provider.evaluate_event(ev, geo.field_area_cm2[mask])
+                bsf, fskin = pair.k_bs, pair.k_f
+                surface_factor_audit = pair.audit
+                components["k_BS"] = bsf
+                components["k_f"] = fskin
+            else:
+                bsf = _factor(factors, "bsf", context)
+                fskin = _factor(factors, "f_skin", context)
             correction *= bsf*fskin
             components["bsf"] = bsf
             components["f_skin"] = fskin
@@ -132,6 +140,7 @@ def _dose(ev: IrradiationEvent, equipment: Equipment, surface: SkinSurface,
         "table_cells": int(np.sum(geo.table_intersection_mask)),
         "maximum_gy": float(dose[idx]),
         "maximum_location_mm": surface.points_mm[idx].tolist(),
+        "surface_factor_audit": surface_factor_audit,
         "component_ranges": {name: [float(np.min(values)), float(np.max(values))]
                              for name, values in components.items()},
     }
@@ -148,7 +157,7 @@ def uncertainty(equipment: Equipment, stage: str, events: Sequence[IrradiationEv
     for name in names:
         uncertainties = [equipment.factors_for(ev)[name].relative_standard_uncertainty
                          for ev in events if name in equipment.factors_for(ev)]
-        if any(u is None for u in uncertainties):
+        if not uncertainties or any(u is None for u in uncertainties):
             missing.append(f"incertidumbre de {name}")
         else:
             known[name] = max(uncertainties)
@@ -226,6 +235,7 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                         "irp_verification": verify_irp(ev, equipment),
                         "factor_versions": {name: f.identifier for name, f in equipment.factors_for(ev).items()}
                         if stage != "free_air" else {},
+                        "surface_factor_audit_per_sample": [x.get("surface_factor_audit") for x in subreports],
                         "factor_ranges_per_sample": [x.get("component_ranges", {}) for x in subreports]})
         maps.append(event_map)
     total = np.sum(np.stack(maps), axis=0)
@@ -263,6 +273,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "events_outside_model": [r["event_uid"] for r in reports if r["no_skin_intersection_warning"]],
         "calibration_versions": {k: f.identifier for k, f in equipment.factors.items()},
         "factor_metadata": _factor_metadata(equipment),
+        "surface_factor_dataset": equipment.surface_factor_provider.dataset.metadata
+            if equipment.surface_factor_provider is not None and stage == "skin_dose" else None,
         "configuration_version": equipment.version,
         "assumptions": ["Colimación rectangular; perfil uniforme salvo beam_profile calibrado", "Paciente rígido y centrado según configuración",
                         "Mapa calculado sobre puntos de superficie; sin transporte Monte Carlo"] + (

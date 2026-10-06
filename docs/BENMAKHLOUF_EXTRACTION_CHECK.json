@@ -1,0 +1,7 @@
+{
+  "method": "PyMuPDF rotated word coordinates, independent of Poppler",
+  "pdf_sha256": "0d8ced5181445475d8540fd296d917d020f485ef75d61303003d425312d3f896",
+  "numeric_cells_compared": 2577,
+  "factor_values_compared": 1814,
+  "discrepancies": []
+}

@@ -21,7 +21,7 @@ where = ["src"]
 include = ["skindose_verifier*"]
 
 [tool.setuptools.package-data]
-skindose_verifier = ["data/*.json", "data/*.stl", "data/*.txt", "data/*.html"]
+skindose_verifier = ["data/*.json", "data/*.stl", "data/*.txt", "data/*.html", "data/benmakhlouf_2011/*.csv", "data/benmakhlouf_2011/*.json", "data/benmakhlouf_2011/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
