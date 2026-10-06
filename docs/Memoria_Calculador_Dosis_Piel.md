@@ -1,7 +1,7 @@
 ---
 title: "Calculador independiente de dosis en piel"
 subtitle: "Memoria técnica y científica del prototipo skindose-verifier 0.5.3"
-date: "28 de septiembre de 2026"
+date: "6 de octubre de 2026"
 lang: es-ES
 documentclass: report
 classoption: [11pt, a4paper, oneside]
@@ -30,9 +30,9 @@ header-includes:
 
 Se presenta una memoria del estado implementado de `skindose-verifier` 0.5.3, un prototipo Python para reconstruir la distribución de dosis de entrada sobre una superficie de paciente a partir de eventos de irradiación contenidos en informes DICOM RDSR. El programa combina geometría de arco y mesa, proyección de un campo rectangular divergente, selección de la primera superficie interceptada y factores dosimétricos configurables. Puede trabajar con un plano, un cilindro elíptico o una malla triangular cerrada. La demostración antropomórfica utiliza exclusivamente el contorno corporal externo de un fantoma XCAT de referencia.
 
-La revisión comprende el código ejecutable, los parámetros, los modelos, la documentación de desarrollo, las pruebas y los resultados conservados. Se ha repetido la suite de 54 pruebas, se han realizado comprobaciones analíticas y se han medido convergencia, escalabilidad y memoria. En el ejemplo XCAT de dos eventos, una malla de 177 926 caras produce una PSD puntual de 0,0347763062 Gy. Al reducir la arista máxima de 10 a 5 mm, la PSD cambia un 0,0165 %, mientras que el área irradiada cambia un 0,395 %. Estas cifras cuantifican sensibilidad numérica en una anatomía y un caso determinados; no representan exactitud dosimétrica clínica.
+La revisión comprende el código ejecutable, los parámetros, los modelos, la documentación de desarrollo, las pruebas y los resultados conservados. Se ha repetido la suite histórica de 54 pruebas y, tras incorporar los factores superficiales de Benmakhlouf, se han añadido 33 casos específicos: la suite completa alcanza 87 pruebas superadas. Además, se han realizado comprobaciones analíticas y se han medido convergencia, escalabilidad y memoria. En el ejemplo XCAT de dos eventos, una malla de 177 926 caras produce una PSD puntual de 0,0347763062 Gy. Al reducir la arista máxima de 10 a 5 mm, la PSD cambia un 0,0165 %, mientras que el área irradiada cambia un 0,395 %. Estas cifras cuantifican sensibilidad numérica en una anatomía y un caso determinados; no representan exactitud dosimétrica clínica.
 
-El principal resultado es una plataforma verificable para investigación geométrica y dosimétrica, con mapas por evento, métricas ponderadas por área, propagación paramétrica y visor tridimensional autónomo. Los factores disponibles en la demostración son sintéticos, no existen medidas propias de validación y no se ha ejecutado una comparación externa con transporte Monte Carlo. Por tanto, no puede asignarse una precisión clínica al programa. La siguiente fase debe priorizar caracterización de equipo, registro anatómico, pruebas con RDSR reales y validación experimental independiente.
+El principal resultado es una plataforma verificable para investigación geométrica y dosimétrica, con mapas por evento, métricas ponderadas por área, propagación paramétrica y visor tridimensional autónomo. La demostración histórica conserva factores sintéticos para mantener reproducibilidad, pero el modo de investigación dispone además de un proveedor tabulado basado en Benmakhlouf, Fransson y Andreo (KS-ASF-201101-IR) para $k_{BS}$ y $k_f$ en agua. Esta incorporación está verificada numéricamente, pero no sustituye una caracterización del equipo: no existen medidas propias de validación y no se ha ejecutado una comparación externa del mapa completo con transporte Monte Carlo. Por tanto, no puede asignarse una precisión clínica al programa. La siguiente fase debe priorizar caracterización de equipo, registro anatómico, pruebas con RDSR reales y validación experimental independiente.
 
 **Palabras clave:** dosis en piel; radiología intervencionista; RDSR; fantoma triangular; dosis pico; verificación computacional; incertidumbre.
 
@@ -133,9 +133,16 @@ $$f_{m,a}=
 {\int \Psi(E)(\mu_{\mathrm{en}}/\rho)_a(E)\,dE}.
 \tag{3}$$
 
-Aquí $m$ representa el medio de interés y $a$ el aire. La distribución espectral utilizada debe corresponder a la definición dosimétrica del factor, incluyendo o separando de forma coherente la retrodispersión. El trabajo de Benmakhlouf et al. proporciona un fundamento para calcular factores de retrodispersión y cocientes de absorción mediante espectros y Monte Carlo; sus tablas no están incorporadas automáticamente a este proyecto [25].
+Aquí $m$ representa el medio de interés y $a$ el aire. La distribución espectral utilizada debe corresponder a la definición dosimétrica del factor, incluyendo o separando de forma coherente la retrodispersión. En la vía de investigación se ha incorporado el formalismo tabulado del informe KS-ASF-201101-IR de Benmakhlouf, Fransson y Andreo [25]. Para esa fuente se emplea la pareja coherente
 
-El código multiplica por `f_skin`, un factor suministrado por configuración. Permite etiquetar el resultado como dosis en piel o en agua mediante `dose_medium`, pero cambiar esa etiqueta no cambia materiales ni recalcula coeficientes. El usuario debe proporcionar un factor compatible con el medio elegido. En la demostración `f_skin=1,05` es una constante sintética; no procede de una caracterización del equipo ni de una integración espectral ejecutada por el programa.
+$k_{BS}=\frac{(K_{air})_{w,\mathrm{sup}}^{P+S}}{(K_{air})_{air}^{P}},\qquad
+k_f=\frac{\int E\Phi_{\mathrm{sup}}^{P+S}(E)(\mu_{en}/\rho)_w(E)\,dE}
+{\int E\Phi_{\mathrm{sup}}^{P+S}(E)(\mu_{en}/\rho)_{air}(E)\,dE},
+\tag{3a}$
+
+de modo que $K_{air,\mathrm{inc}}k_{BS}k_f$ estima el kerma superficial en agua y, bajo las aproximaciones del informe, la dosis superficial equivalente en agua. El cociente $k_f$ corresponde al espectro total primario más disperso en superficie; no es un coeficiente aislado ni una conversión genérica piel/aire.
+
+La vía histórica se conserva: `f_skin` y `bsf` pueden seguir suministrándose por configuración para reproducir los ejemplos anteriores. La vía Benmakhlouf es alternativa y exige `dose_medium="water"`; rechaza la presencia simultánea de `bsf` o `f_skin` para impedir doble contabilización. En la demostración histórica `f_skin=1,05` y `bsf=1,25` siguen siendo constantes sintéticas. En el ejemplo de investigación `examples/equipo_benmakhlouf_investigacion.json`, ambos factores proceden de las tablas publicadas y se seleccionan/interpolan dentro de su dominio.
 
 Se escoge una superficie porque el problema inicial es localizar y acumular dosis de entrada con datos RDSR, sin necesitar una anatomía volumétrica. Frente a una discretización voxelizada, reduce las incógnitas a elementos cutáneos y facilita localizar huellas y solapamientos. El coste físico es excluir dosis en profundidad, heterogeneidades y salida. Esta justificación es compatible con la arquitectura y la documentación del proyecto; no demuestra que una superficie sea suficiente para todos los usos clínicos [2–4].
 
@@ -182,7 +189,7 @@ Un factor tabulado efectivo permite representar mesa y colchoneta sin modelar su
 
 La radiación que interacciona en el paciente puede regresar hacia la superficie de entrada. Un factor de retrodispersión resume el cociente entre una magnitud con fantoma y la correspondiente magnitud en aire, bajo una convención experimental o calculada concreta. Depende de calidad, tamaño de campo, material, espesor y condiciones geométricas. El formalismo multiplicativo es útil cuando esas dependencias pueden representarse mediante datos calibrados [2, 25].
 
-El programa permite que `bsf` dependa de kVp, Cu, área perpendicular, espesor o ángulo cutáneo. No estima esas dependencias a partir de composición o transporte. Un BSF constante de 1,25 solo demuestra cómo se aplica un factor, no reproduce automáticamente los datos de una publicación. Tampoco distribuye dosis dispersa fuera de la máscara primaria; allí la contribución del evento permanece exactamente cero.
+La vía genérica permite que `bsf` dependa de kVp, Cu, área perpendicular, espesor o ángulo cutáneo. Además, el proveedor `benmakhlouf_2011` incorpora las tablas publicadas para haces clínicos de tungsteno: selecciona una familia por filtración inherente de Al y evalúa $k_{BS}$ y $k_f$ en función de kVp, Cu añadido y lado de campo. Se usa interpolación multilineal únicamente dentro de las mallas publicadas y se lanza `InputError` fuera de dominio; no hay extrapolación silenciosa. Un BSF constante de 1,25 se mantiene solo en la demostración histórica y no representa los datos de la publicación. Ninguna de las dos vías distribuye dosis dispersa fuera de la máscara primaria; allí la contribución del evento permanece exactamente cero.
 
 En la región superficial, equilibrio electrónico, profundidad efectiva de evaluación y respuesta del detector condicionan la relación entre kerma y dosis. El término *build-up* describe el establecimiento de la población de partículas cargadas y de la dosis con profundidad; no debe importarse una curva de un haz de megavoltaje a un problema de kilovoltaje. El programa no contiene una dimensión de profundidad, transporte electrónico ni una capa de piel. Su valor no puede identificarse automáticamente con dosis a 0,07 mm, con una media en 1 mm de tejido o con el resultado de un dosímetro concreto [2, 11, 20].
 
@@ -202,6 +209,16 @@ La máscara $M_e$ vale uno para puntos orientados hacia el foco, dentro del camp
 El programa distingue tres etapas. `free_air` aplica exclusivamente máscara e inverso del cuadrado. `calibrated_air` añade calibración, perfil y mesa. `skin_dose` añade retrodispersión y conversión. La etiqueta de salida cambia con la magnitud. Ejecutar `free_air` no produce dosis absorbida, aunque el resumen conserve por razones de estructura el nombre de campo `psd_point_gy`; este nombre debe leerse junto con `quantity` y `stage`.
 
 En la demostración, $CF=1$, $P=1$, $T=0,8$, $BSF=1,25$ y $f=1,05$. Cuando el rayo cruza la mesa, el producto de factores vale 1,05. La cancelación numérica entre $0,8$ y $1,25$ es una elección sintética, no una propiedad física universal. Con esas constantes, el cálculo verifica geometría y multiplicación; no demuestra respuesta energética del equipo.
+
+## Datos tabulados de Benmakhlouf et al. (2011)
+
+La implementación conserva los datos originales en `src/skindose_verifier/data/benmakhlouf_2011/`. La tabla 1 contiene 150 pares monoenergéticos (30 energías por cinco campos); la tabla 2 conserva seis espectros de comparación; la tabla 3 contiene 715 pares clínicos (143 calidades por cinco campos); y la tabla 4 conserva 30 pares de mamografía. Los CSV se acompañan de `metadata.json`, hashes, tabla y página de procedencia y una extracción textual para auditoría. La comprobación independiente comparó 2.577 celdas numéricas sin discrepancias de extracción.
+
+Para la tabla clínica, las familias de filtración inherente de aluminio se mantienen separadas. El kVp abarca 50--150 kV en pasos publicados de 10 kV; el Cu añadido depende de cada familia y los lados de campo son 5, 10, 20, 25 y 35 cm. La interpolación es lineal en cada eje disponible, por lo que puede ser lineal, bilineal o trilineal. No se interpola entre familias de aluminio. Un campo rectangular se rechaza salvo que se active explícitamente la aproximación `equal_area`, que usa el lado equivalente $\sqrt{A}$ y queda registrada como aproximación.
+
+Los valores tabulados se recuperan exactamente en los nodos. La validación independiente incluye nodos y puntos interiores; la máxima diferencia absoluta observada en factores o producto fue $2,22\times10^{-16}$ y la máxima diferencia de dosis $1,04\times10^{-17}$ Gy, compatibles con redondeo de coma flotante. Se añadieron 33 pruebas específicas que comprueban los 865 pares de las tablas 1 y 3, interpolación, dominios, rechazo de doble conteo, medio compatible, hashes y llegada de la pareja al cálculo final. La suite completa ejecutada alcanza 87 pruebas superadas.
+
+Esta incorporación no constituye validación clínica. Las tablas representan una superficie plana de agua y unas calidades y campos concretos; aplicarlas localmente sobre una malla de paciente es una aproximación. No modelan composición anatómica, hueso o pulmón, espesor real, oblicuidad, dispersión espacial fuera del campo primario ni endurecimiento espectral por mesa/colchón. El resultado de esta vía debe describirse como estimación de dosis superficial equivalente en agua.
 
 ## Dependencias tabuladas y perfil del haz
 
@@ -351,7 +368,7 @@ Los informes omiten nombre e identificador del paciente, pero conservan UIDs de 
 
 Se ejecutó la versión 0.5.3 bajo Linux y Python 3.12.14, con NumPy 2.3.5, SciPy 1.17.0, Trimesh 5.1.0, Rtree 1.4.1, pydicom 3.0.2, Plotly 6.9.0 y Matplotlib 3.10.8. El entorno virtualizado informa procesador AMD EPYC 9V74 y nueve CPU lógicas visibles. No se reserva uso exclusivo del procesador. Se fijaron `OPENBLAS_NUM_THREADS=1` y `OMP_NUM_THREADS=1` para las mediciones; los tiempos no constituyen una garantía para Windows o para el ordenador del usuario.
 
-La suite de 54 pruebas terminó sin fallos y la compilación sintáctica con `compileall` devolvió código cero. Los archivos `pytest.xml`, `pytest.txt` y `compilacion.json` conservan la evidencia. Python no necesita una compilación nativa para ejecutar este paquete; esa comprobación detecta errores de sintaxis, mientras que las pruebas ejercitan rutas de cálculo. Ninguna demuestra ausencia de todos los defectos posibles.
+La suite histórica de 54 pruebas terminó sin fallos y la compilación sintáctica con `compileall` devolvió código cero. Tras la incorporación de Benmakhlouf se añadieron 33 pruebas específicas y la suite completa alcanzó 87 pruebas superadas. Los archivos `pytest.xml`, `pytest.txt` y `compilacion.json` conservan la evidencia. Python no necesita una compilación nativa para ejecutar este paquete; esa comprobación detecta errores de sintaxis, mientras que las pruebas ejercitan rutas de cálculo. Ninguna demuestra ausencia de todos los defectos posibles.
 
 La convergencia se midió en una ejecución por resolución, con preparación incluida y métricas detalladas omitidas en malla. La escalabilidad por eventos se midió con superficie preparada, tres repeticiones y mediana, separando geometrías idénticas y ángulos distintos entre -20° y +20°. Es un benchmark controlado, no una muestra estadística de procedimientos clínicos. No deben compararse directamente sus tiempos con una ejecución completa que incluye importación, refinamiento y exportación.
 
