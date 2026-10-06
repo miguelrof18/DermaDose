@@ -1,0 +1,46 @@
+\documentclass[11pt,a4paper,oneside]{report}
+
+% Memoria técnica de DermaDose.
+% Fuente canónica: ../Memoria_Calculador_Dosis_Piel.md
+% Este archivo permite mantener una versión LaTeX compilable sin duplicar
+% manualmente ~100 kB de contenido. El paquete markdown procesa la memoria
+% actualizada, incluidas las ecuaciones LaTeX y la sección Benmakhlouf 2011.
+%
+% Compilación recomendada:
+%   lualatex --shell-escape main.tex
+% o:
+%   latexmk -lualatex -shell-escape main.tex
+
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{markdown}
+
+\setmainfont{Latin Modern Roman}
+\setmonofont{DejaVu Sans Mono}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=teal}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+\setlength{\emergencystretch}{3em}
+\sloppy
+
+\title{Calculador independiente de dosis en piel}
+\author{}
+\date{6 de octubre de 2026}
+
+\begin{document}
+
+% La portada, índice y cuerpo se generan desde la fuente Markdown actual.
+% La memoria documenta la incorporación de las tablas de Benmakhlouf,
+% Fransson y Andreo (KS-ASF-201101-IR), k_BS y k_f, su interpolación,
+% trazabilidad, controles de dominio y la suite ampliada a 87 pruebas.
+
+\markdownInput{../Memoria_Calculador_Dosis_Piel.md}
+
+\end{document}
