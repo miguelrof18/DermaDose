@@ -1,0 +1,46 @@
+{
+  "version": "DEMO-2026-09-26",
+  "manufacturer": "SIMULATED",
+  "model": "PHANTOM-ONLY",
+  "validation_status": "synthetic_self_consistency_only",
+  "dose_medium": "skin",
+  "geometry": {
+    "source_to_isocenter_mm": 700,
+    "source_to_detector_mm": 1100,
+    "source_to_irp_mm": 550,
+    "field_reference": "detector",
+    "primary_sign": 1,
+    "secondary_sign": 1,
+    "rotation_order": "primary_then_secondary",
+    "isocenter_mm": [0, 0, 0],
+    "table_coordinates": "isocenter",
+    "table_origin_mm": [0, 0, 0],
+    "table_matrix": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    "table_plane_z_mm": -125,
+    "table_half_width_mm": 300,
+    "table_half_length_mm": 600
+  },
+  "patient": {
+    "type": "plane",
+    "width_mm": 360,
+    "length_mm": 360,
+    "z_mm": -100,
+    "normal": [0, 0, -1],
+    "thickness_mm": 220,
+    "origin_on_table_mm": [0, 0, 0],
+    "resolution_mm": 5
+  },
+  "factors": {
+    "cf": {"value": 1.0, "provenance": "synthetic_not_measured", "identifier": "DEMO-CF", "relative_standard_uncertainty": null},
+    "table_normal": {"value": 0.8, "provenance": "synthetic_not_measured", "identifier": "DEMO-TAF", "relative_standard_uncertainty": null},
+    "table_angular": {"value": 1.0, "provenance": "synthetic_not_measured", "identifier": "DEMO-ANG", "relative_standard_uncertainty": null},
+    "bsf": {"value": 1.25, "provenance": "synthetic_not_measured", "identifier": "DEMO-BSF", "relative_standard_uncertainty": null},
+    "f_skin": {"value": 1.05, "provenance": "synthetic_not_measured", "identifier": "DEMO-FSKIN", "relative_standard_uncertainty": null}
+  },
+  "tube_output": {
+    "reference_distance_mm": 1000,
+    "yield_gy_per_mas": {"value": 0.0003, "provenance": "synthetic_not_measured", "identifier": "DEMO-YIELD", "relative_standard_uncertainty": null}
+  },
+  "rdsr_relative_standard_uncertainty": null,
+  "allow_uniform_sweep": false
+}

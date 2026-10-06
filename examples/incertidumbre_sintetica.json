@@ -1,0 +1,16 @@
+{
+  "provenance": "HIPOTÉTICA: demostración de propagación, sin medidas de un equipo real",
+  "method": "lhs",
+  "samples": 64,
+  "seed": 20260928,
+  "threshold_gy": 0.02,
+  "parameters": {
+    "patient_x_mm": {"distribution": "normal", "standard_deviation": 3.0},
+    "patient_y_mm": {"distribution": "normal", "standard_deviation": 3.0},
+    "patient_z_mm": {"distribution": "normal", "standard_deviation": 3.0},
+    "primary_deg": {"distribution": "normal", "standard_deviation": 0.5},
+    "secondary_deg": {"distribution": "normal", "standard_deviation": 0.5},
+    "ka_scale": {"distribution": "lognormal", "mean": 1.0, "standard_deviation": 0.05},
+    "bsf_scale": {"distribution": "lognormal", "mean": 1.0, "standard_deviation": 0.03}
+  }
+}

@@ -1,0 +1,38 @@
+# Entornos y caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Builds
+build/
+dist/
+*.egg-info/
+
+# Resultados generados
+results/
+research_results/
+demo_output/
+demo_*/
+salida/
+*.npz
+*.dcm
+*.html
+!src/skindose_verifier/data/visor_3d_template.html
+*.png
+*.log
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# LaTeX temporal
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
