@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
+from dataclasses import replace
 from hashlib import sha256
 from importlib.resources import files
 import json
@@ -25,19 +27,82 @@ from .benchmark import benchmark_calculation
 from .mesh_processing import mesh_quality
 from .patient import sample_patient
 import numpy as np
+from scipy.spatial import cKDTree
 
 
 def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
     equipment = Equipment.load(config)
     report = read_rdsr(rdsr)
-    equipment.require_matching_device(report.manufacturer, report.model)
-    calculation = calculate(report.events, equipment, stage)
+    events = report.events
+    synthetic_override = False
+    try:
+        equipment.require_matching_device(report.manufacturer, report.model)
+    except InputError:
+        synthetic_override = True
+        if equipment.surface_factor_provider is not None:
+            equipment.surface_factor_provider.spec["field_shape_policy"] = "equal_area"
+        # One configured apparatus profile: retain event kerma, angles and beam
+        # quality; use configured geometry where the foreign RDSR frame cannot
+        # be mapped. Record every assumption in the event and global audit.
+        converted = []
+        for event in events:
+            geometry = equipment.geometry_for(event.plane)
+            quality = {**event.quality,
+                       "table_mm": "assumed_fixed_from_configuration",
+                       "sid_mm": "assumed_from_configuration",
+                       "sod_mm": "assumed_from_configuration",
+                       "srp_mm": "assumed_from_configuration",
+                       "synthetic_profile_spectrum": "additional_al_not_modeled"}
+            field_width = event.field_width_mm
+            field_height = event.field_height_mm
+            shutter = event.original.get("philips_shutters_mm_at_1000_mm", {})
+            if field_width is None and field_height is None and set(shutter) == {"left", "right", "top", "bottom"}:
+                scale = float(geometry["source_to_detector_mm"]) / 1000.0
+                field_width = (shutter["left"] + shutter["right"]) * scale
+                field_height = (shutter["top"] + shutter["bottom"]) * scale
+                quality["field_size"] = "philips_shutters_scaled_from_1000_mm_to_configured_detector"
+            converted.append(replace(event, table_mm=tuple(geometry["table_origin_mm"]),
+                table_system=geometry["table_coordinates"],
+                sid_mm=float(geometry["source_to_detector_mm"]),
+                sod_mm=float(geometry["source_to_isocenter_mm"]),
+                srp_mm=float(geometry["source_to_irp_mm"]),
+                field_width_mm=field_width, field_height_mm=field_height, quality=quality))
+        events = tuple(converted)
+    factor_source = "configured"
+    fallback_reason = None
+    try:
+        calculation = calculate(events, equipment, stage)
+    except InputError as exc:
+        if (stage != "skin_dose" or equipment.raw.get("surface_factors", {}).get("provider") != "benmakhlouf_2011"
+                or "fuera del dominio" not in str(exc)):
+            raise
+        # A whole-run switch avoids mixing published and synthetic factors.
+        # The source RDSR and the user's equipment JSON remain unchanged.
+        synthetic = json.loads(files("skindose_verifier").joinpath(
+            "data/equipo_sintetico.json").read_text(encoding="utf-8"))["factors"]
+        replacement = deepcopy(equipment.raw)
+        replacement.pop("surface_factors", None)
+        replacement["factors"]["bsf"] = synthetic["bsf"]
+        replacement["factors"]["f_skin"] = synthetic["f_skin"]
+        equipment = Equipment.from_dict(replacement)
+        calculation = calculate(events, equipment, stage)
+        factor_source = "historical_synthetic_whole_run"
+        fallback_reason = str(exc)
+        calculation.summary["status"] = "research_synthetic_factors_out_of_domain_no_clinical_use"
+    calculation.summary["factor_source"] = factor_source
     audit = {"software_version": __version__, "rdsr_sha256": report.sha256,
              "config_sha256": sha256(config.read_bytes()).hexdigest(),
              "mesh_sha256": sha256(Path(equipment.patient["mesh_path"]).read_bytes()).hexdigest()
              if equipment.patient["type"] == "mesh" else None,
              "configuration_version": equipment.version,
              "validation_status": equipment.raw.get("validation_status", "not_reported"),
+             "synthetic_equipment_profile_used_for_different_rdsr_device": synthetic_override,
+             "effective_factor_source": factor_source,
+             "factor_fallback_reason": fallback_reason,
+             "rdsr_device": {"manufacturer": report.manufacturer, "model": report.model},
+             "configuration_device": {"manufacturer": equipment.raw["manufacturer"],
+                                      "model": equipment.raw["model"]},
+             "phantom": equipment.patient.get("phantom_name", "XCAT50"),
              "accumulated_ka_r_gy": report.accumulated_ka_r_gy,
              "accumulated_kap_gy_m2": report.accumulated_kap_gy_m2,
              "rdsr_warnings": report.warnings, "runtime": runtime_provenance()}
@@ -45,6 +110,44 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
             "quantity": calculation.summary["quantity"],
             "psd_point_gy": calculation.summary["psd_point_gy"],
             "status": calculation.summary["status"]}
+
+
+def compare_phantoms(rdsr: Path, xcat_config: Path, alternative_config: Path,
+                     stage: str, destination: Path) -> dict:
+    """Run one RDSR on two phantom profiles and write an anatomy comparison."""
+    destination.mkdir(parents=True, exist_ok=True)
+    xcat = run(rdsr, xcat_config, stage, destination / "XCAT50")
+    alt = run(rdsr, alternative_config, stage, destination / "alternative")
+    xj = json.loads(Path(xcat["files"]["summary"]).read_text(encoding="utf-8"))
+    aj = json.loads(Path(alt["files"]["summary"]).read_text(encoding="utf-8"))
+    xpsd = float(xj["psd_point_gy"])
+    apsd = float(aj["psd_point_gy"])
+    relative = None if xpsd == 0 else (apsd - xpsd) / xpsd * 100.0
+    def metrics(summary):
+        m = summary["surface_metrics"]["irradiated_surface"]
+        return {"psd_gy": summary["psd_point_gy"], "dmean_gy": m["dmean_gy"],
+                "dmax_gy": m["dmax_gy"], "d2_percent_gy": m["d2_percent_gy"],
+                "d5_percent_gy": m["d5_percent_gy"], "d10_percent_gy": m["d10_percent_gy"],
+                "irradiated_area_cm2": m["area_cm2"],
+                "dose_area_integral_gy_cm2": summary["surface_metrics"]["dose_area_integral_gy_cm2"],
+                "event_count": summary["event_count"]}
+    comparison = {"baseline": "XCAT50", "alternative": json.loads(alternative_config.read_text(encoding="utf-8")).get("phantom", {}).get("name", "alternative"),
+                  "stage": stage, "xcat50": metrics(xj), "alternative": metrics(aj),
+                  "relative_psd_difference_percent": relative,
+                  "algorithm_constant": "same RDSR, factors, geometry and interpolation; only patient mesh/profile changes"}
+    xn = np.load(xcat["files"]["numeric_map"]); an = np.load(alt["files"]["numeric_map"])
+    xp, ap = xn["patient_points_mm"], an["patient_points_mm"]
+    xd, ad = xn["dose_gy"].ravel(), an["dose_gy"].ravel()
+    tree = cKDTree(xp); dist, idx = tree.query(ap)
+    comparison["spatial_difference_on_alternative_points"] = {
+        "nearest_xcat_distance_mm_mean": float(np.mean(dist)),
+        "nearest_xcat_distance_mm_max": float(np.max(dist)),
+        "dose_difference_gy_mean": float(np.mean(ad - xd[idx])),
+        "dose_difference_gy_rms": float(np.sqrt(np.mean((ad - xd[idx]) ** 2))),
+        "note": "nearest-surface comparison; meshes are not pointwise identical"}
+    (destination / "comparacion_fantomas.json").write_text(
+        json.dumps(comparison, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
+    return comparison
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,6 +173,12 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--config", type=Path, required=True)
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--stage", choices=["free_air", "calibrated_air", "skin_dose"], default="free_air")
+    pc = sub.add_parser("compare-phantoms", help="Ejecutar el mismo RDSR en XCAT50 y otro fantoma")
+    pc.add_argument("rdsr", type=Path)
+    pc.add_argument("--xcat-config", type=Path, required=True)
+    pc.add_argument("--alternative-config", type=Path, required=True)
+    pc.add_argument("--out", type=Path, required=True)
+    pc.add_argument("--stage", choices=["free_air", "calibrated_air", "skin_dose"], default="skin_dose")
     q = sub.add_parser("convergence", help="Comprobar sensibilidad de PSD al paso de la malla")
     q.add_argument("rdsr", type=Path)
     q.add_argument("--config", type=Path, required=True)
@@ -158,6 +267,9 @@ def main(argv: list[str] | None = None) -> int:
             output = run(rdsr, config, args.stage, args.out)
         elif args.command == "run":
             output = run(args.rdsr, args.config, args.stage, args.out)
+        elif args.command == "compare-phantoms":
+            output = compare_phantoms(args.rdsr, args.xcat_config, args.alternative_config,
+                                      args.stage, args.out)
         elif args.command == "convergence":
             equipment = Equipment.load(args.config)
             report = read_rdsr(args.rdsr)

@@ -7,8 +7,10 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pydicom
 import pytest
 
+from skindose_verifier.cli import run
 from skindose_verifier.config import Equipment
 from skindose_verifier.domain import InputError
 from skindose_verifier.engine import calculate
@@ -111,6 +113,36 @@ def test_water_medium_and_no_double_counting_including_modes(setup):
             block=wrong.setdefault('factors_by_mode',{}).setdefault('fluoro',{}) if mode else wrong['factors']
             block[name]={'value':1.1,'identifier':'legacy','provenance':'test'}
             with pytest.raises(InputError,match='doble conteo'): Equipment.from_dict(wrong)
+
+
+def test_added_aluminium_from_rdsr_is_not_silently_folded_into_inherent_al(setup):
+    cfg, events = setup
+    event = replace(events[0], original={**events[0].original, 'filter_stack': [
+        {'material_scheme': 'SRT', 'material_code': 'C-120F9', 'selected_mm': 1.0}
+    ]})
+    provider = Equipment.from_dict(cfg).surface_factor_provider
+    with pytest.raises(InputError, match='filtración adicional de Al'):
+        provider.evaluate_event(event, np.asarray([100.0]))
+
+
+def test_out_of_domain_uses_whole_run_historical_synthetic_factors(tmp_path):
+    config = tmp_path / 'benmakhlouf.json'
+    config.write_text((ROOT/'examples/equipo_benmakhlouf_investigacion.json').read_text(encoding='utf-8'),
+                      encoding='utf-8')
+    rdsr = make_synthetic_rdsr(tmp_path / 'small_field.dcm')
+    ds = pydicom.dcmread(rdsr)
+    for event in ds.ContentSequence[0].ContentSequence[:2]:
+        for node in event.ContentSequence:
+            if node.ConceptNameCodeSequence[0].CodeValue in {'113789', '113788'}:
+                node.MeasuredValueSequence[0].NumericValue = '20'
+    ds.save_as(rdsr, enforce_file_format=True)
+    result = run(rdsr, config, 'skin_dose', tmp_path / 'result')
+    summary = json.loads(Path(result['files']['summary']).read_text(encoding='utf-8'))
+    assert summary['status'] == 'research_synthetic_factors_out_of_domain_no_clinical_use'
+    assert summary['audit']['effective_factor_source'] == 'historical_synthetic_whole_run'
+    assert summary['audit']['factor_fallback_reason'] is not None
+    assert summary['factor_metadata']['default']['bsf']['value'] == 1.25
+    assert summary['factor_metadata']['default']['f_skin']['value'] == 1.05
 
 
 @pytest.mark.parametrize('kvp,cu,side,bs,f',[(80,.1,20,1.476,1.024),(50,0,5,1.204,1.016),

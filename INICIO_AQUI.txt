@@ -1,0 +1,1 @@
+Lee LEEME_PRIMERO.txt para empezar, README.md para los comandos y CONTRIBUTING.md para trabajar con GitHub.

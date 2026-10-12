@@ -18,7 +18,7 @@ from skindose_verifier.synthetic import make_synthetic_rdsr
 from skindose_verifier.surface_factors import benmakhlouf_2011
 
 ROOT=Path(__file__).resolve().parents[1]
-DATA=ROOT/'src/skindose_verifier/data/benmakhlouf_2011'
+DATA=ROOT/'skindose_verifier/data/benmakhlouf_2011'
 
 
 def independent(rows, query):

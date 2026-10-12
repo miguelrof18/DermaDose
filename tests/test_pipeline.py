@@ -18,7 +18,7 @@ from skindose_verifier.geometry import beam_from_event, event_slices, project
 from skindose_verifier.patient import sample_patient
 from skindose_verifier.rdsr import find_rdsr, read_rdsr
 from skindose_verifier.sensitivity import position_sensitivity
-from skindose_verifier.synthetic import make_synthetic_rdsr
+from skindose_verifier.synthetic import coded, item, make_synthetic_rdsr
 from skindose_verifier.validation import compare_with_radimetrics, validate_measurements, validate_map
 
 
@@ -50,6 +50,49 @@ def test_rdsr_event_vs_study_totals_and_units(case):
     assert parsed.events[0].filtration_mm_cu == .2
     assert parsed.events[0].original["ka_r_gy"][0]["unit"] == "Gy"
     assert parsed.events[0].table_system == "isocenter"
+
+
+def test_mixed_filter_stack_keeps_copper_separate_from_aluminium(case):
+    ds = pydicom.dcmread(case[0])
+    event = ds.ContentSequence[0].ContentSequence[0]
+    copper = next(n for n in event.ContentSequence if n.ConceptNameCodeSequence[0].CodeValue == "113771")
+    copper.ContentSequence.append(item("NUM", "113773", "X-Ray Filter Thickness Maximum", value=.4, unit="mm"))
+    aluminium = item("CONTAINER", "113771", "X-Ray Filters")
+    aluminium.ContentSequence.extend([
+        item("CODE", "113757", "X-Ray Filter Material",
+             value_code=coded("C-120F9", "Aluminum or Aluminum compound", "SRT")),
+        item("NUM", "113758", "X-Ray Filter Thickness Minimum", value=1, unit="mm"),
+        item("NUM", "113773", "X-Ray Filter Thickness Maximum", value=1, unit="mm"),
+    ])
+    event.ContentSequence.append(aluminium)
+    ds.save_as(case[0], enforce_file_format=True)
+    parsed = read_rdsr(case[0]).events[0]
+    assert parsed.filtration_mm_cu == pytest.approx(.3)
+    assert parsed.quality["filtration_mm_cu"] == "copper_with_aluminium"
+    assert len(parsed.original["filter_stack"]) == 2
+    assert parsed.original["filter_stack"][1]["selected_mm"] == 1
+
+
+def test_aluminium_only_is_not_treated_as_copper(case):
+    ds = pydicom.dcmread(case[0])
+    event = ds.ContentSequence[0].ContentSequence[0]
+    copper = next(n for n in event.ContentSequence if n.ConceptNameCodeSequence[0].CodeValue == "113771")
+    copper.ContentSequence[0].ConceptCodeSequence[0] = coded("C-120F9", "Aluminum", "SRT")
+    ds.save_as(case[0], enforce_file_format=True)
+    parsed = read_rdsr(case[0]).events[0]
+    assert parsed.filtration_mm_cu is None
+    assert parsed.quality["filtration_mm_cu"] == "no_copper_filter"
+
+
+def test_run_uses_configured_single_apparatus_profile_on_device_mismatch(case, tmp_path):
+    data = deepcopy(case[2].raw)
+    data["manufacturer"], data["model"] = "Other", "One profile"
+    config = tmp_path / "one_profile.json"
+    config.write_text(json.dumps(data), encoding="utf-8")
+    files = run(case[0], config, "free_air", tmp_path / "single_profile")["files"]
+    summary = json.loads(__import__("pathlib").Path(files["summary"]).read_text(encoding="utf-8"))
+    assert summary["audit"]["synthetic_equipment_profile_used_for_different_rdsr_device"] is True
+    assert summary["events"][0]["status"]["table_mm"] == "assumed_fixed_from_configuration"
 
 
 def test_find_rdsr_in_dicom_folder_and_reports_non_rdsr(case, tmp_path):
@@ -141,6 +184,19 @@ def test_duplicate_uid_and_wrong_device_rejected(case):
         read_rdsr(case[0])
     with pytest.raises(InputError, match="no coincide"):
         case[2].require_matching_device("Other", "Other")
+
+
+def test_phantom_profile_selects_alternative_mesh(case, tmp_path):
+    data = deepcopy(case[2].raw)
+    mesh = files("skindose_verifier").joinpath("data", "xcat_wholebody_body.stl")
+    data["phantom"] = {"name": "ICRP_AF", "mesh_path": str(mesh),
+                       "mesh_unit": "mm", "mesh_axes_matrix": [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
+                       "mesh_origin_mm": [0, -500, 40], "thickness_mm": 220, "resolution_mm": 5}
+    path = tmp_path / "icrp_af.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    selected = Equipment.load(path)
+    assert selected.patient["phantom_name"] == "ICRP_AF"
+    assert selected.patient["type"] == "mesh"
 
 
 def test_biplane_requires_characterized_plane_and_keeps_separate_events(case, tmp_path):
@@ -485,11 +541,14 @@ def test_mesh_demo_packages_3d_faces_and_mesh_hash(case, tmp_path):
 
     html = (tmp_path/"demo/mapa_3d_interactivo.html").read_text(encoding="utf-8")
     assert "<script src=" not in html and "Planos de corte móviles" in html
+    assert "Mostrar curvas de isodosis" in html
+    assert "function contourSegments(" in html and "Plotly.addTraces(graph,traces)" in html
     parser = JsonExtractor()
     parser.feed(html)
     viewer = json.loads(parser.payload)
     assert len(viewer["faces"]) == 12148
     assert len(viewer["doses"]) == 3
+    assert len(viewer["modes"]) == 3
     assert max(viewer["doses"][0]) == pytest.approx(result["psd_point_gy"], abs=1e-11)
     equipment = Equipment.load(directory/"equipo_sintetico.json")
     surface = sample_patient(equipment.patient)

@@ -99,6 +99,17 @@ class Equipment:
         """Validate a complete configuration, also used for uncertainty draws."""
         from copy import deepcopy
         data = deepcopy(data)
+        phantom = data.get("phantom")
+        if phantom is not None:
+            if not isinstance(phantom, dict) or phantom.get("name") not in ("XCAT50", "ICRP_AM", "ICRP_AF"):
+                raise InputError("phantom.name debe ser XCAT50, ICRP_AM o ICRP_AF.")
+            if phantom.get("name") != "XCAT50":
+                if not phantom.get("mesh_path"):
+                    raise InputError(f"El fantoma {phantom['name']} requiere phantom.mesh_path.")
+                data["patient"] = {**data.get("patient", {}), "type": "mesh",
+                                    "mesh_path": phantom["mesh_path"],
+                                    **{k: v for k, v in phantom.items() if k != "name"}}
+            data.setdefault("patient", {})["phantom_name"] = phantom.get("name", "XCAT50")
         for key in ("version", "manufacturer", "model", "geometry", "patient", "factors"):
             if key not in data:
                 raise InputError(f"Configuración: falta {key}.")
@@ -193,7 +204,12 @@ class Equipment:
         if (manufacturer.casefold().strip(), model.casefold().strip()) != (
             str(self.raw["manufacturer"]).casefold().strip(), str(self.raw["model"]).casefold().strip()
         ):
-            raise InputError("El fabricante/modelo del RDSR no coincide con la configuración.")
+            raise InputError(
+                "RDSR leído, pero el fabricante/modelo no coincide con la configuración: "
+                f"RDSR={manufacturer!r}/{model!r}; "
+                f"configuración={self.raw['manufacturer']!r}/{self.raw['model']!r}. "
+                "Se necesita una configuración de geometría y calibración para el equipo del RDSR."
+            )
 
     def validate_event(self, ev: IrradiationEvent, stage: str) -> None:
         fields = ("ka_r_gy", "primary_deg", "secondary_deg", "table_mm", "sid_mm",

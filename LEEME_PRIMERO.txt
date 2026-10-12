@@ -1,0 +1,12 @@
+DERMADOSE
+Abre esta carpeta en VS Code.
+
+1. EJECUTAR_DEMO.bat prepara el entorno y genera la demo XCAT.
+2. EJECUTAR_EJEMPLO.bat lee ..\ejemplos rdsr\ejemploXX.
+   Deja un DICOM y un JSON. Resultados en ejemploXX\resultados.
+3. EJECUTAR_INVESTIGACION.bat reproduce el estudio completo.
+4. VER_MAPA_XCAT.bat abre un mapa generado.
+
+Configuraciones en config; recursos en skindose_verifier\data.
+Si mueves un JSON, adapta su mesh_path.
+README.md contiene comandos; CONTRIBUTING.md explica GitHub.

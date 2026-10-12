@@ -1,77 +1,82 @@
 # DermaDose
 
-DermaDose es un prototipo de investigacion en Python para estimar y verificar mapas de dosis de entrada en piel en procedimientos intervencionistas a partir de eventos DICOM RDSR. El programa reconstruye la geometria del arco, proyecta el campo de radiacion sobre una superficie de paciente o fantoma, acumula contribuciones por evento y genera resultados trazables con mapas 2D, visualizacion 3D y archivos JSON/NPZ.
+Calculador de mapas de dosis superficial a partir de informes DICOM RDSR. Versión local incorporada en octubre de 2026: XCAT50, factores históricos o Benmakhlouf, lector ampliado, visor 3D con isodosis y ray tracing optimizado.
 
-El codigo procede de `skindose-verifier` v0.5.3 y se ha reorganizado para trabajar como repositorio GitHub mantenible.
+## Instalar y ejecutar
 
-## Estado del proyecto
-
-Este software esta en fase de investigacion. Las configuraciones de demostración son sintéticas y no representan una calibración clínica; las tablas publicadas se identifican por separado con su procedencia y dominio. No debe utilizarse para tomar decisiones clinicas sin validacion fisica, caracterizacion local del equipo y revision por radiofisica.
-
-## Estructura
-
-```text
-DermaDose/
-  src/skindose_verifier/      Codigo fuente del paquete Python
-  examples/                   Plantillas y entradas sinteticas
-  tests/                      Pruebas automaticas
-  scripts/                    Utilidades de reproduccion y medicion
-  scripts/windows/            Lanzadores .bat heredados
-  docs/                       Memoria, auditoria tecnica, validacion y roadmap
-  pyproject.toml              Configuracion del paquete instalable
-  requirements.txt            Dependencias principales
-```
-
-Los resultados pesados generados en versiones previas no se han incluido en el commit inicial para mantener el repositorio limpio. Pueden regenerarse con los comandos del paquete.
-
-## Instalacion rapida
-
-En Windows PowerShell:
+Necesitas Python 3.10 o posterior. Las comprobaciones automáticas usan Python 3.11.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[test]"
+.\.venv\Scripts\python.exe -m skindose_verifier demo --model mesh --out resultados\demo_mesh --stage skin_dose
+```
+
+En Windows puedes usar los lanzadores con doble clic:
+- `EJECUTAR_DEMO.bat`: prepara el entorno, ejecuta las pruebas y genera demos.
+- `EJECUTAR_INVESTIGACION.bat`: reproduce el estudio completo (tarda más).
+- `VER_MAPA_XCAT.bat`: abre el mapa ya generado de investigación o demo.
+- `EJECUTAR_EJEMPLO.bat`: ejecuta un ejemplo externo.
+
+En Linux/macOS usa `python3 -m venv .venv` y `.venv/bin/python` en los comandos equivalentes.
+
+## Ejemplos externos
+
+El lanzador busca una carpeta hermana del repositorio:
+
+```text
+Calculador_Dosis_Piel_Proyecto_v0.5.3/
+  DermaDose/
+  ejemplos rdsr/
+    ejemplo01/
+      nombre_del_equipo.dcm
+      config.json
+      resultados/
+```
+
+Actualmente selecciona el primer `.dcm` y el primer `.json` de la carpeta. Mantén un único archivo de cada tipo para evitar ambigüedad. Las salidas quedan en `ejemploXX/resultados/` y se actualizan al repetir la ejecución.
+
+Para seleccionar archivos explícitamente:
+
+```powershell
+.\.venv\Scripts\python.exe -m skindose_verifier run "ruta\estudio.dcm" --config "ruta\equipo.json" --out "ruta\resultados" --stage skin_dose
+```
+
+Las rutas del JSON se interpretan desde su carpeta. Al copiarlo junto al RDSR, adapta `patient.mesh_path`. Desde `ejemplos rdsr/ejemplo01/` sería `../../DermaDose/skindose_verifier/data/xcat_wholebody_body.stl` para esta copia del programa.
+
+## Configuraciones
+
+- `config/equipo_xcat_sintetico_historico.json`: XCAT50 y factores constantes sintéticos.
+- `config/equipo_xcat_benmakhlouf_investigacion.json`: XCAT50 y proveedor Benmakhlouf.
+- [Guía de campos JSON](documentacion/GUIA_CONFIGURACION_JSON.md). Para la política concreta de compatibilidad/fallback prevalecen el código y la auditoría de la ejecución.
+
+Las configuraciones incluyen geometría y calibraciones sintéticas. El software es un prototipo de investigación sin validación clínica.
+
+## Estructura
+
+```text
+skindose_verifier/  Código principal
+  data/            Mallas, licencias, plantilla HTML y tablas SHA-256
+config/            Configuraciones reutilizables
+examples/          Plantillas de referencia
+scripts/           Validación y estudios
+tests/             Pruebas automáticas
+documentacion/     Documentación de la versión local
+docs/              Memoria y documentación anterior conservadas
+.github/workflows/ Comprobaciones Windows y Linux
+```
+
+Los entornos, DICOM de estudios, resultados, archivos ICRP, respaldos y datos voluminosos permanecen locales. Los recursos necesarios y redistribuibles de la antigua carpeta `datos/` están en `skindose_verifier/data/`.
+
+## Desarrollo
+
+```powershell
 .\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m skindose_verifier demo --out demo_output --stage skin_dose
+.\.venv\Scripts\python.exe scripts\validate_benmakhlouf.py
 ```
 
-En Linux o macOS:
+Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para trabajar con ramas y pull requests. La etiqueta `respaldo-antes-importacion-20261012` conserva la versión anterior de GitHub. El paquete mantiene la versión 0.5.3 y cada commit identifica los cambios.
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[test]"
-.venv/bin/python -m pytest
-.venv/bin/python -m skindose_verifier demo --out demo_output --stage skin_dose
-```
+## Procedencia
 
-Tambien queda instalado el comando `dermadose`, equivalente al comando historico `skindose`.
-
-## Comandos utiles
-
-```bash
-python -m skindose_verifier inspect archivo_anonimizado.dcm
-python -m skindose_verifier demo --out demo_elipse --model ellipse --stage skin_dose
-python -m skindose_verifier demo --out demo_mesh --model mesh --stage skin_dose
-python -m skindose_verifier run archivo_anonimizado.dcm --config equipo_validado.json --out salida --stage skin_dose
-python -m skindose_verifier convergence archivo_anonimizado.dcm --config equipo_validado.json --stage skin_dose --resolutions 10,5,2.5
-```
-
-La documentacion tecnica completa esta en `docs/README_original_v0.5.3.md`, junto con la memoria cientifica y los documentos de validacion y roadmap.
-
-## Licencias y procedencia de assets
-
-Las mallas de demostracion incluidas en `src/skindose_verifier/data/` conservan sus notas de licencia en:
-
-- `src/skindose_verifier/data/XCAT_LICENSE.txt`
-- `src/skindose_verifier/data/PYSKINDOSE_LICENSE.txt`
-- `docs/ASSET_ORIGEN.md`
-
-## Proximos pasos tecnicos
-
-Ya se incluyen las tablas del informe KS-ASF-201101-IR (Benmakhlouf et al., 2011), con interpolación acotada y procedencia por valor. El proveedor es opcional y produce dosis superficial equivalente en **agua**; la demostración histórica mantiene sus factores sintéticos.
-
-- [Informe técnico, límites físicos y resultados de verificación](docs/BENMAKHLOUF_2011.md).
-- [Configuración de investigación con factores publicados](examples/equipo_benmakhlouf_investigacion.json).
-- [Datos originales y metadatos](src/skindose_verifier/data/benmakhlouf_2011/).
-
-El proveedor rechaza extrapolaciones y combinaciones con `bsf`/`f_skin` heredados. Los factores de mesa, calibración y geometría del ejemplo siguen siendo sintéticos. La incorporación de tablas publicadas no constituye validación clínica.
+Se conservan [licencia XCAT](skindose_verifier/data/XCAT_LICENSE.txt), [licencia PySkinDose](skindose_verifier/data/PYSKINDOSE_LICENSE.txt) y [procedencia de mallas](documentacion/ASSET_ORIGEN.md). Las tablas conservan los bytes y hashes de la copia local verificada. No se añade una licencia general nueva al código.

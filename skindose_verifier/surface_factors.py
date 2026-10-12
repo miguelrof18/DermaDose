@@ -102,6 +102,13 @@ class EventSurfaceFactors:
             raise InputError('Declarar allow_water_phantom_approximation=true para trasladar el fantoma al mapa.')
 
     def evaluate_event(self, event, field_area_cm2):
+        added_al = [part for part in event.original.get('filter_stack', [])
+                    if (part['material_scheme'], part['material_code']) == ('SRT', 'C-120F9')
+                    and part['selected_mm'] > 0]
+        synthetic_spectrum = event.quality.get('synthetic_profile_spectrum') == 'additional_al_not_modeled'
+        if added_al and not synthetic_spectrum:
+            raise InputError(f'Evento {event.uid}: el RDSR declara filtración adicional de Al; '
+                             'no se puede equiparar a la familia de Al inherente de Benmakhlouf.')
         square = math.isclose(event.field_width_mm, event.field_height_mm, rel_tol=1e-9, abs_tol=1e-9)
         policy = self.spec.get('field_shape_policy', 'square_only')
         if not square and policy == 'square_only':
@@ -114,7 +121,9 @@ class EventSurfaceFactors:
         return FactorPair(result.k_bs, result.k_f, {**result.audit,
             'event_uid':event.uid, 'configuration':self.spec,
             'field_mapping':'square_side_at_local_axial_depth' if square else 'equal_area_square_at_local_axial_depth',
-            'approximations':[
+            'approximations':([
+                'RDSR additional aluminium not modeled by the configured synthetic equipment profile; spectral quality not reconstructed.'
+            ] if added_al and synthetic_spectrum else []) + [
                 'Water phantom central-axis factors applied locally to patient surface; no anatomical transport.',
                 'Normal-incidence tables reused without an obliquity correction or field-edge scatter model.',
                 '100 cm FSD reference reused at modeled distance; inverse-square correction remains separate.',

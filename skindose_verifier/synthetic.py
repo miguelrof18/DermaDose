@@ -40,7 +40,8 @@ def item(value_type: str, code: str, name: str, *, value=None, unit: str | None 
 
 
 def make_synthetic_rdsr(path: str | Path, *, two_events: bool = True,
-                        omit: str | None = None, biplane: bool = False) -> Path:
+                        omit: str | None = None, biplane: bool = False,
+                        event_count: int | None = None) -> Path:
     """Fully fictional fixture; a self-consistency check, never clinical validation."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,11 +60,13 @@ def make_synthetic_rdsr(path: str | Path, *, two_events: bool = True,
     root = item("CONTAINER", "113701", "X-Ray Radiation Dose Report")
     del root.RelationshipType
     ds.ContentSequence = Sequence([root])
-    n = 2 if two_events else 1
+    n = int(event_count) if event_count is not None else (2 if two_events else 1)
+    if n < 1:
+        raise ValueError("event_count debe ser positivo")
     for idx in range(n):
         ev = item("CONTAINER", "113706", "Irradiation Event X-Ray Data")
         root.ContentSequence.append(ev)
-        plane = "113621" if (idx == 1 and biplane) else "113620" if biplane else "113622"
+        plane = ("113621" if idx % 2 else "113620") if biplane else "113622"
         ev.ContentSequence.extend([
             item("CODE", "113764", "Acquisition Plane", value_code=coded(plane, "Plane")),
             item("UIDREF", "113769", "Irradiation Event UID", value=ROOT_UID+f".10.{idx+1}"),
@@ -76,8 +79,8 @@ def make_synthetic_rdsr(path: str | Path, *, two_events: bool = True,
             ("122130", "Dose Area Product", .00019834710744, "Gy.m2"),
             ("113733", "KVP", 80, "kV"),
             ("113736", "Exposure", 20000, "uA.s"),
-            ("112011", "Positioner Primary Angle", 0 if idx == 0 else 10, "deg"),
-            ("112012", "Positioner Secondary Angle", 0, "deg"),
+            ("112011", "Positioner Primary Angle", [0, 10, -20, 35, -45][idx % 5], "deg"),
+            ("112012", "Positioner Secondary Angle", [0, 0, 15, -10, 20][idx % 5], "deg"),
             ("113750", "Distance Source to Detector", 1100, "mm"),
             ("113748", "Distance Source to Isocenter", 700, "mm"),
             ("113737", "Distance Source to Reference Point", 550, "mm"),

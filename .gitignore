@@ -21,7 +21,7 @@ salida/
 *.npz
 *.dcm
 *.html
-!src/skindose_verifier/data/visor_3d_template.html
+!skindose_verifier/data/visor_3d_template.html
 *.png
 *.log
 
@@ -36,3 +36,17 @@ Thumbs.db
 *.fdb_latexmk
 *.fls
 *.synctex.gz
+
+# Archivos locales, respaldos y datos de estudios
+resultados/
+archivo_legacy/
+datos/
+.env
+.env.*
+*.pem
+*.key
+*.bak*
+.coverage
+htmlcov/
+*.zip
+*.pdf

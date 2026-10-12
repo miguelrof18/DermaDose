@@ -11,7 +11,7 @@ import sys
 import fitz
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT/'src/skindose_verifier/data/benmakhlouf_2011'
+DATA = ROOT/'skindose_verifier/data/benmakhlouf_2011'
 
 
 def check(pdf):

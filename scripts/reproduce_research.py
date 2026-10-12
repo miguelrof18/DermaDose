@@ -43,10 +43,10 @@ def run():
     args = parser.parse_args()
     if not args.skip_tests:
         subprocess.run([sys.executable, '-m', 'pytest', '-q'], check=True)
-    out = Path('research_results'); out.mkdir(exist_ok=True)
+    out = Path('resultados/research_results'); out.mkdir(parents=True, exist_ok=True)
     print('1/6: ejemplo XCAT con aristas <=10 mm...', flush=True)
-    run_command(['demo','--model','mesh','--mesh-edge-mm','10','--out','results/research_xcat','--stage','skin_dose'])
-    rdsr, config = 'results/research_xcat/rdsr_sintetico.dcm', 'results/research_xcat/equipo_sintetico.json'
+    run_command(['demo','--model','mesh','--mesh-edge-mm','10','--out','resultados/research_xcat','--stage','skin_dose'])
+    rdsr, config = 'resultados/research_xcat/rdsr_sintetico.dcm', 'resultados/research_xcat/equipo_sintetico.json'
     eq = Equipment.load(config); events = read_rdsr(rdsr).events
     print('2/6: convergencia real 40,20,10,5 mm...', flush=True)
     run_command(['convergence',rdsr,'--config',config,'--resolutions','40,20,10,5','--out',str(out/'convergencia_xcat.json')])
@@ -74,7 +74,7 @@ def run():
         records.append({'max_edge_mm':edge,'preparation_seconds':preparation, 'quality':mesh_quality(surface.mesh),
                         'psd_point_gy':result.summary['psd_point_gy'], 'performance':result.summary['performance']})
     write(out/'scalability_xcat.json', {'cases':records,'runtime':runtime_provenance()})
-    print('Estudio completado. Informes en research_results/.', flush=True)
+    print('Estudio completado. Informes en resultados/research_results/.', flush=True)
 
 
 if __name__ == '__main__':
