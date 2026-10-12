@@ -4,7 +4,7 @@ cycler==0.12.1
 fonttools==4.61.1
 iniconfig==2.3.0
 kiwisolver==1.4.9
-matplotlib==3.10.8
+matplotlib==3.10.9
 narwhals==2.26.0
 numpy==2.3.5
 packaging==26.3
