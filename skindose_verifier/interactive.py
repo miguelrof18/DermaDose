@@ -9,7 +9,6 @@ from importlib.resources import files
 import json
 from pathlib import Path
 
-import matplotlib
 import numpy as np
 import plotly.graph_objects as go
 from plotly.io import to_html
@@ -27,9 +26,33 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
     maximum = float(np.max(modes[0]))
     if maximum <= 0 or not np.all(np.isfinite(coords)) or not all(np.all(np.isfinite(x)) for x in modes):
         raise ValueError("Visor 3D: coordenadas o dosis no finitas.")
-    color_map = matplotlib.colormaps["inferno"]
-    palette = ["#{:02x}{:02x}{:02x}".format(*np.rint(np.asarray(color_map(i/255)[:3])*255).astype(int))
-               for i in range(256)]
+    # Dose-zero remains gray. Low positive dose starts in green, then moves
+    # through yellow/orange/red to make small-but-real dose easier to see.
+    palette_stops = [
+        (0.00, "#2d1b4e"),  # mínima dosis positiva: morado oscuro, no negro
+        (0.22, "#542788"),  # morado
+        (0.45, "#b63679"),  # magenta rojizo
+        (0.68, "#ed6925"),  # naranja rojizo
+        (0.84, "#fca50a"),  # naranja/amarillo
+        (1.00, "#fcffa4"),  # máxima dosis: amarillo claro
+    ]
+
+    def hex_to_rgb(color: str) -> np.ndarray:
+        return np.asarray([int(color[i:i + 2], 16) for i in (1, 3, 5)], dtype=float)
+
+    def rgb_to_hex(rgb: np.ndarray) -> str:
+        values = np.clip(np.rint(rgb), 0, 255).astype(int)
+        return "#{:02x}{:02x}{:02x}".format(*values)
+
+    palette = []
+    for i in range(256):
+        fraction = i / 255
+        for (x0, c0), (x1, c1) in zip(palette_stops, palette_stops[1:]):
+            if fraction <= x1:
+                local = 0 if x1 == x0 else (fraction - x0) / (x1 - x0)
+                color = hex_to_rgb(c0) * (1 - local) + hex_to_rgb(c1) * local
+                palette.append(rgb_to_hex(color))
+                break
     no_dose = "#505d70"
 
     def colors(dose: np.ndarray) -> list[str]:
@@ -105,6 +128,10 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         "area_mm2": np.round(surface.area_mm2, 8).tolist(),
         "geometry": [report.get("geometry_samples", []) for report in calculation.summary["events"]],
         "metrics": calculation.summary.get("surface_metrics"),
+        "factor_metadata": calculation.summary.get("factor_metadata", {}),
+        "surface_factor_dataset": calculation.summary.get("surface_factor_dataset"),
+        "surface_factor_audit": [e.get("surface_factor_audit") for e in calculation.summary.get("events", [])],
+        "synthetic_reference": {"k_bs": 1.25, "k_f": 1.05, "identifier": "DEMO-BSF/DEMO-FSKIN"},
     }
     template = files("skindose_verifier").joinpath("data/visor_3d_template.html").read_text(encoding="utf-8")
     # JSON contains only finite numerical arrays and fixed text labels; escaping

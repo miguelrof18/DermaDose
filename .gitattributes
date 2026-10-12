@@ -1,0 +1,10 @@
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.bat text eol=crlf
+*.stl binary
+# Byte-exact scientific datasets: never convert line endings (SHA-256).
+skindose_verifier/data/benmakhlouf_2011/** -text

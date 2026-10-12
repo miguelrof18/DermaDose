@@ -13,7 +13,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'src/skindose_verifier/data/benmakhlouf_2011'
+DEST = ROOT / 'skindose_verifier/data/benmakhlouf_2011'
 FIELDS = ['5', '10', '20', '25', '35']
 
 
