@@ -77,6 +77,8 @@ Los entornos, DICOM de estudios, resultados, archivos ICRP, respaldos y datos vo
 
 Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para trabajar con ramas y pull requests. La etiqueta `respaldo-antes-importacion-20261012` conserva la versión anterior de GitHub. El paquete mantiene la versión 0.5.3 y cada commit identifica los cambios.
 
+Para empezar sin conocer GitHub, sigue la [guía paso a paso](docs/GUIA_TRABAJO_GITHUB.md). El [historial de cambios](CHANGELOG.md) resume las incorporaciones y `.github/` contiene las comprobaciones automáticas y plantillas de colaboración.
+
 ## Procedencia
 
 Se conservan [licencia XCAT](skindose_verifier/data/XCAT_LICENSE.txt), [licencia PySkinDose](skindose_verifier/data/PYSKINDOSE_LICENSE.txt) y [procedencia de mallas](documentacion/ASSET_ORIGEN.md). Las tablas conservan los bytes y hashes de la copia local verificada. No se añade una licencia general nueva al código.
