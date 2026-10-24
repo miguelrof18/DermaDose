@@ -38,6 +38,8 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
     try:
         equipment.require_matching_device(report.manufacturer, report.model)
     except InputError:
+        if equipment.raw.get("azurion_profile"):
+            raise
         synthetic_override = True
         if equipment.surface_factor_provider is not None:
             equipment.surface_factor_provider.spec["field_shape_policy"] = "equal_area"
@@ -68,11 +70,16 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
                 srp_mm=float(geometry["source_to_irp_mm"]),
                 field_width_mm=field_width, field_height_mm=field_height, quality=quality))
         events = tuple(converted)
+    if equipment.raw.get("azurion_profile"):
+        from .azurion import prepare_events
+        events = prepare_events(events, equipment)
     factor_source = "configured"
     fallback_reason = None
     try:
         calculation = calculate(events, equipment, stage)
     except InputError as exc:
+        if equipment.raw.get("azurion_profile"):
+            raise
         if (stage != "skin_dose" or equipment.raw.get("surface_factors", {}).get("provider") != "benmakhlouf_2011"
                 or "fuera del dominio" not in str(exc)):
             raise
@@ -95,6 +102,7 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
              "mesh_sha256": sha256(Path(equipment.patient["mesh_path"]).read_bytes()).hexdigest()
              if equipment.patient["type"] == "mesh" else None,
              "configuration_version": equipment.version,
+             "azurion_profile": equipment.raw.get("azurion_profile"),
              "validation_status": equipment.raw.get("validation_status", "not_reported"),
              "synthetic_equipment_profile_used_for_different_rdsr_device": synthetic_override,
              "effective_factor_source": factor_source,

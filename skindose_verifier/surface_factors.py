@@ -78,7 +78,7 @@ class EventSurfaceFactors:
         self.dataset = dataset
         allowed = {'provider', 'dataset_directory', 'inherent_al_mm', 'target', 'field_shape_policy',
                    'out_of_domain', 'incident_kerma_basis', 'quality_basis', 'provenance',
-                   'allow_water_phantom_approximation'}
+                   'allow_water_phantom_approximation', 'aluminium_policy'}
         if set(spec)-allowed:
             raise InputError(f'Opciones de surface_factors desconocidas: {sorted(set(spec)-allowed)}.')
         if spec.get('target') != 'W':
@@ -90,6 +90,9 @@ class EventSurfaceFactors:
         if (al,) not in dataset.tables.get('clinical', {}):
             raise InputError('Familia de filtración Al no tabulada; no se extrapola.')
         self.al = al
+        self.aluminium_policy = spec.get('aluminium_policy', 'reject_additional')
+        if self.aluminium_policy not in ('reject_additional', 'fixed_plus_event'):
+            raise InputError('aluminium_policy inválida; usar reject_additional o fixed_plus_event.')
         if spec.get('out_of_domain', 'error') != 'error':
             raise InputError('La única política implementada fuera del dominio es error.')
         if spec.get('field_shape_policy', 'square_only') not in ('square_only', 'equal_area'):
@@ -106,7 +109,16 @@ class EventSurfaceFactors:
                     if (part['material_scheme'], part['material_code']) == ('SRT', 'C-120F9')
                     and part['selected_mm'] > 0]
         synthetic_spectrum = event.quality.get('synthetic_profile_spectrum') == 'additional_al_not_modeled'
-        if added_al and not synthetic_spectrum:
+        selected_al = self.al
+        if self.aluminium_policy == 'fixed_plus_event':
+            if event.quality.get('filtration_mm_cu') == 'missing_filter_information' or event.filtration_mm_cu is None:
+                raise InputError(f'Evento {event.uid}: filtración desconocida; no se supone cero.')
+            selected_al += sum(float(part['selected_mm']) for part in added_al)
+            families = [k[0] for k in self.dataset.tables.get('clinical', {})]
+            selected_al = next((a for a in families if math.isclose(a, selected_al, abs_tol=1e-8, rel_tol=0)), selected_al)
+            if (selected_al,) not in self.dataset.tables.get('clinical', {}):
+                raise InputError(f'Evento {event.uid}: Al fijo + añadido = {selected_al:g} mm no tabulado; no se extrapola.')
+        if added_al and not synthetic_spectrum and self.aluminium_policy == 'reject_additional':
             raise InputError(f'Evento {event.uid}: el RDSR declara filtración adicional de Al; '
                              'no se puede equiparar a la familia de Al inherente de Benmakhlouf.')
         square = math.isclose(event.field_width_mm, event.field_height_mm, rel_tol=1e-9, abs_tol=1e-9)
@@ -114,12 +126,15 @@ class EventSurfaceFactors:
         if not square and policy == 'square_only':
             raise InputError(f'Evento {event.uid}: campo no cuadrado; declarar equal_area si se acepta esa aproximación.')
         try:
-            result = self.dataset.evaluate('clinical', inherent_al_mm=self.al, kvp=event.kvp,
+            result = self.dataset.evaluate('clinical', inherent_al_mm=selected_al, kvp=event.kvp,
                 added_cu_mm=event.filtration_mm_cu, field_side_cm=np.sqrt(field_area_cm2))
         except InputError as exc:
             raise InputError(f'Evento {event.uid}: {exc}') from exc
         return FactorPair(result.k_bs, result.k_f, {**result.audit,
             'event_uid':event.uid, 'configuration':self.spec,
+            'aluminium_mapping': {'policy': self.aluminium_policy, 'fixed_al_mm': self.al,
+                                  'event_added_al_mm': sum(float(p['selected_mm']) for p in added_al),
+                                  'selected_table_al_mm': selected_al},
             'field_mapping':'square_side_at_local_axial_depth' if square else 'equal_area_square_at_local_axial_depth',
             'approximations':([
                 'RDSR additional aluminium not modeled by the configured synthetic equipment profile; spectral quality not reconstructed.'

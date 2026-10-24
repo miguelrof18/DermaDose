@@ -1,0 +1,135 @@
+{
+  "version": "PHILIPS-AZURION-CHARACTERIZATION-TEMPLATE-v1",
+  "manufacturer": "Philips",
+  "model": "Azurion",
+  "validation_status": "research_assumptions_not_installation_characterization",
+  "dose_medium": "water",
+  "geometry": {
+    "source_to_isocenter_mm": 810,
+    "source_to_detector_mm": 1044.3,
+    "source_to_irp_mm": 660,
+    "field_reference": "detector",
+    "primary_sign": 1,
+    "secondary_sign": 1,
+    "rotation_order": "primary_then_secondary",
+    "isocenter_mm": [
+      0,
+      0,
+      0
+    ],
+    "table_coordinates": "legacy",
+    "table_origin_mm": [
+      0,
+      0,
+      0
+    ],
+    "table_matrix": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "table_plane_z_mm": -125,
+    "table_half_width_mm": 300,
+    "table_half_length_mm": 600
+  },
+  "patient": {
+    "type": "mesh",
+    "mesh_path": "../skindose_verifier/data/xcat_wholebody_body.stl",
+    "mesh_unit": "mm",
+    "mesh_axes_matrix": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        -1,
+        0
+      ]
+    ],
+    "mesh_origin_mm": [
+      0,
+      175,
+      35
+    ],
+    "thickness_mm": 220,
+    "origin_on_table_mm": [
+      0,
+      0,
+      0
+    ],
+    "resolution_mm": 5,
+    "mesh_max_edge_mm": null
+  },
+  "factors": {
+    "cf": {
+      "value": 1.0,
+      "provenance": "synthetic_not_measured",
+      "identifier": "DEMO-CF",
+      "relative_standard_uncertainty": null
+    },
+    "table_normal": {
+      "value": 0.8,
+      "provenance": "synthetic_not_measured",
+      "identifier": "DEMO-TAF",
+      "relative_standard_uncertainty": null
+    },
+    "table_angular": {
+      "value": 1.0,
+      "provenance": "synthetic_not_measured",
+      "identifier": "DEMO-ANG",
+      "relative_standard_uncertainty": null
+    }
+  },
+  "tube_output": {
+    "reference_distance_mm": 1000,
+    "yield_gy_per_mas": {
+      "value": 0.0003,
+      "provenance": "synthetic_not_measured",
+      "identifier": "DEMO-YIELD",
+      "relative_standard_uncertainty": null
+    }
+  },
+  "rdsr_relative_standard_uncertainty": null,
+  "allow_uniform_sweep": false,
+  "surface_factors": {
+    "provider": "benmakhlouf_2011",
+    "inherent_al_mm": 3.1,
+    "target": "W",
+    "field_shape_policy": "equal_area",
+    "out_of_domain": "error",
+    "incident_kerma_basis": "free_in_air_without_backscatter",
+    "quality_basis": "event_kvp_filtration_proxy_at_surface",
+    "provenance": "Research hypothesis: fixed effective Al=3.1 mm, plus added Al/Cu from each event. Not measured at installation. Rectangular field mapped to equal-area square.",
+    "allow_water_phantom_approximation": true,
+    "aluminium_policy": "fixed_plus_event"
+  },
+  "azurion_profile": {
+    "name": "philips_azurion",
+    "allow_research_assumptions": false,
+    "fixed_filtration_characterized": false,
+    "geometry_characterized": false,
+    "calibration_characterized": false,
+    "invalid_distance_policy": "error",
+    "reference_table_from_first_event": false,
+    "notes": "Explicit research assumptions only: default distances from common valid values in supplied RDSR; table origin referenced to first event, not clinical registration. XCAT axes/placement must be reviewed."
+  }
+}
