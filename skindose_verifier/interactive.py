@@ -66,8 +66,8 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         fig = go.Figure(go.Mesh3d(
             x=coords[:, 0], y=coords[:, 1], z=coords[:, 2],
             i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            facecolor=first_color, flatshading=True, hoverinfo="skip",
-            lighting=dict(ambient=.82, diffuse=.65, specular=.12, roughness=.9),
+            facecolor=first_color, flatshading=False, hoverinfo="skip",
+            lighting=dict(ambient=1.0, diffuse=0.0, specular=0.0, roughness=1.0),
             lightposition=dict(x=600, y=800, z=-1200), name="piel"))
     else:
         fig = go.Figure(go.Scatter3d(

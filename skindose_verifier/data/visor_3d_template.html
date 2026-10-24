@@ -300,7 +300,8 @@
           visibleCount++;
         }
         Plotly.restyle(graph, {x:[x], y:[y], z:[z], i:[i], j:[j], k:[k],
-          facecolor:[smooth.checked ? [] : facecolor], vertexcolor:[vertexcolor], flatshading:!smooth.checked}, [0]);
+          facecolor:[smooth.checked ? [] : facecolor], vertexcolor:[vertexcolor], flatshading:false,
+          lighting:{ambient:1, diffuse:0, specular:0, roughness:1}}, [0]);
       } else {
         const points = data.vertices.map((point, index) => ({point, index})).filter(item =>
           (!onlyDose.checked || values[item.index] > 0) && active.every(cut => inside(item.point, cut)));
