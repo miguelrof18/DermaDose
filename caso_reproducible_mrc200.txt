@@ -1,0 +1,1 @@
+Caso reproducible correcto: 0.03947233203405644 Gy

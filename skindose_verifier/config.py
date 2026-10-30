@@ -113,6 +113,12 @@ class Equipment:
         for key in ("version", "manufacturer", "model", "geometry", "patient", "factors"):
             if key not in data:
                 raise InputError(f"Configuración: falta {key}.")
+        for flag in ("allow_synthetic_device_override", "allow_historical_factor_fallback", "allow_uniform_sweep"):
+            if flag in data and not isinstance(data[flag], bool):
+                raise InputError(f"{flag}: requiere booleano JSON.")
+        u = data.get("rdsr_relative_standard_uncertainty")
+        if u is not None and (not math.isfinite(float(u)) or float(u) < 0):
+            raise InputError("Incertidumbre relativa RDSR no finita o negativa.")
         g = data["geometry"]
         required = ("source_to_isocenter_mm", "source_to_detector_mm", "source_to_irp_mm",
                     "field_reference", "primary_sign", "secondary_sign", "rotation_order",

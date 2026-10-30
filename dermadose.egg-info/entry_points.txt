@@ -1,0 +1,3 @@
+[console_scripts]
+dermadose = skindose_verifier.cli:main
+skindose = skindose_verifier.cli:main

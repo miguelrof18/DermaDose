@@ -104,14 +104,23 @@ ALUMINIUM_FILTERS = {("SRT", "C-120F9")}
 def filter_stack(item: Dataset, uid: str) -> tuple[float | None, list[dict], str]:
     """Normalize each filter independently; never interpret Al thickness as Cu.
 
-    The DICOM min/max codes describe the range of one filter. Following the
-    PySkinDose normalizer, their midpoint represents that filter's thickness.
+    The DICOM min/max codes describe the range of one filter. Unequal bounds do not determine a unique spectral thickness and are rejected.
     Distinct copper filters in the same stack contribute additively.
     """
     copper = []
     audit = []
+    no_filter = False
     for container in nodes(item, "113771"):
+        types = nodes(container, "113772")
+        absent = any(getattr(n, "ConceptCodeSequence", None) and
+                     (str(n.ConceptCodeSequence[0].CodingSchemeDesignator), str(n.ConceptCodeSequence[0].CodeValue))
+                     == ("DCM", "111609") for n in types)
         materials = nodes(container, "113757")
+        if absent:
+            if materials or nodes(container, "113758") or nodes(container, "113773"):
+                raise InputError(f"Evento {uid}: No filter contradice material/espesor declarado.")
+            no_filter = True
+            continue
         if len(materials) != 1 or not getattr(materials[0], "ConceptCodeSequence", None):
             raise InputError(f"Evento {uid}: material filtrante indeterminado.")
         code = materials[0].ConceptCodeSequence[0]
@@ -128,18 +137,24 @@ def filter_stack(item: Dataset, uid: str) -> tuple[float | None, list[dict], str
             raise InputError(f"Evento {uid}: filtro sin espesor.")
         if low is not None and high is not None and low > high:
             raise InputError(f"Evento {uid}: rango de espesor de filtro invertido.")
-        thickness = (low + high) / 2 if low is not None and high is not None else (low if high is None else high)
+        if low is not None and high is not None and not math.isclose(low, high, rel_tol=1e-8, abs_tol=1e-8):
+            raise InputError(f"Evento {uid}: intervalo de filtración no uniforme; no se sustituye por su media.")
+        thickness = low if low is not None else high
         if thickness < 0:
             raise InputError(f"Evento {uid}: espesor de filtro negativo.")
         audit.append({"material_scheme": material[0], "material_code": material[1],
                       "minimum_mm": low, "maximum_mm": high, "selected_mm": thickness})
         if material in COPPER_FILTERS:
             copper.append(thickness)
+    if no_filter and audit:
+        raise InputError(f"Evento {uid}: No filter y filtros presentes en el mismo evento.")
+    if no_filter:
+        return 0.0, [], "explicit_no_filter"
     if not audit and nodes(item, "113758"):
         raise InputError(f"Evento {uid}: espesor de filtro sin identificación de material.")
     status = "copper_with_aluminium" if copper and len(copper) != len(audit) else (
         "copper" if copper else "no_copper_filter")
-    return sum(copper) if copper else None, audit, status
+    return sum(copper) if copper else (0.0 if audit else None), audit, status if audit else "missing_filter_information"
 
 
 def textual(item: Dataset, field: str) -> str | None:

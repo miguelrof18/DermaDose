@@ -27,6 +27,8 @@ def neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: float = 
         uv = np.column_stack((xx.ravel(), yy.ravel()))
         periodic = False
     else:
+        if len(y) < 2:
+            return None  # insufficient longitudinal sampling for a 2D neighbourhood
         theta = surface.axes[1]
         n = len(theta)
         # Arc-length coordinate from the discrete representative areas.
@@ -65,7 +67,7 @@ def _mesh_neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: fl
     radius = math.sqrt(area_mm2/math.pi)
     graph = surface.face_graph
     best_value, best_idx, best_area = -1., -1, 0.
-    for origin in np.flatnonzero(dose > 0):
+    for origin in range(len(dose)):
         origin = int(origin)
         distances = {origin: 0.}
         queue = [(0., origin)]

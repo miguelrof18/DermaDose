@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from copy import deepcopy
 from typing import Sequence
 import math
 import time
@@ -168,7 +169,8 @@ def uncertainty(equipment: Equipment, stage: str, events: Sequence[IrradiationEv
         known["ka_r"] = float(u_kar)
     return {"partial_relative_standard_uncertainty": math.sqrt(sum(x*x for x in known.values())),
             "quantified_components": known, "unquantified_components": missing,
-            "complete_budget": False}
+            "complete_budget": False,
+            "aggregation_assumption": "quadrature of configured component maxima; zero covariance assumed, not propagated PSD uncertainty"}
 
 
 def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: str = "free_air", *,
@@ -182,6 +184,12 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     started = time.perf_counter()
     if not events:
         raise InputError("No hay eventos de irradiación.")
+    if equipment.raw.get("azurion_profile"):
+        from .azurion import prepare_events
+        # Enforce the same profile policy for Python callers and the CLI.
+        # Research table registration must not mutate the caller's configuration.
+        equipment = replace(equipment, raw=deepcopy(equipment.raw))
+        events = prepare_events(events, equipment)
     surface = sample_patient(equipment.patient) if surface is None else surface
     surface_seconds = time.perf_counter()-started
     cache: OrderedDict[tuple, Projection] = OrderedDict()
@@ -259,6 +267,11 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "quantity": {"free_air": "free_in_air_kerma_at_skin_Gy",
                      "calibrated_air": "calibrated_incident_air_kerma_at_skin_Gy",
                      "skin_dose": f"entrance_absorbed_dose_in_{equipment.raw.get('dose_medium')}_Gy"}[stage],
+        "quantity_interpretation": (
+            "Surface water kerma from the tabulated formalism, interpreted as approximate absorbed dose "
+            "under its electron-equilibrium assumptions; no specified skin depth."
+            if stage == "skin_dose" and equipment.surface_factor_provider is not None
+            else "Quantity under the configured model assumptions; no clinical validation implied."),
         "stage": stage, "events": reports, "event_count": len(reports),
         "total_rdsr_ka_r_gy": float(sum(ev.ka_r_gy for ev in events)),
         "psd_point_gy": float(total[peak_index]),
@@ -278,7 +291,7 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "configuration_version": equipment.version,
         "assumptions": ["Colimación rectangular; perfil uniforme salvo beam_profile calibrado", "Paciente rígido y centrado según configuración",
                         "Mapa calculado sobre puntos de superficie; sin transporte Monte Carlo"] + (
-                            ["Malla de referencia, no anatomía individual; resolución desigual de caras"]
+                            ["Malla suministrada: procedencia anatómica y registro no verificados; resolución desigual de caras"]
                             if surface.kind == "mesh" else []),
     }
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,

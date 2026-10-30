@@ -1,0 +1,7 @@
+{
+  "skindose_verifier/azurion.py": "c5136105ef34c2fcada7c873a85492a3c99413c124e4ece226b4f6c29266fbe5",
+  "skindose_verifier/mrc200.py": "f1111f9af402693ed4f6c0642b0d35e33400e15613525e31f7a97dc098b2946d",
+  "skindose_verifier/surface_factors.py": "8c0fb7719053e97b6719fd1a9c9a3d531c9f33a4d1632942d89cb916d2be92ef",
+  "skindose_verifier/data/derived_mrc200_nominal/derived_clinical.csv": "69eb243b4af0f1613ff793dd99280c87f6cafa83bbd337d03f9acfaff8406850",
+  "skindose_verifier/data/derived_mrc200_nominal/metadata.json": "e7087909e87e8e10a97305f190b02a37a3359bf6683386cdfa37843e976cf939"
+}

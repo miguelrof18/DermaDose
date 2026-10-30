@@ -1,0 +1,1814 @@
+{
+  "status": "research_unvalidated_no_clinical_use",
+  "quantity": "entrance_absorbed_dose_in_water_Gy",
+  "quantity_interpretation": "Surface water kerma from the tabulated formalism, interpreted as approximate absorbed dose under its electron-equilibrium assumptions; no specified skin depth.",
+  "stage": "skin_dose",
+  "events": [
+    {
+      "event_uid": "1.2.826.0.1.3680043.10.543.99.10.1",
+      "plane": "113622",
+      "ka_r_gy": 0.019834710744,
+      "kap_gy_m2": 0.00019834710744,
+      "status": {
+        "ka_r_gy": "present",
+        "kap_gy_m2": "present",
+        "kvp": "present",
+        "exposure_mas": "present",
+        "exposure_time": "missing",
+        "current_ma": "missing",
+        "primary_deg": "present",
+        "secondary_deg": "present",
+        "primary_end_deg": "missing",
+        "secondary_end_deg": "missing",
+        "table_x_iso": "present",
+        "table_y_iso": "present",
+        "table_z_iso": "present",
+        "table_long": "missing",
+        "table_lat": "missing",
+        "table_height": "missing",
+        "sid_mm": "present",
+        "sod_mm": "present",
+        "srp_mm": "present",
+        "field_width_mm": "present",
+        "field_height_mm": "present",
+        "field_area_m2": "missing",
+        "filtration_mm_cu": "copper"
+      },
+      "sample_count": 1,
+      "geometry_samples": [
+        {
+          "source_patient_mm": [
+            0.0,
+            0.0,
+            -700.0
+          ],
+          "isocenter_patient_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "detector_patient_mm": [
+            0.0,
+            0.0,
+            400.0
+          ],
+          "field_corners_patient_mm": [
+            [
+              -100.0,
+              -100.0,
+              400.0
+            ],
+            [
+              100.0,
+              -100.0,
+              400.0
+            ],
+            [
+              100.0,
+              100.0,
+              400.0
+            ],
+            [
+              -100.0,
+              100.0,
+              400.0
+            ]
+          ],
+          "primary_deg": 0.0,
+          "secondary_deg": 0.0,
+          "table_position_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gantry_arc_patient_mm": [
+            [
+              -662.4100613811901,
+              0.0,
+              226.30269680445235
+            ],
+            [
+              -675.404929714617,
+              0.0,
+              183.92438913095046
+            ],
+            [
+              -685.691579258754,
+              0.0,
+              140.80858686044635
+            ],
+            [
+              -693.2287629093106,
+              0.0,
+              97.12817446666429
+            ],
+            [
+              -697.9862582893354,
+              0.0,
+              53.05830038036647
+            ],
+            [
+              -699.9449889340124,
+              0.0,
+              8.775674684336533
+            ],
+            [
+              -699.0971007829081,
+              0.0,
+              -35.54213945350543
+            ],
+            [
+              -695.4459936729515,
+              0.0,
+              -79.71743776766202
+            ],
+            [
+              -689.0063077058682,
+              0.0,
+              -123.57308744838657
+            ],
+            [
+              -679.8038645447313,
+              0.0,
+              -166.9332374036062
+            ],
+            [
+              -667.8755638750182,
+              0.0,
+              -209.62402338144955
+            ],
+            [
+              -653.2692354453388,
+              0.0,
+              -251.47426512600137
+            ],
+            [
+              -636.0434472811183,
+              0.0,
+              -292.3161527708506
+            ],
+            [
+              -616.2672708402542,
+              0.0,
+              -331.98591971814824
+            ],
+            [
+              -594.0200040524198,
+              0.0,
+              -370.3244993050867
+            ],
+            [
+              -569.3908533525616,
+              0.0,
+              -407.1781626247184
+            ],
+            [
+              -542.4785759835648,
+              0.0,
+              -442.39913494359786
+            ],
+            [
+              -513.3910840023698,
+              0.0,
+              -475.8461882445541
+            ],
+            [
+              -482.2450115773859,
+              0.0,
+              -507.38520751863365
+            ],
+            [
+              -449.16524731223893,
+              0.0,
+              -536.8897285355115
+            ],
+            [
+              -414.28443347112704,
+              0.0,
+              -564.2414449360374
+            ],
+            [
+              -377.74243411377853,
+              0.0,
+              -589.3306826135881
+            ],
+            [
+              -339.6857742726647,
+              0.0,
+              -612.0568394820699
+            ],
+            [
+              -300.2670524212417,
+              0.0,
+              -632.3287888671994
+            ],
+            [
+              -259.64432858908793,
+              0.0,
+              -650.0652449035572
+            ],
+            [
+              -217.98049057745274,
+              0.0,
+              -665.1950884722564
+            ],
+            [
+              -175.44260081655062,
+              0.0,
+              -677.6576523722907
+            ],
+            [
+              -132.20122648355053,
+              0.0,
+              -687.4029645820892
+            ],
+            [
+              -88.42975556733299,
+              0.0,
+              -694.3919486358564
+            ],
+            [
+              -44.30370162244103,
+              0.0,
+              -698.5965803112334
+            ],
+            [
+              -1.5543122344752192e-13,
+              0.0,
+              -700.0
+            ],
+            [
+              44.303701622440876,
+              0.0,
+              -698.5965803112334
+            ],
+            [
+              88.42975556733268,
+              0.0,
+              -694.3919486358564
+            ],
+            [
+              132.20122648355036,
+              0.0,
+              -687.4029645820892
+            ],
+            [
+              175.44260081655034,
+              0.0,
+              -677.6576523722908
+            ],
+            [
+              217.98049057745246,
+              0.0,
+              -665.1950884722565
+            ],
+            [
+              259.6443285890878,
+              0.0,
+              -650.0652449035572
+            ],
+            [
+              300.2670524212415,
+              0.0,
+              -632.3287888671996
+            ],
+            [
+              339.68577427266445,
+              0.0,
+              -612.0568394820701
+            ],
+            [
+              377.74243411377836,
+              0.0,
+              -589.3306826135881
+            ],
+            [
+              414.28443347112704,
+              0.0,
+              -564.2414449360374
+            ],
+            [
+              449.1652473122387,
+              0.0,
+              -536.8897285355117
+            ],
+            [
+              482.24501157738587,
+              0.0,
+              -507.3852075186337
+            ],
+            [
+              513.3910840023698,
+              0.0,
+              -475.84618824455424
+            ],
+            [
+              542.4785759835646,
+              0.0,
+              -442.3991349435981
+            ],
+            [
+              569.3908533525615,
+              0.0,
+              -407.1781626247186
+            ],
+            [
+              594.0200040524197,
+              0.0,
+              -370.32449930508676
+            ],
+            [
+              616.267270840254,
+              0.0,
+              -331.9859197181485
+            ],
+            [
+              636.0434472811182,
+              0.0,
+              -292.31615277085086
+            ],
+            [
+              653.2692354453388,
+              0.0,
+              -251.47426512600148
+            ],
+            [
+              667.8755638750181,
+              0.0,
+              -209.6240233814498
+            ],
+            [
+              679.8038645447311,
+              0.0,
+              -166.9332374036065
+            ],
+            [
+              689.006307705868,
+              0.0,
+              -123.57308744838673
+            ],
+            [
+              695.4459936729514,
+              0.0,
+              -79.71743776766232
+            ],
+            [
+              699.0971007829081,
+              0.0,
+              -35.54213945350574
+            ],
+            [
+              699.9449889340124,
+              0.0,
+              8.775674684336378
+            ],
+            [
+              697.9862582893354,
+              0.0,
+              53.058300380366155
+            ],
+            [
+              693.2287629093107,
+              0.0,
+              97.12817446666399
+            ],
+            [
+              685.691579258754,
+              0.0,
+              140.8085868604462
+            ],
+            [
+              675.4049297146171,
+              0.0,
+              183.9243891309503
+            ],
+            [
+              662.4100613811901,
+              0.0,
+              226.30269680445235
+            ]
+          ],
+          "diagram_is_schematic": true
+        }
+      ],
+      "performance": {
+        "seconds": 0.0056135160000394535,
+        "rays_traced": 0,
+        "candidate_triangle_pairs": 0
+      },
+      "uniform_sweep_assumed": false,
+      "maximum_gy": 0.019600611324240368,
+      "maximum_patient_point_mm": [
+        -2.5,
+        -2.5,
+        -100.0
+      ],
+      "irradiated_cells": 484,
+      "irradiated_area_cm2_approx": 121.0,
+      "no_skin_intersection_warning": false,
+      "table_intersection_cells_per_sample": [
+        484
+      ],
+      "irp_verification": {
+        "reported_ka_r_gy": 0.019834710744,
+        "tube_output": {
+          "classification": "independent_if_yield_measured_and_mas_credible",
+          "ka_r_gy": 0.019834710743801647,
+          "yield_identifier": "DEMO-YIELD",
+          "relative_difference_to_reported": -1.0000222872008635e-11
+        },
+        "kap_area": {
+          "classification": "consistency_only_assumes_uniform_beam_and_known_kap_plane",
+          "ka_axis_gy": 0.019834710744,
+          "area_at_irp_m2": 0.01,
+          "relative_difference_to_reported": 0.0
+        }
+      },
+      "factor_versions": {
+        "cf": "DEMO-CF",
+        "table_normal": "DEMO-TAF",
+        "table_angular": "DEMO-ANG"
+      },
+      "surface_factor_audit_per_sample": [
+        {
+          "interpolation_quantity": "separate_factors",
+          "method": "piecewise_multilinear",
+          "status": "interpolated",
+          "extrapolated": false,
+          "out_of_domain_policy": "error",
+          "query_axes": {
+            "kvp": [
+              80.0
+            ],
+            "added_cu_mm": [
+              0.2
+            ],
+            "field_side_cm": [
+              10.909090909090908
+            ]
+          },
+          "source_nodes": [
+            {
+              "row_id": "T3-K80-Al3.1-Cu0.2-S10",
+              "source_table": "3",
+              "source_page": "28",
+              "source_row": "22",
+              "kvp": "80",
+              "inherent_al_mm": "3.1",
+              "added_cu_mm": "0.2",
+              "hvl1_mm_al": "5.71",
+              "h_original": "0.84",
+              "field_side_cm": "10",
+              "k_bs": "1.421",
+              "k_f": "1.028",
+              "quality_flag": ""
+            },
+            {
+              "row_id": "T3-K80-Al3.1-Cu0.2-S20",
+              "source_table": "3",
+              "source_page": "28",
+              "source_row": "22",
+              "kvp": "80",
+              "inherent_al_mm": "3.1",
+              "added_cu_mm": "0.2",
+              "hvl1_mm_al": "5.71",
+              "h_original": "0.84",
+              "field_side_cm": "20",
+              "k_bs": "1.522",
+              "k_f": "1.027",
+              "quality_flag": ""
+            }
+          ],
+          "weight_rule": "product over axes of (x1-x)/(x1-x0) or (x-x0)/(x1-x0); exact axes weight 1",
+          "dataset_id": "KS-ASF-201101-IR",
+          "dataset_version": "1.0.0",
+          "source": {
+            "title": "Backscatter factors and mass energy-absorption coefficient ratios for surface dose determination in diagnostic radiology",
+            "authors": [
+              "Hamza Benmakhlouf",
+              "Annette Fransson",
+              "Pedro Andreo"
+            ],
+            "date": "2011-04-07",
+            "institution": "Karolinska University Hospital, Department of Hospital Physics",
+            "report": "KS-ASF-201101-IR",
+            "pdf_filename": "2011BenmakhloufFranssonAndreo_BSFmu_endiagradioldosimetry_ReportKS-ASF-201101-IR.pdf",
+            "pdf_sha256": "0d8ced5181445475d8540fd296d917d020f485ef75d61303003d425312d3f896",
+            "bibliographic_note": "The supplied report has three authors, not Bouchard. No journal-version data have been substituted."
+          },
+          "table": 3,
+          "data_sha256": "1289fb1dadeae2785306744a834d29d945f8302c7a391fd6ef8f451458c7086b",
+          "inherent_al_mm": 3.1,
+          "source_quality_flags": [],
+          "medium": "water",
+          "formalism": "B_air_times_surface_water_air_ratio",
+          "clinical_validation": false,
+          "event_uid": "1.2.826.0.1.3680043.10.543.99.10.1",
+          "configuration": {
+            "provider": "benmakhlouf_2011",
+            "inherent_al_mm": 3.1,
+            "target": "W",
+            "field_shape_policy": "square_only",
+            "out_of_domain": "error",
+            "incident_kerma_basis": "free_in_air_without_backscatter",
+            "quality_basis": "event_kvp_filtration_proxy_at_surface",
+            "provenance": "Research example only: assumed 3.1 mm Al tungsten family; CF and table factors remain synthetic.",
+            "allow_water_phantom_approximation": true
+          },
+          "aluminium_mapping": {
+            "policy": "reject_additional",
+            "fixed_al_mm": 3.1,
+            "event_added_al_mm": 0,
+            "selected_table_al_mm": 3.1
+          },
+          "field_mapping": "square_side_at_local_axial_depth",
+          "approximations": [
+            "Water phantom central-axis factors applied locally to patient surface; no anatomical transport.",
+            "Normal-incidence tables reused without an obliquity correction or field-edge scatter model.",
+            "100 cm FSD reference reused at modeled distance; inverse-square correction remains separate.",
+            "Event kVp/Al/Cu used as spectral proxy; scalar table transmission does not model spectral hardening."
+          ]
+        }
+      ],
+      "factor_ranges_per_sample": [
+        {
+          "inverse_square": [
+            0.8276050750658323,
+            0.8402486024790805
+          ],
+          "cf": [
+            1.0,
+            1.0
+          ],
+          "table_transmission": [
+            0.8,
+            0.8
+          ],
+          "k_BS": [
+            1.4301818181818182,
+            1.4301818181818182
+          ],
+          "k_f": [
+            1.0279090909090909,
+            1.0279090909090909
+          ],
+          "bsf": [
+            1.4301818181818182,
+            1.4301818181818182
+          ],
+          "f_skin": [
+            1.0279090909090909,
+            1.0279090909090909
+          ]
+        }
+      ]
+    },
+    {
+      "event_uid": "1.2.826.0.1.3680043.10.543.99.10.2",
+      "plane": "113622",
+      "ka_r_gy": 0.019834710744,
+      "kap_gy_m2": 0.00019834710744,
+      "status": {
+        "ka_r_gy": "present",
+        "kap_gy_m2": "present",
+        "kvp": "present",
+        "exposure_mas": "present",
+        "exposure_time": "missing",
+        "current_ma": "missing",
+        "primary_deg": "present",
+        "secondary_deg": "present",
+        "primary_end_deg": "missing",
+        "secondary_end_deg": "missing",
+        "table_x_iso": "present",
+        "table_y_iso": "present",
+        "table_z_iso": "present",
+        "table_long": "missing",
+        "table_lat": "missing",
+        "table_height": "missing",
+        "sid_mm": "present",
+        "sod_mm": "present",
+        "srp_mm": "present",
+        "field_width_mm": "present",
+        "field_height_mm": "present",
+        "field_area_m2": "missing",
+        "filtration_mm_cu": "copper"
+      },
+      "sample_count": 1,
+      "geometry_samples": [
+        {
+          "source_patient_mm": [
+            -121.55372436685123,
+            0.0,
+            -689.3654271085456
+          ],
+          "isocenter_patient_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "detector_patient_mm": [
+            69.45927106677213,
+            0.0,
+            393.9231012048831
+          ],
+          "field_corners_patient_mm": [
+            [
+              -29.02150423444867,
+              -100.0,
+              411.2879189715761
+            ],
+            [
+              167.94004636799292,
+              -100.0,
+              376.5582834381901
+            ],
+            [
+              167.94004636799292,
+              100.0,
+              376.5582834381901
+            ],
+            [
+              -29.02150423444867,
+              100.0,
+              411.2879189715761
+            ]
+          ],
+          "primary_deg": 10.0,
+          "secondary_deg": 0.0,
+          "table_position_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gantry_arc_patient_mm": [
+            [
+              -613.0495132202836,
+              0.0,
+              337.89095036767884
+            ],
+            [
+              -633.2058762045273,
+              0.0,
+              298.4129996163987
+            ],
+            [
+              -650.8232289210337,
+              0.0,
+              257.7384812107027
+            ],
+            [
+              -665.830929827899,
+              0.0,
+              216.03049063619568
+            ],
+            [
+              -678.1688014881638,
+              0.0,
+              173.45626736473793
+            ],
+            [
+              -687.7873718675266,
+              0.0,
+              130.18652426253854
+            ],
+            [
+              -694.64807270585,
+              0.0,
+              86.3947630707331
+            ],
+            [
+              -698.7233941670331,
+              0.0,
+              42.256578703213826
+            ],
+            [
+              -699.9969951471426,
+              0.0,
+              -2.051044848682426
+            ],
+            [
+              -698.4637687984895,
+              0.0,
+              -46.350444181369554
+            ],
+            [
+              -694.1298630069168,
+              0.0,
+              -90.46398886849346
+            ],
+            [
+              -687.0126557401879,
+              0.0,
+              -134.2147937181817
+            ],
+            [
+              -677.1406853663232,
+              0.0,
+              -177.4274280420762
+            ],
+            [
+              -664.5535362212928,
+              0.0,
+              -219.92861909213815
+            ],
+            [
+              -649.3016798849129,
+              0.0,
+              -261.54794684460813
+            ],
+            [
+              -631.4462728013913,
+              0.0,
+              -302.11852734519766
+            ],
+            [
+              -611.0589110560189,
+              0.0,
+              -341.4776818754518
+            ],
+            [
+              -588.2213432912974,
+              0.0,
+              -379.46758925708207
+            ],
+            [
+              -563.0251429136396,
+              0.0,
+              -415.9359186786777
+            ],
+            [
+              -535.5713409050231,
+              0.0,
+              -450.7364405073051
+            ],
+            [
+              -505.97002071193475,
+              0.0,
+              -483.72961263578264
+            ],
+            [
+              -474.3398768360099,
+              0.0,
+              -514.7831400145102
+            ],
+            [
+              -440.80773889631735,
+              0.0,
+              -543.7725051242625
+            ],
+            [
+              -405.5080630716883,
+              0.0,
+              -570.5814672628684
+            ],
+            [
+              -368.5823929622926,
+              0.0,
+              -595.102528643754
+            ],
+            [
+              -330.1787920322798,
+              0.0,
+              -617.2373654374016
+            ],
+            [
+              -290.4512499092634,
+              0.0,
+              -636.897222027343
+            ],
+            [
+              -249.55906492124862,
+              0.0,
+              -654.003266899816
+            ],
+            [
+              -207.66620534688914,
+              0.0,
+              -668.4869087400468
+            ],
+            [
+              -164.9406519403145,
+              0.0,
+              -680.2900714676821
+            ],
+            [
+              -121.55372436685138,
+              0.0,
+              -689.3654271085456
+            ],
+            [
+              -77.67939425047572,
+              0.0,
+              -695.6765855689546
+            ],
+            [
+              -33.493587587521446,
+              0.0,
+              -699.1982405516457
+            ],
+            [
+              10.826520676197992,
+              0.0,
+              -699.9162710282194
+            ],
+            [
+              55.10321707626625,
+              0.0,
+              -697.8277978612244
+            ],
+            [
+              99.1589622198799,
+              0.0,
+              -692.941195348838
+            ],
+            [
+              142.81710267807347,
+              0.0,
+              -685.2760576458516
+            ],
+            [
+              185.90257932543534,
+              0.0,
+              -674.8631201956069
+            ],
+            [
+              228.24262928703237,
+              0.0,
+              -661.7441364879195
+            ],
+            [
+              269.6674786778944,
+              0.0,
+              -645.9717106371666
+            ],
+            [
+              310.0110233573377,
+              0.0,
+              -627.6090864518584
+            ],
+            [
+              349.11149496845394,
+              0.0,
+              -606.729893841478
+            ],
+            [
+              386.8121095921036,
+              0.0,
+              -583.4178535774394
+            ],
+            [
+              422.9616964144535,
+              0.0,
+              -557.7664415920051
+            ],
+            [
+              457.41530388725437,
+              0.0,
+              -529.8785141612468
+            ],
+            [
+              490.0347809502884,
+              0.0,
+              -499.86589547497914
+            ],
+            [
+              520.6893309854195,
+              0.0,
+              -467.84892924741865
+            ],
+            [
+              549.2560362810201,
+              0.0,
+              -433.95599616650384
+            ],
+            [
+              575.6203509037906,
+              0.0,
+              -398.3229991167934
+            ],
+            [
+              599.6765600016665,
+              0.0,
+              -361.0928182400857
+            ],
+            [
+              621.3282036961192,
+              0.0,
+              -322.41473801883456
+            ],
+            [
+              640.4884638641348,
+              0.0,
+              -282.4438486796285
+            ],
+            [
+              657.0805122589653,
+              0.0,
+              -241.34042431697108
+            ],
+            [
+              671.0378185737701,
+              0.0,
+              -199.2692802309376
+            ],
+            [
+              682.3044172128797,
+              0.0,
+              -156.39911205563988
+            ],
+            [
+              690.8351317009924,
+              0.0,
+              -112.90181932844354
+            ],
+            [
+              696.5957558304743,
+              0.0,
+              -68.95181621226726
+            ],
+            [
+              699.5631908204028,
+              0.0,
+              -24.72533213480922
+            ],
+            [
+              699.725537937378,
+              0.0,
+              19.60029485101818
+            ],
+            [
+              697.0821462067132,
+              0.0,
+              63.84732915198973
+            ],
+            [
+              691.6436150226937,
+              0.0,
+              107.83835031351259
+            ]
+          ],
+          "diagram_is_schematic": true
+        }
+      ],
+      "performance": {
+        "seconds": 0.003888367000058679,
+        "rays_traced": 0,
+        "candidate_triangle_pairs": 0
+      },
+      "uniform_sweep_assumed": false,
+      "maximum_gy": 0.02011920595043972,
+      "maximum_patient_point_mm": [
+        -67.5,
+        -2.5,
+        -100.0
+      ],
+      "irradiated_cells": 484,
+      "irradiated_area_cm2_approx": 121.0,
+      "no_skin_intersection_warning": false,
+      "table_intersection_cells_per_sample": [
+        484
+      ],
+      "irp_verification": {
+        "reported_ka_r_gy": 0.019834710744,
+        "tube_output": {
+          "classification": "independent_if_yield_measured_and_mas_credible",
+          "ka_r_gy": 0.019834710743801647,
+          "yield_identifier": "DEMO-YIELD",
+          "relative_difference_to_reported": -1.0000222872008635e-11
+        },
+        "kap_area": {
+          "classification": "consistency_only_assumes_uniform_beam_and_known_kap_plane",
+          "ka_axis_gy": 0.019834710744,
+          "area_at_irp_m2": 0.01,
+          "relative_difference_to_reported": 0.0
+        }
+      },
+      "factor_versions": {
+        "cf": "DEMO-CF",
+        "table_normal": "DEMO-TAF",
+        "table_angular": "DEMO-ANG"
+      },
+      "surface_factor_audit_per_sample": [
+        {
+          "interpolation_quantity": "separate_factors",
+          "method": "piecewise_multilinear",
+          "status": "interpolated",
+          "extrapolated": false,
+          "out_of_domain_policy": "error",
+          "query_axes": {
+            "kvp": [
+              80.0
+            ],
+            "added_cu_mm": [
+              0.2
+            ],
+            "field_side_cm": [
+              10.723599503750208,
+              10.739385701719929,
+              10.755171899689648,
+              10.770958097659369,
+              10.786744295629092,
+              10.802530493598812,
+              10.818316691568533,
+              10.834102889538253,
+              10.849889087507973,
+              10.865675285477696,
+              10.881461483447417,
+              10.897247681417136,
+              10.913033879386857,
+              10.928820077356578,
+              10.9446062753263,
+              10.960392473296022,
+              10.97617867126574,
+              10.991964869235462,
+              11.007751067205184,
+              11.023537265174905,
+              11.039323463144626,
+              11.055109661114347
+            ]
+          },
+          "source_nodes": [
+            {
+              "row_id": "T3-K80-Al3.1-Cu0.2-S10",
+              "source_table": "3",
+              "source_page": "28",
+              "source_row": "22",
+              "kvp": "80",
+              "inherent_al_mm": "3.1",
+              "added_cu_mm": "0.2",
+              "hvl1_mm_al": "5.71",
+              "h_original": "0.84",
+              "field_side_cm": "10",
+              "k_bs": "1.421",
+              "k_f": "1.028",
+              "quality_flag": ""
+            },
+            {
+              "row_id": "T3-K80-Al3.1-Cu0.2-S20",
+              "source_table": "3",
+              "source_page": "28",
+              "source_row": "22",
+              "kvp": "80",
+              "inherent_al_mm": "3.1",
+              "added_cu_mm": "0.2",
+              "hvl1_mm_al": "5.71",
+              "h_original": "0.84",
+              "field_side_cm": "20",
+              "k_bs": "1.522",
+              "k_f": "1.027",
+              "quality_flag": ""
+            }
+          ],
+          "weight_rule": "product over axes of (x1-x)/(x1-x0) or (x-x0)/(x1-x0); exact axes weight 1",
+          "dataset_id": "KS-ASF-201101-IR",
+          "dataset_version": "1.0.0",
+          "source": {
+            "title": "Backscatter factors and mass energy-absorption coefficient ratios for surface dose determination in diagnostic radiology",
+            "authors": [
+              "Hamza Benmakhlouf",
+              "Annette Fransson",
+              "Pedro Andreo"
+            ],
+            "date": "2011-04-07",
+            "institution": "Karolinska University Hospital, Department of Hospital Physics",
+            "report": "KS-ASF-201101-IR",
+            "pdf_filename": "2011BenmakhloufFranssonAndreo_BSFmu_endiagradioldosimetry_ReportKS-ASF-201101-IR.pdf",
+            "pdf_sha256": "0d8ced5181445475d8540fd296d917d020f485ef75d61303003d425312d3f896",
+            "bibliographic_note": "The supplied report has three authors, not Bouchard. No journal-version data have been substituted."
+          },
+          "table": 3,
+          "data_sha256": "1289fb1dadeae2785306744a834d29d945f8302c7a391fd6ef8f451458c7086b",
+          "inherent_al_mm": 3.1,
+          "source_quality_flags": [],
+          "medium": "water",
+          "formalism": "B_air_times_surface_water_air_ratio",
+          "clinical_validation": false,
+          "event_uid": "1.2.826.0.1.3680043.10.543.99.10.2",
+          "configuration": {
+            "provider": "benmakhlouf_2011",
+            "inherent_al_mm": 3.1,
+            "target": "W",
+            "field_shape_policy": "square_only",
+            "out_of_domain": "error",
+            "incident_kerma_basis": "free_in_air_without_backscatter",
+            "quality_basis": "event_kvp_filtration_proxy_at_surface",
+            "provenance": "Research example only: assumed 3.1 mm Al tungsten family; CF and table factors remain synthetic.",
+            "allow_water_phantom_approximation": true
+          },
+          "aluminium_mapping": {
+            "policy": "reject_additional",
+            "fixed_al_mm": 3.1,
+            "event_added_al_mm": 0,
+            "selected_table_al_mm": 3.1
+          },
+          "field_mapping": "square_side_at_local_axial_depth",
+          "approximations": [
+            "Water phantom central-axis factors applied locally to patient surface; no anatomical transport.",
+            "Normal-incidence tables reused without an obliquity correction or field-edge scatter model.",
+            "100 cm FSD reference reused at modeled distance; inverse-square correction remains separate.",
+            "Event kVp/Al/Cu used as spectral proxy; scalar table transmission does not model spectral hardening."
+          ]
+        }
+      ],
+      "factor_ranges_per_sample": [
+        {
+          "inverse_square": [
+            0.8057943804850946,
+            0.8635956722557895
+          ],
+          "cf": [
+            1.0,
+            1.0
+          ],
+          "table_transmission": [
+            0.8,
+            0.8
+          ],
+          "k_BS": [
+            1.4283083549878772,
+            1.431656607577255
+          ],
+          "k_f": [
+            1.0278944890338886,
+            1.027927640049625
+          ],
+          "bsf": [
+            1.4283083549878772,
+            1.431656607577255
+          ],
+          "f_skin": [
+            1.0278944890338886,
+            1.027927640049625
+          ]
+        }
+      ]
+    }
+  ],
+  "event_count": 2,
+  "total_rdsr_ka_r_gy": 0.039669421488,
+  "psd_point_gy": 0.03947233203405644,
+  "psd_point_patient_mm": [
+    -52.5,
+    -2.5,
+    -100.0
+  ],
+  "global_psd_event_contributions": [
+    {
+      "event_uid": "1.2.826.0.1.3680043.10.543.99.10.2",
+      "dose_at_global_psd_point_gy": 0.02002030740535836,
+      "fraction_of_global_psd": 0.5071984950898007,
+      "event_own_maximum_gy": 0.02011920595043972,
+      "rank": 1
+    },
+    {
+      "event_uid": "1.2.826.0.1.3680043.10.543.99.10.1",
+      "dose_at_global_psd_point_gy": 0.019452024628698078,
+      "fraction_of_global_psd": 0.49280150491019925,
+      "event_own_maximum_gy": 0.019600611324240368,
+      "rank": 2
+    }
+  ],
+  "psd_neighbourhood_1cm2": {
+    "dose_gy": 0.039458618121845056,
+    "patient_point_mm": [
+      -47.5,
+      -2.5,
+      -100.0
+    ],
+    "sampled_area_mm2": 125.0,
+    "target_area_mm2": 100.0,
+    "definition": "media ponderada en vecindad circular discreta; no equivale necesariamente a PSD clínica"
+  },
+  "surface_dose_area_approx": {
+    "unit": "cm2",
+    "sampling": "suma de áreas de celdas según dosis en su punto representativo",
+    "irradiated_area_cm2": 137.5,
+    "area_at_least_10_percent_peak_cm2": 137.5,
+    "area_at_least_50_percent_peak_cm2": 121.0,
+    "area_at_least_90_percent_peak_cm2": 104.5
+  },
+  "spatial_resolution_target_mm": 5,
+  "surface_metrics": {
+    "definition": "DAH superficial; no DVH volumétrico ni predictor de toxicidad",
+    "whole_model_surface": {
+      "area_cm2": 1296.0,
+      "dmean_gy": 0.003646710017311279,
+      "dmax_gy": 0.03947233203405644,
+      "d2_percent_gy": 0.03926936221994805,
+      "d5_percent_gy": 0.03892732163308024,
+      "d10_percent_gy": 0.019427924656690184
+    },
+    "irradiated_surface": {
+      "area_cm2": 137.5,
+      "dmean_gy": 0.03437189950862122,
+      "dmax_gy": 0.03947233203405644,
+      "d2_percent_gy": 0.039444225911148816,
+      "d5_percent_gy": 0.039416323010158405,
+      "d10_percent_gy": 0.03936139113079897
+    },
+    "area_above_thresholds": [
+      {
+        "threshold_gy": 0.001,
+        "area_cm2": 137.5
+      },
+      {
+        "threshold_gy": 0.01,
+        "area_cm2": 137.5
+      },
+      {
+        "threshold_gy": 0.02,
+        "area_cm2": 116.0
+      },
+      {
+        "threshold_gy": 0.05,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 0.1,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 0.5,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 1.0,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 2.0,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 3.0,
+        "area_cm2": 0.0
+      },
+      {
+        "threshold_gy": 5.0,
+        "area_cm2": 0.0
+      }
+    ],
+    "cumulative_dose_area_histogram": {
+      "dose_gy": [
+        0.0,
+        0.0003947233203405644,
+        0.0007894466406811288,
+        0.001184169961021693,
+        0.0015788932813622575,
+        0.0019736166017028218,
+        0.002368339922043386,
+        0.0027630632423839506,
+        0.003157786562724515,
+        0.0035525098830650795,
+        0.0039472332034056435,
+        0.004341956523746208,
+        0.004736679844086772,
+        0.005131403164427337,
+        0.005526126484767901,
+        0.005920849805108466,
+        0.00631557312544903,
+        0.006710296445789595,
+        0.007105019766130159,
+        0.0074997430864707235,
+        0.007894466406811287,
+        0.008289189727151852,
+        0.008683913047492416,
+        0.00907863636783298,
+        0.009473359688173545,
+        0.00986808300851411,
+        0.010262806328854674,
+        0.010657529649195238,
+        0.011052252969535803,
+        0.011446976289876367,
+        0.011841699610216931,
+        0.012236422930557496,
+        0.01263114625089806,
+        0.013025869571238625,
+        0.01342059289157919,
+        0.013815316211919754,
+        0.014210039532260318,
+        0.014604762852600883,
+        0.014999486172941447,
+        0.015394209493282011,
+        0.015788932813622574,
+        0.01618365613396314,
+        0.016578379454303703,
+        0.01697310277464427,
+        0.017367826094984832,
+        0.017762549415325398,
+        0.01815727273566596,
+        0.018551996056006527,
+        0.01894671937634709,
+        0.019341442696687656,
+        0.01973616601702822,
+        0.020130889337368785,
+        0.020525612657709347,
+        0.020920335978049914,
+        0.021315059298390476,
+        0.021709782618731042,
+        0.022104505939071605,
+        0.02249922925941217,
+        0.022893952579752734,
+        0.0232886759000933,
+        0.023683399220433863,
+        0.02407812254077443,
+        0.024472845861114992,
+        0.024867569181455558,
+        0.02526229250179612,
+        0.025657015822136683,
+        0.02605173914247725,
+        0.026446462462817812,
+        0.02684118578315838,
+        0.02723590910349894,
+        0.027630632423839507,
+        0.02802535574418007,
+        0.028420079064520636,
+        0.0288148023848612,
+        0.029209525705201765,
+        0.029604249025542328,
+        0.029998972345882894,
+        0.030393695666223457,
+        0.030788418986564023,
+        0.031183142306904586,
+        0.03157786562724515,
+        0.031972588947585714,
+        0.03236731226792628,
+        0.03276203558826685,
+        0.033156758908607406,
+        0.03355148222894797,
+        0.03394620554928854,
+        0.034340928869629105,
+        0.034735652189969664,
+        0.03513037551031023,
+        0.035525098830650796,
+        0.03591982215099136,
+        0.03631454547133192,
+        0.03670926879167249,
+        0.037103992112013054,
+        0.03749871543235362,
+        0.03789343875269418,
+        0.038288162073034746,
+        0.03868288539337531,
+        0.03907760871371587,
+        0.03947233203405644
+      ],
+      "area_at_least_cm2": [
+        1296.0,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        137.5,
+        136.0,
+        121.0,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        104.5,
+        103.5,
+        82.5,
+        51.0,
+        0.5
+      ]
+    },
+    "dose_area_integral_gy_cm2": 4.726136182435418,
+    "integral_is_not_kap_or_energy": true,
+    "hotspots": {
+      "threshold_gy": 0.035525098830650796,
+      "available": false,
+      "reason": "Clustering por adyacencia implementado para mallas triangulares."
+    }
+  },
+  "mesh_geometry": null,
+  "uncertainty": {
+    "partial_relative_standard_uncertainty": 0.0,
+    "quantified_components": {},
+    "unquantified_components": [
+      "posición real del paciente",
+      "geometría real del campo",
+      "incertidumbre de discretización",
+      "incertidumbre de cf",
+      "incertidumbre de table_angular",
+      "incertidumbre de table_normal",
+      "incertidumbre de bsf",
+      "incertidumbre de f_skin",
+      "incertidumbre de Ka,r informado"
+    ],
+    "complete_budget": false,
+    "aggregation_assumption": "quadrature of configured component maxima; zero covariance assumed, not propagated PSD uncertainty"
+  },
+  "events_outside_model": [],
+  "calibration_versions": {
+    "cf": "DEMO-CF",
+    "table_normal": "DEMO-TAF",
+    "table_angular": "DEMO-ANG"
+  },
+  "factor_metadata": {
+    "default": {
+      "cf": {
+        "identifier": "DEMO-CF",
+        "provenance": "synthetic_not_measured",
+        "relative_standard_uncertainty": null,
+        "representation": "constant",
+        "value": 1.0
+      },
+      "table_normal": {
+        "identifier": "DEMO-TAF",
+        "provenance": "synthetic_not_measured",
+        "relative_standard_uncertainty": null,
+        "representation": "constant",
+        "value": 0.8
+      },
+      "table_angular": {
+        "identifier": "DEMO-ANG",
+        "provenance": "synthetic_not_measured",
+        "relative_standard_uncertainty": null,
+        "representation": "constant",
+        "value": 1.0
+      }
+    },
+    "by_mode": {}
+  },
+  "surface_factor_dataset": {
+    "schema_version": 1,
+    "dataset_id": "KS-ASF-201101-IR",
+    "version": "1.0.0",
+    "formalism": "B_air_times_surface_water_air_ratio",
+    "medium": "water",
+    "source": {
+      "title": "Backscatter factors and mass energy-absorption coefficient ratios for surface dose determination in diagnostic radiology",
+      "authors": [
+        "Hamza Benmakhlouf",
+        "Annette Fransson",
+        "Pedro Andreo"
+      ],
+      "date": "2011-04-07",
+      "institution": "Karolinska University Hospital, Department of Hospital Physics",
+      "report": "KS-ASF-201101-IR",
+      "pdf_filename": "2011BenmakhloufFranssonAndreo_BSFmu_endiagradioldosimetry_ReportKS-ASF-201101-IR.pdf",
+      "pdf_sha256": "0d8ced5181445475d8540fd296d917d020f485ef75d61303003d425312d3f896",
+      "bibliographic_note": "The supplied report has three authors, not Bouchard. No journal-version data have been substituted."
+    },
+    "quantities": {
+      "k_bs": {
+        "definition": "K_air at water entrance surface (primary + backscatter) / incident K_air free in air at same position",
+        "equations": [
+          1,
+          8
+        ],
+        "unit": "1"
+      },
+      "k_f": {
+        "definition": "K_water / K_air, both evaluated with the total primary + backscatter spectrum at water entrance surface",
+        "equations": [
+          2,
+          9
+        ],
+        "unit": "1"
+      },
+      "product": {
+        "definition": "entrance surface water kerma / incident air kerma",
+        "equation": 5,
+        "unit": "1"
+      },
+      "output": {
+        "definition": "entrance surface water kerma, approximated as absorbed dose to water under local electron energy deposition",
+        "unit": "Gy"
+      }
+    },
+    "geometry": {
+      "material": "water",
+      "thickness_cm": 15,
+      "focus_surface_distance_cm": 100,
+      "scoring_voxel_cm": [
+        1,
+        1,
+        0.01
+      ],
+      "position": "centre of flat entrance surface; square field, normal central-axis incidence",
+      "field_side_cm": [
+        5,
+        10,
+        20,
+        25,
+        35
+      ],
+      "field_reference": "phantom entrance surface, plane perpendicular to beam",
+      "lateral_extent_section_3_2": "variable, margin exceeding 5 cm at beam exit",
+      "lateral_extent_table_1_3_caption_cm": [
+        30,
+        30
+      ],
+      "inconsistency": "A fixed 30 x 30 cm phantom conflicts with the 35 x 35 cm field and section 3.2. Both statements are preserved; no resolution is assumed."
+    },
+    "methods": {
+      "transport": "PENELOPE 2008 / PenEasy, electrons deposit locally; photon cutoff 1 keV",
+      "clinical_spectra": "SpekCalc tungsten spectra, kVp and inherent Al / added Cu as tabulated. No numeric anode angle supplied for each Table 3 row.",
+      "mono_database_vs_table": "Text: 44 simulated energies 4-150 keV. Table 1 publishes only 30 energies 5-150 keV in 5 keV steps. No reconstruction below 5 keV.",
+      "spectral_averaging": "Published Tables 3/4 used directly. No spectrum convolution implemented; in particular no substitution of kVp or mean energy for monoenergetic energy.",
+      "uncertainty": "Report estimates ~0.3% for calculated monoenergetic factors; this is not a combined patient-model uncertainty or an independently assigned uncertainty to each clinical factor."
+    },
+    "units": {
+      "energy_kev": "keV",
+      "kvp": "kV",
+      "inherent_al_mm": "mm Al",
+      "added_cu_mm": "mm Cu",
+      "hvl1_mm_al": "mm Al",
+      "h_original": "1",
+      "field_side_cm": "cm",
+      "k_bs": "1",
+      "k_f": "1"
+    },
+    "tables": {
+      "monoenergetic": {
+        "file": "table1_monoenergetic.csv",
+        "source_table": 1,
+        "pages": [
+          25
+        ],
+        "rows": 150,
+        "axes": [
+          "energy_kev",
+          "field_side_cm"
+        ],
+        "groups": [],
+        "domain": {
+          "energy_kev": [
+            5,
+            150
+          ],
+          "field_side_cm": [
+            5,
+            35
+          ]
+        },
+        "use": "monoenergetic lookup only; not inferred from clinical kVp"
+      },
+      "clinical": {
+        "file": "table3_clinical.csv",
+        "source_table": 3,
+        "pages": [
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "rows": 715,
+        "qualities": 143,
+        "axes": [
+          "kvp",
+          "added_cu_mm",
+          "field_side_cm"
+        ],
+        "groups": [
+          "inherent_al_mm"
+        ],
+        "domain": {
+          "kvp": [
+            50,
+            150
+          ],
+          "field_side_cm": [
+            5,
+            35
+          ],
+          "cu_nodes_by_al_mm": {
+            "2.5": [
+              0,
+              0.3,
+              0.9
+            ],
+            "3.1": [
+              0,
+              0.1,
+              0.2,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "4.1": [
+              0,
+              0.1,
+              0.2
+            ],
+            "5.1": [
+              0
+            ]
+          }
+        },
+        "use": "event calculation for explicitly declared tungsten / Al family; h and HVL retained as descriptors"
+      },
+      "comparison": {
+        "file": "table2_comparison.csv",
+        "source_table": 2,
+        "pages": [
+          26
+        ],
+        "rows": 6,
+        "use": "archive and independent full-MC vs averaging comparison only; not mixed into Table 3 grid"
+      },
+      "mammography": {
+        "file": "table4_mammography.csv",
+        "source_table": 4,
+        "pages": [
+          33
+        ],
+        "rows": 30,
+        "qualities": 6,
+        "use": "archive only, outside interventional event provider; water not glandular dose"
+      }
+    },
+    "interpolation": {
+      "method": "piecewise multilinear in original coordinates, exact at nodes",
+      "clinical": "fixed tabulated Al family; linear, bilinear or trilinear in kVp, Cu and square side",
+      "no_interpolation_between_al_families": true,
+      "out_of_domain": "error; no clamping, nearest-neighbour fallback, or extrapolation",
+      "field_shape_default": "square_only",
+      "optional_shape_approximation": "equal_area: sqrt(width*height), explicitly requested and audited; not validated by report",
+      "hvl_only_lookup": false
+    },
+    "source_issues": [
+      "Table 3 h_original > 1 in 24 quality rows (Al=3.1, kVp=120-150): preserved and flagged; excluded from interpolation.",
+      "Table 2 printed coefficient-ratio differences reach 1.3%, despite smaller BSF differences discussed in text.",
+      "Equation 12 averaging expression is not used to generate new spectra; Eq.9 defines the total-spectrum ratio."
+    ],
+    "clinical_validation": false,
+    "files_sha256": {
+      "table1_monoenergetic.csv": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08",
+      "table2_comparison.csv": "9057eca585b3e2b4b00d70198353f77fba434f0042ac85533a6f48af52a94880",
+      "source_tables_layout.txt": "8721dd6692501bd1485458bf65b1a2c74a747396249085257a00afb4ceae6210",
+      "table4_mammography.csv": "ed20fd018e30ec3051940ae5f02639218caa8a161abaa0d75e414dec03713b04",
+      "table3_clinical.csv": "1289fb1dadeae2785306744a834d29d945f8302c7a391fd6ef8f451458c7086b"
+    }
+  },
+  "configuration_version": "RESEARCH-BENMAKHLOUF-2011-v1",
+  "assumptions": [
+    "Colimación rectangular; perfil uniforme salvo beam_profile calibrado",
+    "Paciente rígido y centrado según configuración",
+    "Mapa calculado sobre puntos de superficie; sin transporte Monte Carlo"
+  ],
+  "performance": {
+    "total_seconds": 0.05837624399998731,
+    "surface_preparation_seconds": 0.0003730930000074295,
+    "projection_cache_hits": 0,
+    "rays_traced": 0,
+    "candidate_triangle_pairs": 0,
+    "surface_samples": 5184,
+    "timing_excludes_export": true
+  },
+  "factor_source": "configured",
+  "audit": {
+    "software_version": "0.5.3",
+    "rdsr_sha256": "0222c5814cf406f813cf237df73dc518a5c27fc7bcff570c0892b725f8cc7005",
+    "config_sha256": "64d3bbaaf29552c4fb415d3f264bb7c003bb1b699dfb2920c66a16a297ff004d",
+    "mesh_sha256": null,
+    "configuration_version": "RESEARCH-BENMAKHLOUF-2011-v1",
+    "azurion_profile": null,
+    "validation_status": "published_factors_with_synthetic_equipment_not_clinically_validated",
+    "synthetic_equipment_profile_used_for_different_rdsr_device": false,
+    "effective_factor_source": "configured",
+    "factor_fallback_reason": null,
+    "rdsr_device": {
+      "manufacturer": "SIMULATED",
+      "model": "PHANTOM-ONLY"
+    },
+    "configuration_device": {
+      "manufacturer": "SIMULATED",
+      "model": "PHANTOM-ONLY"
+    },
+    "phantom": "XCAT50",
+    "accumulated_ka_r_gy": 0.039669421488,
+    "accumulated_kap_gy_m2": 0.00039669421488,
+    "rdsr_warnings": [],
+    "runtime": {
+      "python": "3.12.14",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+      "dependencies": {
+        "numpy": "2.3.5",
+        "scipy": "1.17.0",
+        "trimesh": "5.2.0",
+        "rtree": "1.4.1",
+        "pydicom": "3.0.2",
+        "plotly": "6.9.0",
+        "matplotlib": "3.10.8"
+      },
+      "source_sha256": {
+        "__init__.py": "8e76bdde996162564b3cdfc3588b6b09b16fefd27cfdec4c2b14512bfaf4538d",
+        "__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+        "azurion.py": "abedf794c729f235b6c38f8f40a6110e8d7c383744fbe347fd1eec1b8caf6fa7",
+        "azurion_qc.py": "28a0c3ecc5806900ca946ed29e7c141add1e66f1829ce4066a76e34d6fbf0f70",
+        "benchmark.py": "621a98ddbec813baa0645c2636fbbcfd1af77cf4393fc2405c49530bc08c32d5",
+        "cli.py": "08944c942984b5af7eb96122e7233c7ac0a05a1158656b4903fdcd5e516ba20b",
+        "config.py": "5e339378a0354cba0a6eee9cac751f0ca86b36e2ae6defd9c99e1bb9d5911a49",
+        "convergence.py": "20e9c032745ff49fd87f138d54dd7307ec3d276001467cc930141ad7024bb2d9",
+        "domain.py": "8fa17fa385ea4eecaa94fffcdf147fff96b7e44111ebc2978e11b5131d493cad",
+        "engine.py": "8b2e73769049b72abfaa68bdc2319f519b0e586aeb948fdfabb5722dfc95a542",
+        "factor_tables.py": "c05e7f36269410110b4f3c67ce95379654bdf52083cf5393c4b9aa477e2a6880",
+        "geometry.py": "9d4dff4130df73863747f3093f021e69f08b6f0c097dc0e8f54cb4a301fbb54e",
+        "interactive.py": "ce9bed5659b54b9ea332e51471cbb9937c33fee50d8b47279c46b2d14f777ed4",
+        "irp.py": "1583b4e012136d253884be790145ca6375ab92f5a3e11941a3b52d7d852124e9",
+        "mesh_processing.py": "a124366f7e21542f27564c900d3fd1d5353784bdf2162b6ad2381c80a8f65f86",
+        "metrics.py": "7949526b420a63a19c7cac071ad8ea7539f766893b7bf9a46d996163835a6738",
+        "patient.py": "242b2495fd4473359fa90717e8a66288a8bc23260f4bd236eddbdf738454c893",
+        "provenance.py": "268acae0e1e327ef0c2296a27da412ead512e57574ed45e7fc974c6e2a7fce1c",
+        "raytrace.py": "ac85b6b091e6efe307320450d31ad773e811ee5526c3bf579a724670337e5d0e",
+        "rdsr.py": "c2054f5a45a3256564244bb28d2785127f30274bd584f0804c2e9b68ad9b7f54",
+        "reporting.py": "f2d483978a530cfbce7c27835fdd91e42d22a8667f5651f5c925db2633f644a0",
+        "sensitivity.py": "53c55c67a3b53f6cd55d427858be70c6f633e9d375a71cd0a07d56534673dea3",
+        "spectral.py": "46f1b940672b7dbf299bc29387e015f9a9adb670a4792726b8f04f5ea17c7e0f",
+        "surface_factors.py": "55dc8e675bc970eb1ecb3f3b6b3f5f58e2b1cc9f9e60dd1f402f80f8600055fb",
+        "synthetic.py": "dbe18b92861e5ca4a45f31eb9e891f2b7ba0c02f9903fb99b920b88a3cc84af0",
+        "uncertainty.py": "99fe3fd0327b75adc7a57e085b7a9b63ae164b48c1a77635b86ca4cb13537060",
+        "validation.py": "9d9680a1c4ba2fb97115c0b45922542291df63c87575219982301b71d4a8c5ec",
+        "data/visor_3d_template.html": "6dd353d8a32bbf7000a34037496ea26226bc19712f9ec75cb2dd17d10175f824"
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"dataset": "skindose_verifier/data/derived_mrc200_nominal", "rows": 1400, "clinical_validation": false, "hvl_comparison_complete": false}

@@ -1,0 +1,106 @@
+[
+  {
+    "file": "pyproject.toml",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/cli.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/config.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/engine.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/factor_tables.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/metrics.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/rdsr.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/spectral.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/surface_factors.py",
+    "action": "updated"
+  },
+  {
+    "file": "skindose_verifier/validation.py",
+    "action": "updated"
+  },
+  {
+    "file": "tests/test_pipeline.py",
+    "action": "updated"
+  },
+  {
+    "file": "tests/test_surface_factors.py",
+    "action": "updated"
+  },
+  {
+    "file": "ACTUALIZACION_20261029.md",
+    "action": "added"
+  },
+  {
+    "file": "config/equipo_azurion_espectral_condicionado.json",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/DermaDose_Auditoria_20261029.md",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/DermaDose_Memoria_Factores.pdf",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/DermaDose_Memoria_Factores_LaTeX.zip",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/cambios.json",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/pruebas.txt",
+    "action": "added"
+  },
+  {
+    "file": "documentacion/revision_20261029/pruebas_slicer.txt",
+    "action": "added"
+  },
+  {
+    "file": "requirements-qc.txt",
+    "action": "added"
+  },
+  {
+    "file": "skindose_verifier/azurion_qc.py",
+    "action": "added"
+  },
+  {
+    "file": "skindose_verifier/data/derived_azurion_qc_conditional/derived_clinical.csv",
+    "action": "added"
+  },
+  {
+    "file": "skindose_verifier/data/derived_azurion_qc_conditional/metadata.json",
+    "action": "added"
+  },
+  {
+    "file": "tests/test_audit_regressions.py",
+    "action": "added"
+  },
+  {
+    "file": "tests/test_qc_combined.py",
+    "action": "added"
+  }
+]

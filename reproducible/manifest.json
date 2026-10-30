@@ -1,0 +1,14 @@
+{
+  "expected_psd_gy": 0.03947233203405644,
+  "interpretation": "Frozen regression reference produced by this implementation, not an independent physical validation. Published water factors on synthetic anatomy and exposure.",
+  "sha256": {
+    "input.dcm": "0222c5814cf406f813cf237df73dc518a5c27fc7bcff570c0892b725f8cc7005",
+    "equipment.json": "64d3bbaaf29552c4fb415d3f264bb7c003bb1b699dfb2920c66a16a297ff004d",
+    "expected_map.npz": "f0b16afe627d309580bdffa430eabdb647dca43f6a80fe8bc189b22db81a4ef2",
+    "expected_summary.json": "c6ae331acc5b6e90d03ec9713b44a8d1e0213bec50f57e1e8c2b03cddc494e73"
+  },
+  "factor_files_sha256": {
+    "metadata.json": "3f83c476f5f63622a822456827b5501710af7752cf2402a107feaf71ff8ae943",
+    "table3_clinical.csv": "1289fb1dadeae2785306744a834d29d945f8302c7a391fd6ef8f451458c7086b"
+  }
+}

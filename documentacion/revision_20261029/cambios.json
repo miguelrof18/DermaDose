@@ -1,0 +1,22 @@
+[
+  "skindose_verifier/cli.py",
+  "skindose_verifier/surface_factors.py",
+  "skindose_verifier/azurion_qc.py",
+  "skindose_verifier/engine.py",
+  "skindose_verifier/rdsr.py",
+  "skindose_verifier/metrics.py",
+  "skindose_verifier/config.py",
+  "skindose_verifier/validation.py",
+  "skindose_verifier/spectral.py",
+  "skindose_verifier/factor_tables.py",
+  "skindose_verifier/data/derived_azurion_qc_conditional/derived_clinical.csv",
+  "skindose_verifier/data/derived_azurion_qc_conditional/metadata.json",
+  "tests/test_surface_factors.py",
+  "tests/test_audit_regressions.py",
+  "tests/test_pipeline.py",
+  "tests/test_qc_combined.py",
+  "pyproject.toml",
+  "documentacion/revision_20261029/DermaDose_Memoria_Factores.pdf",
+  "documentacion/revision_20261029/DermaDose_Memoria_Factores_LaTeX.zip",
+  "documentacion/revision_20261029/DermaDose_Auditoria_20261029.md"
+]

@@ -56,7 +56,7 @@ def test_mixed_filter_stack_keeps_copper_separate_from_aluminium(case):
     ds = pydicom.dcmread(case[0])
     event = ds.ContentSequence[0].ContentSequence[0]
     copper = next(n for n in event.ContentSequence if n.ConceptNameCodeSequence[0].CodeValue == "113771")
-    copper.ContentSequence.append(item("NUM", "113773", "X-Ray Filter Thickness Maximum", value=.4, unit="mm"))
+    copper.ContentSequence.append(item("NUM", "113773", "X-Ray Filter Thickness Maximum", value=.2, unit="mm"))
     aluminium = item("CONTAINER", "113771", "X-Ray Filters")
     aluminium.ContentSequence.extend([
         item("CODE", "113757", "X-Ray Filter Material",
@@ -67,7 +67,7 @@ def test_mixed_filter_stack_keeps_copper_separate_from_aluminium(case):
     event.ContentSequence.append(aluminium)
     ds.save_as(case[0], enforce_file_format=True)
     parsed = read_rdsr(case[0]).events[0]
-    assert parsed.filtration_mm_cu == pytest.approx(.3)
+    assert parsed.filtration_mm_cu == pytest.approx(.2)
     assert parsed.quality["filtration_mm_cu"] == "copper_with_aluminium"
     assert len(parsed.original["filter_stack"]) == 2
     assert parsed.original["filter_stack"][1]["selected_mm"] == 1
@@ -80,13 +80,14 @@ def test_aluminium_only_is_not_treated_as_copper(case):
     copper.ContentSequence[0].ConceptCodeSequence[0] = coded("C-120F9", "Aluminum", "SRT")
     ds.save_as(case[0], enforce_file_format=True)
     parsed = read_rdsr(case[0]).events[0]
-    assert parsed.filtration_mm_cu is None
+    assert parsed.filtration_mm_cu == 0.0
     assert parsed.quality["filtration_mm_cu"] == "no_copper_filter"
 
 
 def test_run_uses_configured_single_apparatus_profile_on_device_mismatch(case, tmp_path):
     data = deepcopy(case[2].raw)
     data["manufacturer"], data["model"] = "Other", "One profile"
+    data["allow_synthetic_device_override"] = True
     config = tmp_path / "one_profile.json"
     config.write_text(json.dumps(data), encoding="utf-8")
     files = run(case[0], config, "free_air", tmp_path / "single_profile")["files"]

@@ -21,7 +21,7 @@ def compare_with_radimetrics(ours: dict, reference_kar_gy: float,
         raise InputError("PSD comercial solo es comparable con cálculo de dosis absorbida.")
     if ours["quantity"] != f"entrance_absorbed_dose_in_{reference_medium}_Gy":
         raise InputError("La magnitud/medio dosimétrico difiere de Radimetrics.")
-    if reference_kar_gy <= 0 or reference_psd_gy <= 0:
+    if any(not math.isfinite(v) or v <= 0 for v in (reference_kar_gy, reference_psd_gy)):
         raise InputError("Valores de referencia no positivos.")
     x, y = ours["total_rdsr_ka_r_gy"], ours["psd_point_gy"]
     return {"reference_is_not_ground_truth": True,

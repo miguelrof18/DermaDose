@@ -18,7 +18,8 @@ class FactorPair:
 class RectilinearFactorTable:
     """A complete Cartesian grid of paired factors; never fills missing nodes."""
 
-    def __init__(self, rows, axes):
+    def __init__(self, rows, axes, *, interpolate_combined=False):
+        self.interpolate_combined = interpolate_combined
         self.axes = tuple(axes)
         if not rows or not self.axes:
             raise InputError('Tabla de factores vacía o sin ejes.')
@@ -59,6 +60,7 @@ class RectilinearFactorTable:
             weight = np.divide(v.ravel()-nodes[lower], span, out=np.zeros_like(span), where=span != 0)
             brackets.append((nodes[lower], nodes[upper], weight))
         bs, f = np.zeros(values[0].size), np.zeros(values[0].size)
+        combined = np.zeros(values[0].size)
         used = {}; interpolated = np.zeros(values[0].size, dtype=bool)
         for sides in product((0, 1), repeat=len(self.axes)):
             weights = np.ones(values[0].size)
@@ -70,9 +72,13 @@ class RectilinearFactorTable:
                 row = self.rows[tuple(c[i] for c in coords)]
                 bs[i] += weights[i]*float(row['k_bs'])
                 f[i] += weights[i]*float(row['k_f'])
+                combined[i] += weights[i]*float(row['k_bs'])*float(row['k_f'])
                 used[row['row_id']] = row
                 interpolated[i] |= weights[i] != 1
+        if self.interpolate_combined:
+            f = combined/bs
         return FactorPair(bs.reshape(shape), f.reshape(shape), {
+            'interpolation_quantity':'combined_C' if self.interpolate_combined else 'separate_factors',
             'method':'piecewise_multilinear', 'status':'interpolated' if np.any(interpolated) else 'tabulated',
             'extrapolated':False, 'out_of_domain_policy':'error',
             'query_axes':{a: np.unique(v).tolist() for a,v in zip(self.axes, values)},

@@ -127,8 +127,9 @@ def test_added_aluminium_from_rdsr_is_not_silently_folded_into_inherent_al(setup
 
 def test_out_of_domain_uses_whole_run_historical_synthetic_factors(tmp_path):
     config = tmp_path / 'benmakhlouf.json'
-    config.write_text((ROOT/'examples/equipo_benmakhlouf_investigacion.json').read_text(encoding='utf-8'),
-                      encoding='utf-8')
+    data=json.loads((ROOT/'examples/equipo_benmakhlouf_investigacion.json').read_text(encoding='utf-8'))
+    data['allow_historical_factor_fallback']=True
+    config.write_text(json.dumps(data),encoding='utf-8')
     rdsr = make_synthetic_rdsr(tmp_path / 'small_field.dcm')
     ds = pydicom.dcmread(rdsr)
     for event in ds.ContentSequence[0].ContentSequence[:2]:
