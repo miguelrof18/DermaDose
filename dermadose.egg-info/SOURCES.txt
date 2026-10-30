@@ -22,6 +22,7 @@ skindose_verifier/interactive.py
 skindose_verifier/irp.py
 skindose_verifier/mesh_processing.py
 skindose_verifier/metrics.py
+skindose_verifier/mrc200.py
 skindose_verifier/patient.py
 skindose_verifier/provenance.py
 skindose_verifier/raytrace.py
@@ -49,8 +50,12 @@ skindose_verifier/data/derived_azurion_qc_conditional/derived_clinical.csv
 skindose_verifier/data/derived_azurion_qc_conditional/metadata.json
 skindose_verifier/data/derived_azurion_spekpy/derived_clinical.csv
 skindose_verifier/data/derived_azurion_spekpy/metadata.json
+skindose_verifier/data/derived_mrc200_nominal/derived_clinical.csv
+skindose_verifier/data/derived_mrc200_nominal/metadata.json
 tests/test_audit_regressions.py
 tests/test_azurion.py
+tests/test_mrc200.py
+tests/test_physical_properties.py
 tests/test_pipeline.py
 tests/test_qc_combined.py
 tests/test_research.py

@@ -11,3 +11,4 @@ spekpy==2.5.4
 
 [test]
 pytest>=7
+spekpy==2.5.4
