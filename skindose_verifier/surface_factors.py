@@ -132,9 +132,14 @@ class EventSurfaceFactors:
         policy = self.spec.get('field_shape_policy', 'square_only')
         if not square and policy == 'square_only':
             raise InputError(f'Evento {event.uid}: campo no cuadrado; declarar equal_area si se acepta esa aproximación.')
+        # Mantener consultas vectoriales para varios elementos, pero convertir una
+        # consulta unitaria a escalar para conservar la API histórica del proveedor.
+        area = np.asarray(field_area_cm2, dtype=float)
+        if area.size == 1:
+            area = float(area.reshape(-1)[0])
         try:
             result = self.dataset.evaluate('clinical', inherent_al_mm=selected_al, kvp=event.kvp,
-                added_cu_mm=event.filtration_mm_cu, field_side_cm=np.sqrt(field_area_cm2))
+                added_cu_mm=event.filtration_mm_cu, field_side_cm=np.sqrt(area))
         except InputError as exc:
             raise InputError(f'Evento {event.uid}: {exc}') from exc
         return FactorPair(result.k_bs, result.k_f, {**result.audit,
