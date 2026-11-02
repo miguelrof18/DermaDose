@@ -22,10 +22,17 @@ def test_rdsr_uncertainty_must_be_finite_nonnegative(value):
     d=config();d['rdsr_relative_standard_uncertainty']=value
     with pytest.raises(InputError,match='Incertidumbre'):Equipment.from_dict(d)
 
-def test_mismatched_device_cannot_silently_replace_geometry(tmp_path):
-    r=make_synthetic_rdsr(tmp_path/'r.dcm');d=config();d['model']='wrong device'
+def test_mismatched_device_is_allowed_without_silently_replacing_geometry(tmp_path):
+    r=make_synthetic_rdsr(tmp_path/'r.dcm');d=config();d['model']='different selected device'
+    d['geometry']['source_to_detector_mm']=1300
     p=tmp_path/'c.json';p.write_text(json.dumps(d))
-    with pytest.raises(InputError,match='no coincide'):run(r,p,'free_air',tmp_path/'out')
+    result=run(r,p,'free_air',tmp_path/'out')
+    summary=json.loads(Path(result['files']['summary']).read_text(encoding='utf-8'))
+    assert summary['audit']['configuration_device_match'] is False
+    geometry=summary['events'][0]['geometry_samples'][0]
+    distance=np.linalg.norm(np.asarray(geometry['detector_patient_mm'])-geometry['source_patient_mm'])
+    assert distance==pytest.approx(read_rdsr(r).events[0].sid_mm)
+    assert distance!=pytest.approx(1300)
 
 def test_outside_table_cannot_silently_use_synthetic_factors(tmp_path):
     r=make_synthetic_rdsr(tmp_path/'r.dcm');ds=pydicom.dcmread(r)
