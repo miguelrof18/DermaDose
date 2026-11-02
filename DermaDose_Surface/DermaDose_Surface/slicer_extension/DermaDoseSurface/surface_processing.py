@@ -129,12 +129,14 @@ def shape_difference(source, candidate):
 
 def simplify_surface(poly, target_triangles=150000, progress=None,
                      max_deviation_mm=1.0, max_volume_change=0.01,
-                     minimum_triangles=None, maximum_triangles=None):
+                     minimum_triangles=None, maximum_triangles=None, optimization_mode="fast"):
     """Accept a count band only when topology and geometric tolerances pass.
 
     No smoothing, hole filling, subdivision or coordinate-system changes.
     The unchanged source remains available for inspection if reduction fails.
     """
+    if optimization_mode not in ("fast", "compact"):
+        raise ValueError("Prioridad de optimización desconocida.")
     target_triangles = int(target_triangles)
     if target_triangles < 100:
         raise ValueError("El objetivo mínimo es de 100 triángulos.")
@@ -251,6 +253,10 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                         accepted = True
                 attempt["accepted"] = bool(candidate_ok)
                 attempts.append(attempt)
+                if candidate_ok and optimization_mode == "fast":
+                    break
+            if accepted and optimization_mode == "fast":
+                break
     after = surface_quality(result)
     return result, dict(
         method=chosen_method, target_triangles=target_triangles,
@@ -260,8 +266,11 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
         target_reached=bool(accepted), export_allowed=bool(accepted),
         below_range_without_subdivision=count < lower,
         fallback_original=not accepted, attempts=attempts,
-        source_triangle_quality=source_stats, triangle_quality=triangle_statistics(result),
-        selection_policy="fewest compliant faces among searched candidates; 500-face buckets then shape and distance",
+        source_triangle_quality=source_stats,
+        triangle_quality=source_stats if result is source else triangle_statistics(result),
+        surface_quality=after, optimization_mode=optimization_mode,
+        selection_policy=("first validated candidate; alternatives only on failure" if optimization_mode == "fast"
+                          else "fewest compliant faces among searched candidates; 500-face buckets then shape and distance"),
         globally_optimal=False, max_deviation_tolerance_mm=max_deviation_mm,
         relative_volume_tolerance=max_volume_change, relative_area_tolerance=.05,
         distance_measure="bidirectional vertices and all face centroids to opposing surface; sampled, not continuous Hausdorff",
@@ -287,10 +296,27 @@ def write_stl_checked(poly, path):
         raise ValueError("El STL guardado pierde integridad al convertir a precisión STL: " + str(quality))
     if quality["triangles"] != poly.GetNumberOfPolys():
         raise ValueError("El STL guardado cambia el número de caras.")
-    roundtrip_error = shape_difference(poly, reader.GetOutput())
+    # STL preserves triangle order. A direct correspondence provides an upper
+    # bound for every point inside each triangle, without building two BVHs.
+    incoming = reader.GetOutput()
+    points_a = vtk_to_numpy(poly.GetPoints().GetData())
+    points_b = vtk_to_numpy(incoming.GetPoints().GetData())
+    faces_a = vtk_to_numpy(poly.GetPolys().GetConnectivityArray()).reshape(-1,3)
+    faces_b = vtk_to_numpy(incoming.GetPolys().GetConnectivityArray()).reshape(-1,3)
+    roundtrip_error = 0.0
+    for start in range(0, len(faces_a), 100000):
+        a = points_a[faces_a[start:start+100000]].astype(np.float64)
+        b = points_b[faces_b[start:start+100000]].astype(np.float64)
+        roundtrip_error = max(roundtrip_error, float(np.linalg.norm(a-b,axis=2).max()))
+    check_method = "corresponding_triangle_vertices"
+    if roundtrip_error > .001:
+        # Readers may reorder triangles. Retain the general geometric fallback.
+        roundtrip_error = shape_difference(poly, incoming)
+        check_method = "bidirectional_vertices_and_centroids"
     if roundtrip_error > .001:
         raise ValueError("La precisión STL altera la superficie más de 0,001 mm.")
     quality["stl_roundtrip_sampled_distance_mm"] = roundtrip_error
+    quality["stl_roundtrip_check_method"] = check_method
     return quality
 
 

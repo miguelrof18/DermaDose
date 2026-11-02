@@ -25,6 +25,7 @@ def test_range_geometry_and_disk(tmp_path):
     assert reduced.GetNumberOfPoints()-q["triangles"]//2 == 2
     disk=write_stl_checked(reduced,tmp_path/"surface.stl")
     assert disk["triangles"]==info["output_triangles"]
+    assert disk["stl_roundtrip_check_method"] == "corresponding_triangle_vertices"
 
 def test_small_not_subdivided():
     source=sphere(20,20)
@@ -65,7 +66,7 @@ def test_comparison_same_original_no_overwrite(tmp_path):
 def test_optimized_shape_and_candidate_selection():
     from surface_processing import triangle_statistics
     source = sphere(150,100)
-    reduced, info = simplify_surface(source, 6000)
+    reduced, info = simplify_surface(source, 6000, optimization_mode="compact")
     assert info['export_allowed'], info
     good = [a for a in info['attempts'] if a['accepted']]
     assert good
@@ -134,3 +135,17 @@ def test_face_interior_distance_is_checked():
         return poly
     # Same vertices, different non-planar diagonals: vertex-only distance is zero.
     assert shape_difference(mesh([[0,1,2],[0,2,3]]),mesh([[0,1,3],[1,2,3]])) > .1
+
+
+def test_fast_mode_stops_at_first_valid_candidate():
+    _, info = simplify_surface(sphere(150,100), 6000)
+    assert info['export_allowed'], info
+    assert info['optimization_mode'] == 'fast'
+    assert len(info['attempts']) == 1
+    assert info['attempts'][0]['accepted']
+    assert info['surface_quality']['triangles'] == info['output_triangles']
+
+
+def test_unknown_optimization_mode_rejected():
+    with pytest.raises(ValueError):
+        simplify_surface(sphere(20,20), optimization_mode='unknown')

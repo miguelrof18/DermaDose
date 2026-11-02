@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.6.0-optimized"
+MODULE_VERSION = "1.6.1-fast"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -86,6 +86,11 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.maxDeviation.toolTip = "Máxima desviación muestreada admitida respecto al original. No certifica la precisión de PSD."
         self.maxDeviation.connect("valueChanged(double)", self.onDeviationChanged)
         form.addRow("Tolerancia de superficie:", self.maxDeviation)
+        self.priority = qt.QComboBox()
+        self.priority.addItems(["Velocidad", "Menos triángulos"])
+        self.priority.toolTip = "Velocidad acepta la primera reducción validada. Menos triángulos explora más alternativas y tarda más."
+        self.priority.connect("currentIndexChanged(int)", self.onPriorityChanged)
+        form.addRow("Prioridad:", self.priority)
 
         self.extractButton = qt.QPushButton("Extraer superficie")
         self.extractButton.connect("clicked()", self.onExtract)
@@ -139,7 +144,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
     def _extractionControls(self, running):
         for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                        self.targetTriangles, self.maxDeviation, self.volume, self.threshold, self.acknowledge):
+                        self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge):
             control.setEnabled(not running)
         self.cancelButton.enabled = running
 
@@ -211,7 +216,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
     @contextmanager
     def busy(self):
         controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                    self.targetTriangles, self.maxDeviation, self.volume, self.threshold, self.acknowledge)
+                    self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge)
         self._reviewedKey = None
         self.acknowledge.checked = False
         for control in controls:
@@ -224,6 +229,12 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             slicer.util.mainWindow().unsetCursor()
             for control in controls:
                 control.setEnabled(True)
+
+    def onPriorityChanged(self, index):
+        self.logic.optimizationMode = "fast" if int(index) == 0 else "compact"
+        self._reviewedKey = None
+        self.acknowledge.checked = False
+        self.report.plainText = "Prioridad cambiada. Pulse Revisar malla para actualizar."
 
     def onDeviationChanged(self, value):
         self.logic.maxDeviationMm = float(value)
@@ -244,7 +255,9 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             f"Cambio de volumen: {100*info.get('relative_volume_change',0):.2f}%",
             f"Caras muy alargadas: {100*stats.get('slender_face_fraction',0):.2f}%",
             f"Método seleccionado: {info['method']}",
-            "Se elige la menor malla válida entre las alternativas probadas.",
+            ("Prioridad: velocidad; alternativas adicionales solo si la reducción falla."
+             if info.get('optimization_mode') == 'fast'
+             else "Prioridad: menos triángulos entre las alternativas probadas."),
             *["AVISO: " + message for message in result['warnings']],
         ])
 
@@ -286,7 +299,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             volume.GetIJKToRASMatrix(matrix)
             self._jobThreshold = float(self.threshold.value)
             job = dict(threshold_hu=self._jobThreshold, target_triangles=int(self.targetTriangles.value),
-                       max_deviation_mm=float(self.maxDeviation.value),
+                       max_deviation_mm=float(self.maxDeviation.value), optimization_mode=self.logic.optimizationMode,
                        ijk_to_ras=[[matrix.GetElement(i,j) for j in range(4)] for i in range(4)])
             (folder/'job.json').write_text(json.dumps(job), encoding='utf-8')
             self._jobVolume = volume
@@ -328,6 +341,8 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._job = tempfile.TemporaryDirectory(prefix='dermadose_pair_')
             original_path = Path(self._job.name)/'original.vtp'
             writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetCompressorTypeToNone()
+            writer.EncodeAppendedDataOff()
             writer.SetFileName(str(original_path))
             writer.SetInputData(source)
             if not writer.Write() or writer.GetErrorCode():
@@ -346,7 +361,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
             self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
             self._worker.start(str(executable), ['-u',
-                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination), str(self.logic.maxDeviationMm)])
+                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination), str(self.logic.maxDeviationMm), self.logic.optimizationMode])
         except Exception as exc:
             self._pairJob = False
             self._extractionControls(False)
@@ -389,12 +404,14 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._job = tempfile.TemporaryDirectory(prefix='dermadose_review_')
             folder = Path(self._job.name)
             writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetCompressorTypeToNone()
+            writer.EncodeAppendedDataOff()
             writer.SetFileName(str(folder/'original_surface.vtp'))
             writer.SetInputData(self.logic._surface())
             if not writer.Write() or writer.GetErrorCode():
                 raise OSError("No se pudo preparar el original para revisión.")
             job = dict(mode='review', target_triangles=self.logic.targetTriangles,
-                       max_deviation_mm=self.logic.maxDeviationMm)
+                       max_deviation_mm=self.logic.maxDeviationMm, optimization_mode=self.logic.optimizationMode)
             (folder/'job.json').write_text(json.dumps(job),encoding='utf-8')
             self._reviewSourceKey = key
             self._jobVolume = self.logic.volumeNode
@@ -449,6 +466,9 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         self.thresholdHU = None
         self.targetTriangles = 150000
         self.maxDeviationMm = 1.0
+        self.optimizationMode = "fast"
+        self._qaKey = None
+        self._qaResult = None
         self.previewNode = None
         self._preparedKey = None
         self._preparedPoly = None
@@ -487,7 +507,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             self.decimation = json.loads((folder/'result.json').read_text(encoding='utf-8'))
             self._preparedPoly = poly
             self._preparedKey = (seg.GetID(), original.GetMTime(), original.GetPoints().GetMTime(),
-                                 original.GetPolys().GetMTime(), self.targetTriangles, self.maxDeviationMm)
+                                 original.GetPolys().GetMTime(), self.targetTriangles, self.maxDeviationMm, self.optimizationMode)
             if previous is not None and previous.GetScene() is not None:
                 previous.GetDisplayNode().SetVisibility(False)
             slicer.util.resetThreeDViews()
@@ -557,13 +577,14 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         representation = self._surface()
         return (self.segmentationNode.GetID(), representation.GetMTime(),
                 representation.GetPoints().GetMTime(), representation.GetPolys().GetMTime(),
-                self.targetTriangles, self.maxDeviationMm)
+                self.targetTriangles, self.maxDeviationMm, self.optimizationMode)
 
     def preparedSurface(self):
         key = self.surfaceKey()
         if key != self._preparedKey:
             self._preparedPoly, self.decimation = simplify_surface(
-                self._surface(), self.targetTriangles, max_deviation_mm=self.maxDeviationMm)
+                self._surface(), self.targetTriangles, max_deviation_mm=self.maxDeviationMm,
+                optimization_mode=self.optimizationMode)
             self._preparedKey = key
         return self._preparedPoly
 
@@ -579,7 +600,14 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
 
     def inspect(self):
         poly = self.preparedSurface()
-        quality = surface_quality(poly)
+        qa_key = (self._preparedKey, self.segmentationNode.GetMTime(),
+                  self.volumeNode.GetMTime(), self.volumeNode.GetImageData().GetMTime())
+        if qa_key == self._qaKey:
+            from copy import deepcopy
+            return deepcopy(self._qaResult)
+        quality = self.decimation.get("surface_quality")
+        if quality is None:
+            quality = surface_quality(poly)
         mask = slicer.util.arrayFromSegmentBinaryLabelmap(
             self.segmentationNode, self.segmentId, self.volumeNode
         )
@@ -602,11 +630,14 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         if self.decimation.get("below_range_without_subdivision"):
             warnings.append("El original tiene menos de 100 000 caras; se conserva sin añadir triángulos artificiales.")
         warnings.append("El número de caras no certifica la precisión de la PSD; compare 150 000 y 300 000.")
-        return {
+        result = {
             **quality,
             "original_triangles": self.decimation["input_triangles"],
             "warnings": warnings,
         }
+        self._qaKey, self._qaResult = qa_key, result
+        from copy import deepcopy
+        return deepcopy(result)
 
     def export(self, path):
         path = Path(path)
