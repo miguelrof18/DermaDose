@@ -20,163 +20,12 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.3.0-150k"
+MODULE_VERSION = "1.4.0-background"
 
-def surface_quality(poly):
-    connectivity = vtk.vtkPolyDataConnectivityFilter()
-    connectivity.SetInputData(poly)
-    connectivity.SetExtractionModeToAllRegions()
-    connectivity.Update()
-    counts = {}
-    for name in ("boundary_edges", "nonmanifold_edges"):
-        edges = vtk.vtkFeatureEdges()
-        edges.SetInputData(poly)
-        edges.FeatureEdgesOff()
-        edges.ManifoldEdgesOff()
-        edges.BoundaryEdgesOff()
-        edges.NonManifoldEdgesOff()
-        if name == "boundary_edges":
-            edges.BoundaryEdgesOn()
-        else:
-            edges.NonManifoldEdgesOn()
-        edges.Update()
-        counts[name] = int(edges.GetOutput().GetNumberOfCells())
-    triangle_filter = vtk.vtkTriangleFilter()
-    triangle_filter.SetInputData(poly)
-    triangle_filter.PassVertsOff()
-    triangle_filter.PassLinesOff()
-    triangle_filter.Update()
-    triangles = triangle_filter.GetOutput()
-    degenerate = 0
-    finite = False
-    volume = 0.0
-    if triangles.GetNumberOfPoints() and triangles.GetNumberOfPolys():
-        points = vtk_to_numpy(triangles.GetPoints().GetData())
-        faces = vtk_to_numpy(triangles.GetPolys().GetConnectivityArray()).reshape(-1, 3)
-        finite = bool(np.isfinite(points).all())
-        for start in range(0, len(faces), 100000):
-            vertices = points[faces[start:start + 100000]].astype(np.float64)
-            cross = np.cross(vertices[:, 1] - vertices[:, 0], vertices[:, 2] - vertices[:, 0])
-            degenerate += int(np.count_nonzero(np.linalg.norm(cross, axis=1) <= 1e-12))
-            volume += float(np.einsum("ij,ij->", vertices[:, 0], cross) / 6.0)
-    return {
-        "finite_coordinates": finite,
-        "degenerate_triangles": degenerate,
-        "signed_volume_mm3": volume,
-        "triangles": int(poly.GetNumberOfPolys()),
-        "components": int(connectivity.GetNumberOfExtractedRegions()),
-        **counts,
-    }
-
-
-def clean_surface(poly):
-    # Only weld exactly coincident vertices; do not close holes or move anatomy.
-    clean = vtk.vtkCleanPolyData()
-    clean.SetInputData(poly)
-    clean.PointMergingOn()
-    clean.ToleranceIsAbsoluteOn()
-    clean.SetAbsoluteTolerance(0.0)
-    clean.ConvertPolysToLinesOff()
-    clean.ConvertLinesToPointsOff()
-    clean.Update()
-    triangles = vtk.vtkTriangleFilter()
-    triangles.SetInputConnection(clean.GetOutputPort())
-    triangles.PassVertsOff()
-    triangles.PassLinesOff()
-    triangles.Update()
-    output = vtk.vtkPolyData()
-    output.DeepCopy(triangles.GetOutput())
-    return output
-
-
-def valid_surface(quality):
-    return (quality["triangles"] >= 4 and quality["components"] == 1
-            and quality["boundary_edges"] == 0 and quality["nonmanifold_edges"] == 0
-            and quality["finite_coordinates"] and quality["degenerate_triangles"] == 0
-            and abs(quality["signed_volume_mm3"]) > 1e-9)
-
-
-def simplify_surface(poly, target_triangles=150000):
-    """Try conservative reductions; retain the original if all reductions fail."""
-    if target_triangles < 100:
-        raise ValueError("El objetivo mínimo es de 100 triángulos.")
-    source = clean_surface(poly)
-    before = surface_quality(source)
-    if not valid_surface(before):
-        raise ValueError("Superficie original inválida: " + str(before)
-                         + ". Corrija la segmentación antes de simplificar.")
-    count = before["triangles"]
-    result = source
-    attempts = []
-    reduced = False
-    def orient(candidate):
-        normals = vtk.vtkPolyDataNormals()
-        normals.SetInputData(candidate)
-        normals.SplittingOff()
-        normals.ConsistencyOn()
-        normals.AutoOrientNormalsOn()
-        normals.Update()
-        return clean_surface(normals.GetOutput())
-
-    budgets = []
-    if count > target_triangles:
-        budgets = sorted(set([int(target_triangles), int((target_triangles * count) ** 0.5),
-                              max(int(target_triangles), int(count * 0.75))]))
-    chosen_method = "unchanged"
-    found = False
-    for budget in budgets:
-        if budget >= count:
-            continue
-        # Try both available VTK decimators; accept only independently checked outputs.
-        for method in ("vtkDecimatePro", "vtkQuadricDecimation"):
-            decimator = getattr(vtk, method)()
-            decimator.SetInputData(source)
-            decimator.SetTargetReduction(1.0 - budget / count)
-            if method == "vtkDecimatePro":
-                decimator.PreserveTopologyOn()
-                decimator.SplittingOff()
-                decimator.BoundaryVertexDeletionOff()
-            decimator.Update()
-            candidate = orient(clean_surface(decimator.GetOutput()))
-            quality = surface_quality(candidate)
-            attempts.append({"method": method, "requested_triangles": budget, **quality})
-            if valid_surface(quality) and quality["triangles"] < count:
-                result, chosen_method, found = candidate, method, True
-                break
-        if found:
-            break
-    if not found:
-        result = orient(source)
-    after = surface_quality(result)
-    if not valid_surface(after):
-        raise ValueError("Superficie original: fallo al orientar normales. Diagnóstico: " + str(after))
-    return result, {
-        "method": chosen_method,
-        "target_triangles": int(target_triangles),
-        "input_triangles": count, "output_triangles": after["triangles"],
-        "target_reached": after["triangles"] <= target_triangles,
-        "fallback_original": count > target_triangles and not found,
-        "attempts": attempts,
-    }
-
-
-def write_stl_checked(poly, path):
-    """Validate the bytes actually written, before exposing an STL to the user."""
-    writer = vtk.vtkSTLWriter()
-    writer.SetFileName(str(path))
-    writer.SetFileTypeToBinary()
-    writer.SetHeader("DermaDose SPACE=RAS; coordinates in mm")
-    writer.SetInputData(poly)
-    if not writer.Write() or writer.GetErrorCode() != 0:
-        raise OSError("No se pudo escribir el STL.")
-    reader = vtk.vtkSTLReader()
-    reader.SetFileName(str(path))
-    reader.MergingOn()
-    reader.Update()
-    quality = surface_quality(reader.GetOutput())
-    if not valid_surface(quality):
-        raise ValueError("El STL guardado pierde integridad al convertir a precisión STL: " + str(quality))
-    return quality
+import sys
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from surface_processing import surface_quality, clean_surface, valid_surface, simplify_surface, write_stl_checked
 
 
 class DermaDoseSurface(ScriptedLoadableModule):
@@ -230,6 +79,14 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.extractButton = qt.QPushButton("Extraer superficie")
         self.extractButton.connect("clicked()", self.onExtract)
         form.addRow(self.extractButton)
+        self.cancelButton = qt.QPushButton("Cancelar extracción")
+        self.cancelButton.enabled = False
+        self.cancelButton.connect("clicked()", self.onCancelExtraction)
+        form.addRow(self.cancelButton)
+        self.progressLabel = qt.QLabel("Listo para extraer")
+        form.addRow("Estado:", self.progressLabel)
+        self._worker = None
+        self._job = None
 
         self.editButton = qt.QPushButton("Abrir Segment Editor para corregir")
         self.editButton.connect("clicked()", self.onEdit)
@@ -255,6 +112,70 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.layout.addStretch(1)
         self._reviewedKey = None
 
+
+    def cleanup(self):
+        if self._worker is not None:
+            self._worker.blockSignals(True)
+            self._worker.kill()
+            self._worker.waitForFinished(3000)
+        if self._job is not None:
+            self._job.cleanup()
+
+    def _extractionControls(self, running):
+        for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton,
+                        self.targetTriangles, self.volume, self.threshold, self.acknowledge):
+            control.setEnabled(not running)
+        self.cancelButton.enabled = running
+
+    def onCancelExtraction(self):
+        if self._worker is not None:
+            self._cancelled = True
+            self.progressLabel.text = "Cancelando…"
+            self._worker.kill()
+
+    def _readWorker(self):
+        if self._worker is not None:
+            text = bytes(self._worker.readAllStandardOutput()).decode('utf-8', errors='replace')
+            self._workerLog += text
+            self.report.plainText = self._workerLog[-12000:]
+            if text.strip():
+                self.progressLabel.text = text.strip().splitlines()[-1]
+
+    def _finishWorker(self, exitCode, exitStatus):
+        self._readWorker()
+        try:
+            if self._cancelled:
+                self.progressLabel.text = "Extracción cancelada; se conserva el resultado anterior."
+                return
+            if exitCode != 0:
+                raise RuntimeError("Falló la extracción:\n" + self._workerLog[-4000:])
+            volume = self._jobVolume
+            if (volume.GetScene() is None or volume.GetImageData() is None
+                    or volume.GetMTime() != self._jobVolumeMTime
+                    or volume.GetImageData().GetMTime() != self._jobImageMTime):
+                raise ValueError("El TC cambió durante la extracción. Vuelva a extraer.")
+            self.logic.installExtraction(Path(self._job.name), volume, self._jobThreshold)
+            result = self.logic.inspect()
+            self.logic.showPreview()
+            self._reviewedKey = self.logic._preparedKey
+            self.report.plainText = self._workerLog + '\n' + '\n'.join(
+                [f"Triángulos de salida: {result['triangles']}"] + result['warnings'])
+            self.progressLabel.text = "Superficie preparada. Revise el contorno y exporte."
+        except Exception as exc:
+            self.progressLabel.text = "La extracción no se completó."
+            slicer.util.errorDisplay(str(exc))
+        finally:
+            self._worker.deleteLater()
+            self._worker = None
+            self._job.cleanup()
+            self._job = None
+            self._extractionControls(False)
+
+    def _workerError(self, error):
+        if self._worker is not None and error == qt.QProcess.FailedToStart:
+            self._workerLog += '\nNo se pudo iniciar PythonSlicer: ' + self._worker.errorString()
+            self._finishWorker(-1, 1)
+
     @contextmanager
     def busy(self):
         controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton,
@@ -278,13 +199,58 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.report.plainText = "Objetivo cambiado. Pulse Revisar malla para actualizar la vista previa."
 
     def onExtract(self):
+        if self._worker is not None:
+            return
         try:
-            with self.busy():
-                self.logic.extract(self.volume.currentNode(), self.threshold.value)
+            volume = self.volume.currentNode()
+            if volume is None:
+                volumes = slicer.util.getNodesByClass('vtkMRMLScalarVolumeNode')
+                volumes = [v for v in volumes if v.GetImageData() is not None]
+                if len(volumes) == 1:
+                    volume = volumes[0]
+                    self.volume.setCurrentNode(volume)
+            if volume is None or volume.GetImageData() is None:
+                raise ValueError("Seleccione el TC en el desplegable 'TC (volumen)'.")
+            if volume.GetParentTransformNode():
+                raise ValueError("Endurezca la transformación del TC antes de extraer.")
+            values = slicer.util.arrayFromVolume(volume)
+            if values.size > 160_000_000:
+                raise ValueError("TC demasiado grande: recorte una ROI o remuestree antes de extraer.")
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = Path(slicer.app.applicationDirPath())/'PythonSlicer'
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer junto a la aplicación.")
+            self._extractionControls(True)
+            self.progressLabel.text = "Preparando el TC temporal…"
+            slicer.app.processEvents()
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_surface_')
+            folder = Path(self._job.name)
+            np.save(folder/'input.npy', values)
+            matrix = vtk.vtkMatrix4x4()
+            volume.GetIJKToRASMatrix(matrix)
+            self._jobThreshold = float(self.threshold.value)
+            job = dict(threshold_hu=self._jobThreshold, target_triangles=int(self.targetTriangles.value),
+                       ijk_to_ras=[[matrix.GetElement(i,j) for j in range(4)] for i in range(4)])
+            (folder/'job.json').write_text(json.dumps(job), encoding='utf-8')
+            self._jobVolume = volume
+            self._jobVolumeMTime = volume.GetMTime()
+            self._jobImageMTime = volume.GetImageData().GetMTime()
+            self._cancelled = False
+            self._workerLog = ''
+            self._reviewedKey = None
             self.acknowledge.checked = False
-            self.onCheck()
-            slicer.util.selectModule("DermaDoseSurface")
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u', str(Path(__file__).with_name('surface_worker.py')), str(folder)])
         except Exception as exc:
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
             slicer.util.errorDisplay(str(exc))
 
     def onEdit(self):
@@ -355,6 +321,42 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         self._preparedKey = None
         self._preparedPoly = None
         self.decimation = None
+
+
+    def installExtraction(self, folder, volume, threshold_hu):
+        """Import finished output on the main thread without re-decimation."""
+        reader = vtk.vtkXMLPolyDataReader()
+        reader.SetFileName(str(folder/'surface.vtp'))
+        reader.Update()
+        poly = vtk.vtkPolyData()
+        poly.DeepCopy(reader.GetOutput())
+        if poly.GetNumberOfPolys() < 4:
+            raise ValueError('El proceso no devolvió una superficie válida.')
+        body = np.load(folder/'body.npy')
+        if tuple(body.shape) != tuple(slicer.util.arrayFromVolume(volume).shape):
+            raise ValueError('La geometría del resultado no coincide con el TC.')
+        previous = self.segmentationNode
+        seg = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode', 'DermaDose external contour')
+        try:
+            seg.CreateDefaultDisplayNodes()
+            seg.SetReferenceImageGeometryParameterFromVolumeNode(volume)
+            segment_id = seg.GetSegmentation().AddEmptySegment('ExternalContour', 'External contour')
+            slicer.util.updateSegmentBinaryLabelmapFromArray(body, seg, segment_id, volume)
+            segment = seg.GetSegmentation().GetSegment(segment_id)
+            segment.AddRepresentation('Closed surface', poly)
+            self.segmentationNode, self.volumeNode = seg, volume
+            self.segmentId, self.thresholdHU = segment_id, float(threshold_hu)
+            self.decimation = json.loads((folder/'result.json').read_text(encoding='utf-8'))
+            self._preparedPoly = poly
+            self._preparedKey = (seg.GetID(), poly.GetMTime(), poly.GetPoints().GetMTime(),
+                                 poly.GetPolys().GetMTime(), self.targetTriangles)
+            if previous is not None and previous.GetScene() is not None:
+                previous.GetDisplayNode().SetVisibility(False)
+            slicer.util.resetThreeDViews()
+            return seg
+        except Exception:
+            slicer.mrmlScene.RemoveNode(seg)
+            raise
 
     def extract(self, volume, threshold_hu):
         if volume is None or volume.GetImageData() is None:
