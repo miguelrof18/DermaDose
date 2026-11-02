@@ -68,6 +68,32 @@ def normalize(ev: IrradiationEvent, equipment: Equipment) -> IrradiationEvent:
             updates["table_mm"] = tuple(raw[k][0]["value"] for k in keys)
             updates["table_system"] = system
             q["table_mm"] = f"selected_{system}_from_rdsr"
+        elif ev.table_system == "isocenter" and system == "legacy" and ev.table_mm is not None:
+            # Isocenter positions are offsets, whereas legacy positions use the
+            # configured table zero. Keep the axes chosen in this JSON; do not
+            # apply a second zero subtraction to isocenter-relative data.
+            position = np.asarray(ev.table_mm, dtype=float)
+            matrix = np.asarray(g["table_matrix"], dtype=float)
+            origin = np.asarray(g["table_origin_mm"], dtype=float)
+            isocenter = np.asarray(g.get("isocenter_mm", [0., 0., 0.]), dtype=float)
+            source_matrix = np.asarray(g.get("isocenter_table_matrix", g["table_matrix"]), dtype=float)
+            if (position.shape != (3,) or source_matrix.shape != (3, 3)
+                    or not np.all(np.isfinite(source_matrix)) or not np.all(np.isfinite(position))
+                    or not np.allclose(source_matrix.T @ source_matrix, np.eye(3), atol=1e-7)):
+                raise InputError("Coordenadas de mesa respecto al isocentro inválidas.")
+            room_position = isocenter + source_matrix @ position
+            try:
+                converted = origin + np.linalg.solve(matrix, room_position)
+            except np.linalg.LinAlgError as exc:
+                raise InputError("table_matrix no permite transformar las coordenadas de mesa.") from exc
+            updates["table_mm"] = tuple(converted.tolist())
+            updates["table_system"] = system
+            updates["original"] = {**ev.original, "table_coordinate_conversion": {
+                "source_system": "isocenter", "source_mm": position.tolist(),
+                "target_system": system, "target_mm": converted.tolist(),
+                "room_position_mm": room_position.tolist(),
+                "axes_source": "isocenter_table_matrix" if "isocenter_table_matrix" in g else "selected_configuration_table_matrix"}}
+            q["table_mm"] = "converted_isocenter_to_configured_table_reference"
     updates["quality"] = q
     return replace(ev, **updates)
 
@@ -175,13 +201,14 @@ def uncertainty(equipment: Equipment, stage: str, events: Sequence[IrradiationEv
 
 def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: str = "free_air", *,
               surface: SkinSurface | None = None, detailed: bool = True,
-              cache_geometry: bool = True) -> Calculation:
+              cache_geometry: bool = True, progress_callback=None) -> Calculation:
     """Evaluate a fixed surface. Reuse `surface` only for unchanged local anatomy.
 
     Bounded, call-local cache cannot leak geometry between configurations.
     `detailed=False` omits costly local-area/cluster reports for parameter draws.
     """
     started = time.perf_counter()
+    progress = progress_callback if progress_callback is not None else lambda message: None
     if not events:
         raise InputError("No hay eventos de irradiación.")
     if equipment.raw.get("azurion_profile"):
@@ -190,27 +217,47 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         # Research table registration must not mutate the caller's configuration.
         equipment = replace(equipment, raw=deepcopy(equipment.raw))
         events = prepare_events(events, equipment)
+    # Validate and normalize before loading a potentially multi-million-face STL.
+    events = tuple(normalize(event, equipment) for event in events)
+    for event in events:
+        equipment.validate_event(event, stage)
+    progress("Cargando y comprobando la superficie...")
+    newly_loaded_surface = surface is None
     surface = sample_patient(equipment.patient) if surface is None else surface
+    if newly_loaded_surface and surface.mesh is not None and len(surface.mesh.faces) >= 200_000:
+        # Validation/splitting can leave large derived topology arrays cached.
+        # The surface keeps its centroids, normals and areas independently.
+        surface.mesh._cache.clear()
+    progress(f"Superficie preparada: {len(surface.points_mm)} puntos de cálculo.")
     surface_seconds = time.perf_counter()-started
     cache: OrderedDict[tuple, Projection] = OrderedDict()
     cache_hits = 0
     total_rays = total_pairs = 0
+    backends = set()
+    backend_versions = {}
+    pairs_available = True
     maps = []
     reports = []
-    for raw in events:
+    for event_index, raw in enumerate(events, 1):
+        progress(f"Calculando evento {event_index}/{len(events)}...")
         event_started = time.perf_counter()
-        ev = normalize(raw, equipment)
-        equipment.validate_event(ev, stage)
+        ev = raw
         sliced = event_slices(ev, equipment)
         event_map = np.zeros(len(surface.points_mm))
         subreports = []
         event_rays = event_pairs = 0
+        event_pairs_available = True
         for piece in sliced:
             key = (piece.plane, piece.primary_deg, piece.secondary_deg, tuple(piece.table_mm),
                    piece.sid_mm, piece.sod_mm, piece.srp_mm, piece.field_width_mm, piece.field_height_mm)
             geo = cache.get(key) if cache_geometry else None
             if geo is None:
                 geo = project(piece, equipment, surface)
+                backends.add(geo.statistics['backend'])
+                if geo.statistics.get('backend_version'):
+                    backend_versions[geo.statistics['backend']] = geo.statistics['backend_version']
+                pairs_available = pairs_available and geo.statistics.get('candidate_triangle_pairs_available', True)
+                event_pairs_available = event_pairs_available and geo.statistics.get('candidate_triangle_pairs_available', True)
                 event_rays += geo.statistics["rays_traced"]
                 event_pairs += geo.statistics["candidate_triangle_pairs"]
                 if cache_geometry:
@@ -229,10 +276,13 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         total_pairs += event_pairs
         reports.append({"event_uid": ev.uid, "plane": ev.plane, "ka_r_gy": ev.ka_r_gy,
                         "kap_gy_m2": ev.kap_gy_m2, "status": ev.quality,
+                        "table_coordinate_conversion": ev.original.get("table_coordinate_conversion"),
                         "sample_count": len(sliced),
                         "geometry_samples": [beam_view(piece, equipment) for piece in sliced],
                         "performance": {"seconds": time.perf_counter()-event_started,
-                                        "rays_traced": event_rays, "candidate_triangle_pairs": event_pairs},
+                                        "rays_traced": event_rays,
+                                        "candidate_triangle_pairs": event_pairs if event_pairs_available else None,
+                                        "candidate_triangle_pairs_available": event_pairs_available},
                         "uniform_sweep_assumed": len(sliced)>1,
                         "maximum_gy": float(event_map[idx]),
                         "maximum_patient_point_mm": surface.points_mm[idx].tolist() if illuminated else None,
@@ -262,6 +312,20 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     peak_event_contributions.sort(key=lambda item: item["dose_at_global_psd_point_gy"], reverse=True)
     for rank, item in enumerate(peak_event_contributions, start=1):
         item["rank"] = rank
+    # The native locator is no longer needed. Release it before constructing
+    # adjacency/area reports for very large meshes on memory-limited machines.
+    cache.clear()
+    if detailed and 'vtk_static_cell_locator' in backends:
+        from .vtk_ray_backend import close_worker
+        close_worker()
+    progress("Calculando PSD y métricas de superficie...")
+    neighbourhood_limit = equipment.raw.get('max_neighbourhood_faces', 200_000)
+    if isinstance(neighbourhood_limit, bool) or not isinstance(neighbourhood_limit, int) or neighbourhood_limit < 0:
+        raise InputError('max_neighbourhood_faces debe ser un entero >= 0 (0 permite el cálculo sin límite).')
+    compute_neighbourhood = detailed and (surface.mesh is None or neighbourhood_limit == 0
+                                         or len(surface.points_mm) <= neighbourhood_limit)
+    if detailed and not compute_neighbourhood:
+        progress('Media local de 1 cm² no calculada por el tamaño de la malla; PSD puntual y mapa completos.')
     summary = {
         "status": "research_unvalidated_no_clinical_use",
         "quantity": {"free_air": "free_in_air_kerma_at_skin_Gy",
@@ -277,7 +341,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "psd_point_gy": float(total[peak_index]),
         "psd_point_patient_mm": surface.points_mm[peak_index].tolist(),
         "global_psd_event_contributions": peak_event_contributions,
-        "psd_neighbourhood_1cm2": neighbourhood_psd(surface, total) if detailed else None,
+        "psd_neighbourhood_1cm2": neighbourhood_psd(surface, total) if compute_neighbourhood else None,
+        "psd_neighbourhood_1cm2_status": ('requested' if compute_neighbourhood else
+                                         'not_computed_mesh_budget' if detailed else 'not_requested'),
+        "max_neighbourhood_faces": neighbourhood_limit,
         "surface_dose_area_approx": dose_area_summary(surface, total),
         "spatial_resolution_target_mm": equipment.patient["resolution_mm"] if surface.kind != "mesh" else None,
         "surface_metrics": surface_metrics(surface, total, equipment.raw.get("dose_area_thresholds_gy")) if detailed else None,
@@ -296,6 +363,15 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     }
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,
                               "projection_cache_hits": cache_hits, "rays_traced": total_rays,
-                              "candidate_triangle_pairs": total_pairs, "surface_samples": len(total),
+                              "candidate_triangle_pairs": total_pairs if pairs_available else None,
+                              "candidate_triangle_pairs_available": pairs_available,
+                              "raytrace_backends": sorted(backends), "surface_samples": len(total),
+                              "raytrace_backend_versions": backend_versions,
                               "timing_excludes_export": True}
+    if compute_neighbourhood:
+        summary['psd_neighbourhood_1cm2_status'] = ('computed' if summary['psd_neighbourhood_1cm2'] is not None
+                                                  else 'unavailable_spatial_sampling')
+    if surface.mesh is not None and len(surface.mesh.faces) >= 200_000:
+        surface.mesh._cache.clear()
+        surface.__dict__.pop('face_graph', None)
     return Calculation(surface, total, maps, summary)

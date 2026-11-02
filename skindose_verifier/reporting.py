@@ -79,7 +79,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     ax3 = fig.add_subplot(111, projection="3d")
     points = calculation.surface.points_mm
     norm = Normalize(vmin=0, vmax=max(1e-12, float(np.max(calculation.total_gy))))
-    if calculation.surface.mesh is not None:
+    if calculation.surface.mesh is not None and len(calculation.surface.mesh.faces) <= 200_000:
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         mesh = calculation.surface.mesh
         collection = Poly3DCollection(np.asarray(mesh.vertices)[mesh.faces],
@@ -92,8 +92,12 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
         sc = ScalarMappable(norm=norm, cmap=palette)
     else:
         stride = max(1, len(points)//15000)
-        sc = ax3.scatter(points[::stride, 0], points[::stride, 1], points[::stride, 2],
-                         c=calculation.total_gy[::stride], s=4, cmap=palette, norm=norm)
+        selected = np.arange(0, len(points), stride)
+        if calculation.surface.mesh is not None:
+            selected = np.unique(np.r_[selected, int(np.argmax(calculation.total_gy))])
+            ax3.set_title("Vista muestreada; dosis calculada sobre la malla completa", fontsize=10)
+        sc = ax3.scatter(points[selected, 0], points[selected, 1], points[selected, 2],
+                         c=calculation.total_gy[selected], s=4, cmap=palette, norm=norm)
     ax3.set_xlabel("x [mm]")
     ax3.set_ylabel("y [mm]")
     ax3.set_zlabel("z [mm]")

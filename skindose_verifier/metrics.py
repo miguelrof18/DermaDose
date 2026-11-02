@@ -8,6 +8,7 @@ import math
 import numpy as np
 from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import connected_components
+from scipy.ndimage import maximum_filter
 from .domain import InputError
 from .patient import SkinSurface
 
@@ -67,8 +68,26 @@ def _mesh_neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: fl
     radius = math.sqrt(area_mm2/math.pi)
     graph = surface.face_graph
     best_value, best_idx, best_area = -1., -1, 0.
-    for origin in range(len(dose)):
+    # Every graph path is at least as long as the Euclidean distance. A maximum
+    # over the surrounding spatial cells therefore bounds every reachable dose
+    # and its weighted mean. Skip a Dijkstra search only when it cannot win.
+    cells = np.floor(surface.points_mm / radius).astype(np.int64)
+    cells -= cells.min(axis=0)
+    shape = cells.max(axis=0) + 1
+    if math.prod(int(x) for x in shape) <= 10_000_000:
+        grid = np.full(tuple(shape), -np.inf)
+        np.maximum.at(grid, tuple(cells.T), dose)
+        upper = maximum_filter(grid, size=3, mode='constant', cval=-np.inf)[tuple(cells.T)]
+    else:
+        upper = np.full(len(dose), float(np.max(dose)))
+    del cells
+    # Stable sorting and an explicit index tie-break retain the original result.
+    order = np.argsort(-upper, kind='stable')
+    upper = upper + 32 * np.finfo(float).eps * np.maximum(np.abs(upper), 1.)
+    for origin in order:
         origin = int(origin)
+        if upper[origin] < best_value or (upper[origin] <= best_value and origin > best_idx):
+            continue
         distances = {origin: 0.}
         queue = [(0., origin)]
         indices = []
@@ -90,7 +109,7 @@ def _mesh_neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: fl
         if not (.85*area_mm2 <= area <= 1.25*area_mm2):
             continue
         mean = float(np.dot(dose[indices], weights)/area)
-        if mean > best_value:
+        if mean > best_value or (mean == best_value and origin < best_idx):
             best_value, best_idx, best_area = mean, origin, area
     if best_idx < 0:
         return None

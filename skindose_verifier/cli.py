@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+from dataclasses import replace
 from hashlib import sha256
 from importlib.resources import files
 import json
@@ -38,7 +39,7 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
     factor_source = "configured"
     fallback_reason = None
     try:
-        calculation = calculate(events, equipment, stage)
+        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True))
     except InputError as exc:
         if equipment.raw.get("azurion_profile") or equipment.raw.get("allow_historical_factor_fallback") is not True:
             raise
@@ -54,7 +55,7 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
         replacement["factors"]["bsf"] = synthetic["bsf"]
         replacement["factors"]["f_skin"] = synthetic["f_skin"]
         equipment = Equipment.from_dict(replacement)
-        calculation = calculate(events, equipment, stage)
+        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True))
         factor_source = "historical_synthetic_whole_run"
         fallback_reason = str(exc)
         calculation.summary["status"] = "research_synthetic_factors_out_of_domain_no_clinical_use"

@@ -35,18 +35,57 @@ class CountingTree:
         if np.any(query_min > query_max):
             return ()
 
-        candidates = self.tree.intersection(tuple(np.r_[query_min, query_max]))
-
-        def counted_candidates():
-            for candidate in candidates:
-                self.candidate_pairs += 1
-                yield candidate
-
-        return counted_candidates()
+        # An oblique ray has a very large single AABB on dense CT meshes.
+        # Cover the exact finite segment with smaller boxes; their union still
+        # contains every possible hit, without changing the triangle kernel.
+        direction = self.directions[index]
+        mesh_bounds = np.asarray(self.bounds, dtype=float).reshape(2, 3)
+        moving = np.abs(direction) > 1e-15
+        if np.any(~moving & ((origin < mesh_bounds[0]) | (origin > mesh_bounds[1]))):
+            return ()
+        enter, leave = 0., float(self.max_distance[index])
+        if np.any(moving):
+            t = (mesh_bounds[:, moving] - origin[moving]) / direction[moving]
+            enter = max(enter, float(np.min(t, axis=0).max()))
+            leave = min(leave, float(np.max(t, axis=0).min()))
+        if enter > leave:
+            return ()
+        segments = min(64, max(1, int(np.ceil((leave-enter)/10.))))
+        points = origin + np.linspace(enter, leave, segments + 1)[:, None] * direction
+        lows = np.maximum(np.minimum(points[:-1], points[1:]) - 1e-7, query_min)
+        highs = np.minimum(np.maximum(points[:-1], points[1:]) + 1e-7, query_max)
+        keep = np.all(lows <= highs, axis=1)
+        lows, highs = lows[keep], highs[keep]
+        if not len(lows):
+            return ()
+        if hasattr(self.tree, 'intersection_v'):
+            try:
+                ids, _ = self.tree.intersection_v(lows, highs)
+                candidates = np.unique(ids)
+            except (TypeError, AttributeError):
+                candidates = np.unique([i for lo, hi in zip(lows, highs)
+                                        for i in self.tree.intersection(tuple(np.r_[lo, hi]))])
+        else:
+            candidates = np.unique([i for lo, hi in zip(lows, highs)
+                                    for i in self.tree.intersection(tuple(np.r_[lo, hi]))])
+        self.candidate_pairs += len(candidates)
+        return candidates
 
 
 def first_hits(mesh, source_mm: np.ndarray, targets_mm: np.ndarray,
                batch_size: int = 64) -> tuple[np.ndarray, dict]:
+    if len(mesh.faces) >= 200_000:
+        from .vtk_ray_backend import intersect, close_worker
+        try:
+            result = intersect(mesh, source_mm, targets_mm)
+            if result is not None:
+                hits, version = result
+                return hits, {"rays_traced": len(targets_mm), "candidate_triangle_pairs": 0,
+                              "candidate_triangle_pairs_available": False,
+                              "triangles_in_mesh": len(mesh.faces), "backend": "vtk_static_cell_locator",
+                              "backend_version": version}
+        except (OSError, ValueError, RuntimeError):
+            close_worker()
     base_tree = mesh.triangles_tree
     result = np.full(len(targets_mm), -1, dtype=int)
     candidate_pairs = 0

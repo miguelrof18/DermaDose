@@ -139,7 +139,15 @@ def main(argv=None):
         from .azurion import prepare_events
         equipment = Equipment.from_dict(data, base_directory=Path(audit['source_config']).parent)
         events = read_rdsr(Path(audit['rdsr'])).events
-        prepare_events(events, equipment)
+        prepared = prepare_events(events, equipment)
+        from .engine import normalize
+        normalized = tuple(normalize(event, equipment) for event in prepared)
+        for event in normalized:
+            equipment.validate_event(event, 'skin_dose')
+        audit['table_coordinate_conversions'] = [
+            dict(event_index=index, **event.original['table_coordinate_conversion'])
+            for index, event in enumerate(normalized, 1)
+            if 'table_coordinate_conversion' in event.original]
         destination = folder.resolve()/'resultados'
         destination.mkdir(parents=True, exist_ok=True)
         effective = destination/'configuracion_efectiva.json'
