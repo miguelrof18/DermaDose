@@ -4,12 +4,20 @@ permissions:
   contents: read
 jobs:
   geometry:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            vtk: '9.3.1'
+          - os: windows-latest
+            vtk: '9.7.1'
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install numpy vtk pytest scipy
+      - run: python -m pip install numpy "vtk==${{ matrix.vtk }}" pytest scipy
       - run: python -m compileall -q DermaDose_Surface/DermaDose_Surface/slicer_extension/DermaDoseSurface
       - run: python -m pytest tests/test_surface_range.py -v

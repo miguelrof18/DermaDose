@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.5.0-range"
+MODULE_VERSION = "1.6.0-optimized"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -74,12 +74,23 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.targetTriangles.value = 150000
         self.targetTriangles.toolTip = "Objetivo 150 000; margen 100 000–200 000. No se fuerza la reducción si altera la superficie."
         self.targetTriangles.connect("valueChanged(int)", self.onTargetChanged)
-        form.addRow("Objetivo de triángulos:", self.targetTriangles)
+        form.addRow("Referencia de triángulos:", self.targetTriangles)
+        form.addRow(qt.QLabel("Selección automática entre 100 000 y 200 000 caras."))
+        self.maxDeviation = qt.QDoubleSpinBox()
+        self.maxDeviation.minimum = 0.05
+        self.maxDeviation.maximum = 5.0
+        self.maxDeviation.singleStep = 0.1
+        self.maxDeviation.decimals = 2
+        self.maxDeviation.value = 1.0
+        self.maxDeviation.suffix = " mm"
+        self.maxDeviation.toolTip = "Máxima desviación muestreada admitida respecto al original. No certifica la precisión de PSD."
+        self.maxDeviation.connect("valueChanged(double)", self.onDeviationChanged)
+        form.addRow("Tolerancia de superficie:", self.maxDeviation)
 
         self.extractButton = qt.QPushButton("Extraer superficie")
         self.extractButton.connect("clicked()", self.onExtract)
         form.addRow(self.extractButton)
-        self.cancelButton = qt.QPushButton("Cancelar extracción")
+        self.cancelButton = qt.QPushButton("Cancelar proceso")
         self.cancelButton.enabled = False
         self.cancelButton.connect("clicked()", self.onCancelExtraction)
         form.addRow(self.cancelButton)
@@ -113,6 +124,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.pairButton.connect("clicked()", self.onExportPair)
         form.addRow(self.pairButton)
         self._pairJob = False
+        self._reviewJob = False
         self.layout.addStretch(1)
         self._reviewedKey = None
 
@@ -127,7 +139,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
     def _extractionControls(self, running):
         for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                        self.targetTriangles, self.volume, self.threshold, self.acknowledge):
+                        self.targetTriangles, self.maxDeviation, self.volume, self.threshold, self.acknowledge):
             control.setEnabled(not running)
         self.cancelButton.enabled = running
 
@@ -149,10 +161,10 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self._readWorker()
         try:
             if self._cancelled:
-                self.progressLabel.text = "Extracción cancelada; se conserva el resultado anterior."
+                self.progressLabel.text = "Proceso cancelado; se conserva el resultado anterior."
                 return
             if exitCode != 0:
-                raise RuntimeError("Falló la extracción:\n" + self._workerLog[-4000:])
+                raise RuntimeError("Falló el proceso:\n" + self._workerLog[-4000:])
             volume = self._jobVolume
             if (volume.GetScene() is None or volume.GetImageData() is None
                     or volume.GetMTime() != self._jobVolumeMTime
@@ -162,20 +174,31 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
                 self.progressLabel.text = "Comparación exportada. La PSD todavía no se ha comparado."
                 slicer.util.infoDisplay("Exportadas mallas 150k y 300k desde el mismo original en " + self._pairDestination)
                 return
-            self.logic.installExtraction(Path(self._job.name), volume, self._jobThreshold)
+            if self._reviewJob:
+                if self.logic.surfaceKey() != self._reviewSourceKey:
+                    raise ValueError("La segmentación cambió durante la optimización; vuelva a revisarla.")
+                reader = vtk.vtkXMLPolyDataReader()
+                reader.SetFileName(str(Path(self._job.name)/'surface.vtp'))
+                reader.Update()
+                self.logic._preparedPoly = vtk.vtkPolyData()
+                self.logic._preparedPoly.DeepCopy(reader.GetOutput())
+                self.logic.decimation = json.loads((Path(self._job.name)/'result.json').read_text(encoding='utf-8'))
+                self.logic._preparedKey = self._reviewSourceKey
+            else:
+                self.logic.installExtraction(Path(self._job.name), volume, self._jobThreshold)
             result = self.logic.inspect()
             self.logic.showPreview()
             self._reviewedKey = self.logic._preparedKey
-            self.report.plainText = self._workerLog + '\n' + '\n'.join(
-                [f"Triángulos de salida: {result['triangles']}"] + result['warnings'])
+            self.report.plainText = self._summaryText(result)
             self.progressLabel.text = "Superficie preparada. Revise el contorno y exporte."
         except Exception as exc:
-            self.progressLabel.text = "La extracción no se completó."
+            self.progressLabel.text = "El proceso no se completó."
             slicer.util.errorDisplay(str(exc))
         finally:
             self._worker.deleteLater()
             self._worker = None
             self._pairJob = False
+            self._reviewJob = False
             self._job.cleanup()
             self._job = None
             self._extractionControls(False)
@@ -188,7 +211,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
     @contextmanager
     def busy(self):
         controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                    self.targetTriangles, self.volume, self.threshold, self.acknowledge)
+                    self.targetTriangles, self.maxDeviation, self.volume, self.threshold, self.acknowledge)
         self._reviewedKey = None
         self.acknowledge.checked = False
         for control in controls:
@@ -201,6 +224,29 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             slicer.util.mainWindow().unsetCursor()
             for control in controls:
                 control.setEnabled(True)
+
+    def onDeviationChanged(self, value):
+        self.logic.maxDeviationMm = float(value)
+        self._reviewedKey = None
+        self.acknowledge.checked = False
+        self.report.plainText = "Tolerancia cambiada. Pulse Revisar malla para optimizar de nuevo."
+
+    def _summaryText(self, result):
+        info = self.logic.decimation
+        stats = info.get('triangle_quality', {})
+        reduction = 100*(1-result['triangles']/max(1,result['original_triangles']))
+        status = "Lista para exportar" if info.get('export_allowed') else "Necesita revisión: no hay reducción aceptable"
+        return "\n".join([
+            status,
+            f"Original: {result['original_triangles']:,} caras → salida: {result['triangles']:,} caras",
+            f"Reducción: {reduction:.1f}%; margen 100 000–200 000",
+            f"Desviación máxima muestreada: {info.get('max_vertex_surface_distance_mm',0):.3f} mm (límite {self.logic.maxDeviationMm:.2f} mm)",
+            f"Cambio de volumen: {100*info.get('relative_volume_change',0):.2f}%",
+            f"Caras muy alargadas: {100*stats.get('slender_face_fraction',0):.2f}%",
+            f"Método seleccionado: {info['method']}",
+            "Se elige la menor malla válida entre las alternativas probadas.",
+            *["AVISO: " + message for message in result['warnings']],
+        ])
 
     def onTargetChanged(self, value):
         self.logic.targetTriangles = int(value)
@@ -240,6 +286,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             volume.GetIJKToRASMatrix(matrix)
             self._jobThreshold = float(self.threshold.value)
             job = dict(threshold_hu=self._jobThreshold, target_triangles=int(self.targetTriangles.value),
+                       max_deviation_mm=float(self.maxDeviation.value),
                        ijk_to_ras=[[matrix.GetElement(i,j) for j in range(4)] for i in range(4)])
             (folder/'job.json').write_text(json.dumps(job), encoding='utf-8')
             self._jobVolume = volume
@@ -299,7 +346,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
             self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
             self._worker.start(str(executable), ['-u',
-                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination)])
+                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination), str(self.logic.maxDeviationMm)])
         except Exception as exc:
             self._pairJob = False
             self._extractionControls(False)
@@ -323,24 +370,54 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.acknowledge.checked = False
 
     def onCheck(self):
+        if self._worker is not None:
+            return
         try:
-            with self.busy():
+            key = self.logic.surfaceKey()
+            if key == self.logic._preparedKey:
                 result = self.logic.inspect()
                 self.logic.showPreview()
-            self._reviewedKey = self.logic._preparedKey
-            lines = [
-                f"Triángulos originales: {result['original_triangles']}",
-                f"Triángulos de salida: {result['triangles']} (objetivo {self.logic.targetTriangles})",
-                f"Componentes de superficie: {result['components']}",
-                f"Aristas no manifold: {result['nonmanifold_edges']}",
-                f"Aristas abiertas: {result['boundary_edges']}",
-                f"Triángulos degenerados: {result['degenerate_triangles']}",
-                f"Método: {self.logic.decimation['method']}",
-                *["AVISO: " + warning for warning in result["warnings"]],
-            ]
-            self.report.plainText = "\n".join(lines)
+                self._reviewedKey = key
+                self.acknowledge.checked = False
+                self.report.plainText = self._summaryText(result)
+                return
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = executable.with_suffix('')
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer.")
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_review_')
+            folder = Path(self._job.name)
+            writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetFileName(str(folder/'original_surface.vtp'))
+            writer.SetInputData(self.logic._surface())
+            if not writer.Write() or writer.GetErrorCode():
+                raise OSError("No se pudo preparar el original para revisión.")
+            job = dict(mode='review', target_triangles=self.logic.targetTriangles,
+                       max_deviation_mm=self.logic.maxDeviationMm)
+            (folder/'job.json').write_text(json.dumps(job),encoding='utf-8')
+            self._reviewSourceKey = key
+            self._jobVolume = self.logic.volumeNode
+            self._jobVolumeMTime = self._jobVolume.GetMTime()
+            self._jobImageMTime = self._jobVolume.GetImageData().GetMTime()
+            self._reviewJob = True
+            self._cancelled = False
+            self._workerLog = ''
+            self._reviewedKey = None
             self.acknowledge.checked = False
+            self._extractionControls(True)
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u', str(Path(__file__).with_name('surface_worker.py')), str(folder)])
         except Exception as exc:
+            self._reviewJob = False
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
             slicer.util.errorDisplay(str(exc))
 
     def onExport(self):
@@ -353,8 +430,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         if not target:
             return
         try:
-            self.logic.preparedSurface()
-            if self._reviewedKey != self.logic._preparedKey:
+            if self._reviewedKey != self.logic.surfaceKey():
                 self.acknowledge.checked = False
                 raise ValueError("La malla cambió desde la revisión. Pulse Revisar malla y compruebe la nueva vista previa.")
             with self.busy():
@@ -372,6 +448,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         self.segmentId = None
         self.thresholdHU = None
         self.targetTriangles = 150000
+        self.maxDeviationMm = 1.0
         self.previewNode = None
         self._preparedKey = None
         self._preparedPoly = None
@@ -410,7 +487,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             self.decimation = json.loads((folder/'result.json').read_text(encoding='utf-8'))
             self._preparedPoly = poly
             self._preparedKey = (seg.GetID(), original.GetMTime(), original.GetPoints().GetMTime(),
-                                 original.GetPolys().GetMTime(), self.targetTriangles)
+                                 original.GetPolys().GetMTime(), self.targetTriangles, self.maxDeviationMm)
             if previous is not None and previous.GetScene() is not None:
                 previous.GetDisplayNode().SetVisibility(False)
             slicer.util.resetThreeDViews()
@@ -476,13 +553,17 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             raise ValueError("No se pudo obtener la superficie del segmento.")
         return poly
 
-    def preparedSurface(self):
-        # Read the live representation without copying millions of triangles on cache hits.
+    def surfaceKey(self):
         representation = self._surface()
-        key = (self.segmentationNode.GetID(), representation.GetMTime(),
-               representation.GetPoints().GetMTime(), representation.GetPolys().GetMTime(), self.targetTriangles)
+        return (self.segmentationNode.GetID(), representation.GetMTime(),
+                representation.GetPoints().GetMTime(), representation.GetPolys().GetMTime(),
+                self.targetTriangles, self.maxDeviationMm)
+
+    def preparedSurface(self):
+        key = self.surfaceKey()
         if key != self._preparedKey:
-            self._preparedPoly, self.decimation = simplify_surface(representation, self.targetTriangles)
+            self._preparedPoly, self.decimation = simplify_surface(
+                self._surface(), self.targetTriangles, max_deviation_mm=self.maxDeviationMm)
             self._preparedKey = key
         return self._preparedPoly
 
@@ -634,3 +715,4 @@ class DermaDoseSurfaceTest(ScriptedLoadableModuleTest):
         plane.Update()
         with self.assertRaises(ValueError):
             simplify_surface(plane.GetOutput(), 150000)
+

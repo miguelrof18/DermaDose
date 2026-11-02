@@ -69,19 +69,26 @@ def run(folder):
     def progress(message):
         print(message, flush=True)
     start = time.perf_counter()
-    values = np.load(folder/'input.npy', mmap_mode='r')
-    body = largest_body(values, job['threshold_hu'], progress)
-    del values
-    progress('Construyendo superficie cerrada en coordenadas RAS')
-    poly = make_surface(body, job['ijk_to_ras'])
-    original_writer = vtk.vtkXMLPolyDataWriter()
-    original_writer.SetFileName(str(folder/'original_surface.vtp'))
-    original_writer.SetInputData(poly)
-    if not original_writer.Write() or original_writer.GetErrorCode():
-        raise OSError('No se pudo conservar la superficie original.')
-    poly, decimation = simplify_surface(poly, job['target_triangles'], progress)
+    if job.get('mode') == 'review':
+        reader = vtk.vtkXMLPolyDataReader()
+        reader.SetFileName(str(folder/'original_surface.vtp'))
+        reader.Update()
+        poly = reader.GetOutput()
+    else:
+        values = np.load(folder/'input.npy', mmap_mode='r')
+        body = largest_body(values, job['threshold_hu'], progress)
+        del values
+        progress('Construyendo superficie cerrada en coordenadas RAS')
+        poly = make_surface(body, job['ijk_to_ras'])
+        original_writer = vtk.vtkXMLPolyDataWriter()
+        original_writer.SetFileName(str(folder/'original_surface.vtp'))
+        original_writer.SetInputData(poly)
+        if not original_writer.Write() or original_writer.GetErrorCode():
+            raise OSError('No se pudo conservar la superficie original.')
+        np.save(folder/'body.npy', body)
+    poly, decimation = simplify_surface(poly, job['target_triangles'], progress,
+                                       max_deviation_mm=job.get('max_deviation_mm', 1.0))
     progress('Guardando el resultado para Slicer')
-    np.save(folder/'body.npy', body)
     writer = vtk.vtkXMLPolyDataWriter()
     writer.SetFileName(str(folder/'surface.vtp'))
     writer.SetInputData(poly)
@@ -98,3 +105,4 @@ if __name__ == '__main__':
     except Exception:
         traceback.print_exc()
         sys.exit(1)
+

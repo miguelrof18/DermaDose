@@ -8,7 +8,7 @@ import tempfile
 import vtk
 from surface_processing import simplify_surface, write_stl_checked
 
-def export_pair(source_path, destination):
+def export_pair(source_path, destination, max_deviation_mm=1.0):
     source_path, destination = Path(source_path), Path(destination)
     reader = vtk.vtkXMLPolyDataReader()
     reader.SetFileName(str(source_path))
@@ -27,7 +27,7 @@ def export_pair(source_path, destination):
         results = {}
         for target, minimum, maximum in ((150000,100000,200000),(300000,270000,330000)):
             poly, metadata = simplify_surface(source, target, print,
-                minimum_triangles=minimum, maximum_triangles=maximum)
+                minimum_triangles=minimum, maximum_triangles=maximum, max_deviation_mm=max_deviation_mm)
             if not metadata["export_allowed"] or not minimum <= metadata["output_triangles"] <= maximum:
                 raise ValueError(f"No se obtuvo una malla válida para {target}: {metadata}")
             name = f"surface_{target//1000}k"
@@ -54,4 +54,5 @@ def export_pair(source_path, destination):
     return manifest
 
 if __name__ == "__main__":
-    export_pair(sys.argv[1], sys.argv[2])
+    export_pair(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv)>3 else 1.0)
+
