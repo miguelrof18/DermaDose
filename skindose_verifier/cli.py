@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
-from dataclasses import replace
 from hashlib import sha256
 from importlib.resources import files
 import json
@@ -34,42 +33,8 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
     equipment = Equipment.load(config)
     report = read_rdsr(rdsr)
     events = report.events
-    synthetic_override = False
-    try:
-        equipment.require_matching_device(report.manufacturer, report.model)
-    except InputError:
-        if equipment.raw.get("azurion_profile") or equipment.raw.get("allow_synthetic_device_override") is not True:
-            raise
-        synthetic_override = True
-        if equipment.surface_factor_provider is not None:
-            equipment.surface_factor_provider.spec["field_shape_policy"] = "equal_area"
-        # One configured apparatus profile: retain event kerma, angles and beam
-        # quality; use configured geometry where the foreign RDSR frame cannot
-        # be mapped. Record every assumption in the event and global audit.
-        converted = []
-        for event in events:
-            geometry = equipment.geometry_for(event.plane)
-            quality = {**event.quality,
-                       "table_mm": "assumed_fixed_from_configuration",
-                       "sid_mm": "assumed_from_configuration",
-                       "sod_mm": "assumed_from_configuration",
-                       "srp_mm": "assumed_from_configuration",
-                       "synthetic_profile_spectrum": "additional_al_not_modeled"}
-            field_width = event.field_width_mm
-            field_height = event.field_height_mm
-            shutter = event.original.get("philips_shutters_mm_at_1000_mm", {})
-            if field_width is None and field_height is None and set(shutter) == {"left", "right", "top", "bottom"}:
-                scale = float(geometry["source_to_detector_mm"]) / 1000.0
-                field_width = (shutter["left"] + shutter["right"]) * scale
-                field_height = (shutter["top"] + shutter["bottom"]) * scale
-                quality["field_size"] = "philips_shutters_scaled_from_1000_mm_to_configured_detector"
-            converted.append(replace(event, table_mm=tuple(geometry["table_origin_mm"]),
-                table_system=geometry["table_coordinates"],
-                sid_mm=float(geometry["source_to_detector_mm"]),
-                sod_mm=float(geometry["source_to_isocenter_mm"]),
-                srp_mm=float(geometry["source_to_irp_mm"]),
-                field_width_mm=field_width, field_height_mm=field_height, quality=quality))
-        events = tuple(converted)
+    # Device labels are recorded, but the chosen configuration always applies.
+    device_match = equipment.matches_device(report.manufacturer, report.model)
     factor_source = "configured"
     fallback_reason = None
     try:
@@ -101,7 +66,8 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
              "configuration_version": equipment.version,
              "azurion_profile": equipment.raw.get("azurion_profile"),
              "validation_status": equipment.raw.get("validation_status", "not_reported"),
-             "synthetic_equipment_profile_used_for_different_rdsr_device": synthetic_override,
+             "configuration_device_match": device_match,
+             "device_selection_policy": "apply_selected_configuration",
              "effective_factor_source": factor_source,
              "factor_fallback_reason": fallback_reason,
              "rdsr_device": {"manufacturer": report.manufacturer, "model": report.model},
@@ -278,7 +244,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "convergence":
             equipment = Equipment.load(args.config)
             report = read_rdsr(args.rdsr)
-            equipment.require_matching_device(report.manufacturer, report.model)
             output = compare_resolutions(report.events, equipment, args.stage,
                                          [float(x.strip()) for x in args.resolutions.split(",")])
             output["runtime"] = runtime_provenance()
@@ -287,7 +252,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command in ("uncertainty", "benchmark"):
             equipment = Equipment.load(args.config)
             report = read_rdsr(args.rdsr)
-            equipment.require_matching_device(report.manufacturer, report.model)
             if args.command == "benchmark":
                 output = benchmark_calculation(report.events, equipment, args.stage, args.repeats, args.fields)
                 _write_json(args.out, output)
@@ -312,7 +276,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "sensitivity-position":
             equipment = Equipment.load(args.config)
             report = read_rdsr(args.rdsr)
-            equipment.require_matching_device(report.manufacturer, report.model)
             output = position_sensitivity(report.events, equipment, args.stage, args.offset_mm)
             output["audit"] = {"software_version": __version__, "rdsr_sha256": report.sha256,
                                "config_sha256": sha256(args.config.read_bytes()).hexdigest()}
@@ -360,17 +323,11 @@ def compatibility_report(path: Path, config: Path | None, stage: str) -> dict:
                     1 for ev in report.events if ev.kvp is None or ev.filtration_mm_cu is None
                 )
             if equipment is not None:
-                try:
-                    equipment.require_matching_device(report.manufacturer, report.model)
-                    item["configuration_device_match"] = True
-                    item["configuration_device_message"] = "manufacturer_and_model_match"
-                except InputError as exc:
-                    item["configuration_device_match"] = False
-                    item["configuration_device_message"] = str(exc)
+                item["configuration_device_match"] = equipment.matches_device(report.manufacturer, report.model)
+                item["configuration_device_message"] = "informational_only_selected_configuration_applied"
             item["compatible_for_stage_without_full_dose_run"] = (
                 item["events_with_missing_required_fields"] == 0 and
-                (stage == "free_air" or item.get("events_missing_beam_quality", 0) == 0) and
-                (equipment is None or item.get("configuration_device_match") is True)
+                (stage == "free_air" or item.get("events_missing_beam_quality", 0) == 0)
             )
         except Exception as exc:
             item["readable_by_parser"] = False

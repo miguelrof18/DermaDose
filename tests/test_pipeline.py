@@ -84,16 +84,22 @@ def test_aluminium_only_is_not_treated_as_copper(case):
     assert parsed.quality["filtration_mm_cu"] == "no_copper_filter"
 
 
-def test_run_uses_configured_single_apparatus_profile_on_device_mismatch(case, tmp_path):
+@pytest.mark.parametrize("legacy_override", [False, True])
+def test_run_applies_selected_profile_on_mismatch_without_changing_events(case, tmp_path, legacy_override):
     data = deepcopy(case[2].raw)
     data["manufacturer"], data["model"] = "Other", "One profile"
-    data["allow_synthetic_device_override"] = True
+    data["allow_synthetic_device_override"] = legacy_override
     config = tmp_path / "one_profile.json"
     config.write_text(json.dumps(data), encoding="utf-8")
-    files = run(case[0], config, "free_air", tmp_path / "single_profile")["files"]
-    summary = json.loads(__import__("pathlib").Path(files["summary"]).read_text(encoding="utf-8"))
-    assert summary["audit"]["synthetic_equipment_profile_used_for_different_rdsr_device"] is True
-    assert summary["events"][0]["status"]["table_mm"] == "assumed_fixed_from_configuration"
+    baseline = calculate(case[3].events, case[2], "free_air")
+    outputs = run(case[0], config, "free_air", tmp_path / "single_profile")["files"]
+    summary = json.loads(__import__("pathlib").Path(outputs["summary"]).read_text(encoding="utf-8"))
+    assert summary["audit"]["configuration_device_match"] is False
+    assert summary["audit"]["device_selection_policy"] == "apply_selected_configuration"
+    assert summary["audit"]["configuration_device"]["manufacturer"] == "Other"
+    assert summary["audit"]["rdsr_device"]["manufacturer"] == case[3].manufacturer
+    assert summary["events"][0]["status"].get("table_mm") != "assumed_fixed_from_configuration"
+    assert summary["psd_point_gy"] == pytest.approx(baseline.summary["psd_point_gy"])
 
 
 def test_find_rdsr_in_dicom_folder_and_reports_non_rdsr(case, tmp_path):
@@ -176,15 +182,15 @@ def test_missing_beam_quality_blocks_calibrated_result(case):
         calculate([ev], case[2], "skin_dose")
 
 
-def test_duplicate_uid_and_wrong_device_rejected(case):
+def test_duplicate_uid_rejected_and_device_comparison_is_informational(case):
     ds = pydicom.dcmread(case[0])
     event2 = ds.ContentSequence[0].ContentSequence[1]
     event2.ContentSequence[1].UID = ds.ContentSequence[0].ContentSequence[0].ContentSequence[1].UID
     ds.save_as(case[0], enforce_file_format=True)
     with pytest.raises(InputError, match="repetido"):
         read_rdsr(case[0])
-    with pytest.raises(InputError, match="no coincide"):
-        case[2].require_matching_device("Other", "Other")
+    assert case[2].matches_device("Other", "Other") is False
+    assert case[2].matches_device(case[3].manufacturer, case[3].model) is True
 
 
 def test_phantom_profile_selects_alternative_mesh(case, tmp_path):
@@ -584,3 +590,21 @@ def test_map_comparison_uses_registered_samples_and_checks_quantity(case, tmp_pa
     assert comparison["validated"] is False
     with pytest.raises(InputError, match="Registro espacial"):
         validate_map(out["summary"], csv_path, max_distance_mm=.001)
+
+def test_azurion_profile_accepts_simulated_device_and_reports_mismatch(case, tmp_path):
+    data = deepcopy(case[2].raw)
+    data["manufacturer"], data["model"] = "Philips", "Azurion"
+    data["azurion_profile"] = {"name": "philips_azurion", "allow_research_assumptions": True}
+    config = tmp_path / "azurion.json"
+    config.write_text(json.dumps(data), encoding="utf-8")
+    before = case[0].read_bytes()
+    output = run(case[0], config, "skin_dose", tmp_path / "azurion_result")
+    summary = json.loads(__import__("pathlib").Path(output["files"]["summary"]).read_text(encoding="utf-8"))
+    assert summary["audit"]["configuration_device_match"] is False
+    assert summary["event_count"] == len(case[3].events)
+    assert case[0].read_bytes() == before
+    report = compatibility_report(case[0].parent, config, "skin_dose")
+    item = next(item for item in report["compatibility_reports"] if item.get("event_count") == len(case[3].events))
+    assert item["configuration_device_match"] is False
+    assert item["compatible_for_stage_without_full_dose_run"] is True
+

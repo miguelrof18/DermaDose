@@ -80,3 +80,5 @@ Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para trabajar con ramas y pull reque
 ## Procedencia
 
 Se conservan [licencia XCAT](skindose_verifier/data/XCAT_LICENSE.txt), [licencia PySkinDose](skindose_verifier/data/PYSKINDOSE_LICENSE.txt) y [procedencia de mallas](documentacion/ASSET_ORIGEN.md). Las tablas conservan los bytes y hashes de la copia local verificada. No se añade una licencia general nueva al código.
+
+El fabricante y modelo del RDSR no restringen la elección del JSON de equipo. Se aplica la configuración seleccionada y ambas identificaciones quedan registradas en el informe. Esta elección no cambia por sí sola las distancias válidas ni la posición de mesa de los eventos.

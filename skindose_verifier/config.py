@@ -206,16 +206,11 @@ class Equipment:
     def patient(self) -> dict[str, Any]:
         return self.raw["patient"]
 
-    def require_matching_device(self, manufacturer: str, model: str) -> None:
-        if (manufacturer.casefold().strip(), model.casefold().strip()) != (
+    def matches_device(self, manufacturer: str, model: str) -> bool:
+        """Informational comparison only; never restricts the selected profile."""
+        return (manufacturer.casefold().strip(), model.casefold().strip()) == (
             str(self.raw["manufacturer"]).casefold().strip(), str(self.raw["model"]).casefold().strip()
-        ):
-            raise InputError(
-                "RDSR leído, pero el fabricante/modelo no coincide con la configuración: "
-                f"RDSR={manufacturer!r}/{model!r}; "
-                f"configuración={self.raw['manufacturer']!r}/{self.raw['model']!r}. "
-                "Se necesita una configuración de geometría y calibración para el equipo del RDSR."
-            )
+        )
 
     def validate_event(self, ev: IrradiationEvent, stage: str) -> None:
         fields = ("ka_r_gy", "primary_deg", "secondary_deg", "table_mm", "sid_mm",

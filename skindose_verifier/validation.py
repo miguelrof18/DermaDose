@@ -47,7 +47,6 @@ def validate_measurements(csv_path: str | Path, stage: str) -> dict:
             raise InputError("CSV experimental requiere test_id,rdsr_path,config_path,measured_max_gy,standard_uncertainty_gy.")
         equipment = Equipment.load(path.parent/row["config_path"])
         rdsr = read_rdsr(path.parent/row["rdsr_path"])
-        equipment.require_matching_device(rdsr.manufacturer, rdsr.model)
         prediction = calculate(rdsr.events, equipment, stage).summary["psd_point_gy"]
         measured, u = float(row["measured_max_gy"]), float(row["standard_uncertainty_gy"])
         if not all(math.isfinite(v) for v in (measured, u)) or measured <= 0 or u <= 0:
