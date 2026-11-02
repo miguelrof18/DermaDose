@@ -114,6 +114,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('folder', type=Path, nargs='?')
     parser.add_argument('--examples-root', type=Path)
+    parser.add_argument('--research-distances', action='store_true',
+                        help='Sustituir distancias ausentes/inválidas por las del JSON, solo en perfiles Azurion de investigación.')
     for name in ('config','rdsr','mesh'):
         parser.add_argument('--'+name)
     for flag in ('interactive','prepare-only','open-viewer'):
@@ -131,7 +133,27 @@ def main(argv=None):
         data, audit = prepare_example(folder, config=args.config, rdsr=args.rdsr, mesh=args.mesh,
                                       interactive=args.interactive)
         from .config import Equipment
-        Equipment.from_dict(data, base_directory=Path(audit['source_config']).parent)
+        if args.research_distances:
+            profile = data.get('azurion_profile', {})
+            if profile.get('name') != 'philips_azurion' or profile.get('allow_research_assumptions') is not True:
+                raise ExampleError('--research-distances requiere un perfil Azurion que permita hipótesis de investigación.')
+            profile['invalid_distance_policy'] = 'configured_research'
+            audit['research_distances_requested'] = True
+            print('INVESTIGACIÓN: las distancias ausentes o inválidas se sustituirán por las del JSON; las válidas se conservan.')
+        # Preflight before loading a potentially large mesh or starting ray tracing.
+        from .rdsr import read_rdsr
+        from .azurion import prepare_events
+        equipment = Equipment.from_dict(data, base_directory=Path(audit['source_config']).parent)
+        events = read_rdsr(Path(audit['rdsr'])).events
+        prepared = prepare_events(events, equipment)
+        replacements = []
+        for index, (original, used) in enumerate(zip(events, prepared), 1):
+            distances = used.original.get('research_distance_replacements', {})
+            if distances:
+                replacements.append(dict(event_index=index, event_uid=original.uid, distances=distances,
+                                         ka_r_gy=original.ka_r_gy))
+                print(f'Evento {index}: distancias de investigación: ' + json.dumps(distances, ensure_ascii=False))
+        audit['research_distance_replacements'] = replacements
         destination = folder.resolve()/'resultados'
         destination.mkdir(parents=True, exist_ok=True)
         effective = destination/'configuracion_efectiva.json'

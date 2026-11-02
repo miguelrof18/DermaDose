@@ -34,3 +34,19 @@ Estas etiquetas explican la transformación configurada: no identifican la anato
 Las referencias relativas conocidas a skindose_verifier/data/derived_mrc200_nominal, derived_azurion_spekpy y derived_azurion_qc_conditional se resuelven contra los datos del programa si el JSON se ha copiado desde config/. Una ruta personalizada inválida produce error y no cambia de tablas.
 
 Los originales no se reescriben. resultados/configuracion_efectiva.json conserva los datos usados y resultados/seleccion_entrada.json registra rutas, hashes, selección XCAT/paciente y colocación provisional (registration_status: not_established). Al repetir se actualizan las salidas de esa carpeta.
+
+## Distancias nulas o ausentes en un evento Azurion
+
+El modo habitual rechaza distancias inválidas e identifica el índice del evento, su UID, sus distancias y el kerma asociado. Un evento con dosis y geometría inválida no se elimina del cálculo.
+
+Para ensayos con un perfil Azurion que ya permita hipótesis de investigación, se puede solicitar expresamente:
+
+```powershell
+.\EJECUTAR_EJEMPLO.bat --research-distances
+```
+
+También está disponible --research-distances al invocar directamente skindose_verifier.example_runner. Solo sustituye distancias ausentes, no finitas o no positivas por los valores de geometry del JSON correspondiente al plano. Conserva todas las distancias válidas y el kerma de cada evento. No interpola ni copia geometría de eventos vecinos.
+
+La sustitución no recupera una medida real. La opción solo afecta a la configuración efectiva de esa ejecución; no modifica el RDSR ni el JSON de entrada. La consola y seleccion_entrada.json muestran cada evento afectado y, para cada distancia, el valor original, el usado y su fuente. El informe por evento conserva la marca de sustitución de investigación.
+
+La comprobación geométrica se realiza antes del cálculo sobre la malla. Superarla no valida por sí sola la colocación, los factores dosimétricos ni el resultado final.

@@ -6,7 +6,7 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-".venv\Scripts\python.exe" -m skindose_verifier.example_runner --examples-root "..\ejemplos rdsr" --interactive --open-viewer
+".venv\Scripts\python.exe" -m skindose_verifier.example_runner --examples-root "..\ejemplos rdsr" --interactive --open-viewer %*
 if errorlevel 1 (
   echo El ejemplo no se pudo ejecutar. Revisa el mensaje anterior.
   pause
