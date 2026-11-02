@@ -43,3 +43,21 @@ def test_geometric_failure_does_not_export_original():
     _,info=simplify_surface(sphere(),max_deviation_mm=1e-12)
     assert not info["export_allowed"]
     assert info["fallback_original"]
+
+def test_comparison_same_original_no_overwrite(tmp_path):
+    from surface_pair import export_pair
+    source=sphere()
+    original=tmp_path/"original.vtp"
+    writer=vtk.vtkXMLPolyDataWriter()
+    writer.SetFileName(str(original))
+    writer.SetInputData(source)
+    assert writer.Write()
+    result=export_pair(original,tmp_path)
+    low=result["meshes"]["surface_150k"]
+    high=result["meshes"]["surface_300k"]
+    assert 100000 <= low["output_triangles"] <= 200000
+    assert 270000 <= high["output_triangles"] <= 330000
+    assert low["source_sha256"] == high["source_sha256"]
+    assert not result["psd_compared"]
+    with pytest.raises(FileExistsError):
+        export_pair(original,tmp_path)
