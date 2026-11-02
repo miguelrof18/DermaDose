@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.4.0-background"
+MODULE_VERSION = "1.5.0-range"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -68,11 +68,11 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         form.addRow("Umbral mínimo:", self.threshold)
 
         self.targetTriangles = qt.QSpinBox()
-        self.targetTriangles.minimum = 100
-        self.targetTriangles.maximum = 10000000
+        self.targetTriangles.minimum = 150000
+        self.targetTriangles.maximum = 150000
         self.targetTriangles.singleStep = 10000
         self.targetTriangles.value = 150000
-        self.targetTriangles.toolTip = "Objetivo aproximado; se conserva la topología aunque se supere el objetivo."
+        self.targetTriangles.toolTip = "Objetivo 150 000; margen 100 000–200 000. No se fuerza la reducción si altera la superficie."
         self.targetTriangles.connect("valueChanged(int)", self.onTargetChanged)
         form.addRow("Objetivo de triángulos:", self.targetTriangles)
 
@@ -109,6 +109,10 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.exportButton = qt.QPushButton("Exportar STL y metadatos")
         self.exportButton.connect("clicked()", self.onExport)
         form.addRow(self.exportButton)
+        self.pairButton = qt.QPushButton("Exportar comparación 150 000 / 300 000")
+        self.pairButton.connect("clicked()", self.onExportPair)
+        form.addRow(self.pairButton)
+        self._pairJob = False
         self.layout.addStretch(1)
         self._reviewedKey = None
 
@@ -122,7 +126,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._job.cleanup()
 
     def _extractionControls(self, running):
-        for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton,
+        for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
                         self.targetTriangles, self.volume, self.threshold, self.acknowledge):
             control.setEnabled(not running)
         self.cancelButton.enabled = running
@@ -154,6 +158,10 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
                     or volume.GetMTime() != self._jobVolumeMTime
                     or volume.GetImageData().GetMTime() != self._jobImageMTime):
                 raise ValueError("El TC cambió durante la extracción. Vuelva a extraer.")
+            if self._pairJob:
+                self.progressLabel.text = "Comparación exportada. La PSD todavía no se ha comparado."
+                slicer.util.infoDisplay("Exportadas mallas 150k y 300k desde el mismo original en " + self._pairDestination)
+                return
             self.logic.installExtraction(Path(self._job.name), volume, self._jobThreshold)
             result = self.logic.inspect()
             self.logic.showPreview()
@@ -167,6 +175,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         finally:
             self._worker.deleteLater()
             self._worker = None
+            self._pairJob = False
             self._job.cleanup()
             self._job = None
             self._extractionControls(False)
@@ -178,7 +187,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
     @contextmanager
     def busy(self):
-        controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton,
+        controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
                     self.targetTriangles, self.volume, self.threshold, self.acknowledge)
         self._reviewedKey = None
         self.acknowledge.checked = False
@@ -247,6 +256,52 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
             self._worker.start(str(executable), ['-u', str(Path(__file__).with_name('surface_worker.py')), str(folder)])
         except Exception as exc:
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
+            slicer.util.errorDisplay(str(exc))
+
+    def onExportPair(self):
+        if self._worker is not None:
+            return
+        try:
+            source = self.logic._surface()
+            if source.GetNumberOfPolys() < 300000:
+                raise ValueError("El original tiene menos de 300 000 caras; no se subdividirá artificialmente.")
+            destination = qt.QFileDialog.getExistingDirectory(
+                slicer.util.mainWindow(), "Carpeta para comparar 150k / 300k")
+            if not destination:
+                return
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = executable.with_suffix('')
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer.")
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_pair_')
+            original_path = Path(self._job.name)/'original.vtp'
+            writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetFileName(str(original_path))
+            writer.SetInputData(source)
+            if not writer.Write() or writer.GetErrorCode():
+                raise OSError("No se pudo preparar el original.")
+            self._jobVolume = self.logic.volumeNode
+            self._jobVolumeMTime = self._jobVolume.GetMTime()
+            self._jobImageMTime = self._jobVolume.GetImageData().GetMTime()
+            self._pairDestination = str(destination)
+            self._pairJob = True
+            self._cancelled = False
+            self._workerLog = ''
+            self._extractionControls(True)
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u',
+                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination)])
+        except Exception as exc:
+            self._pairJob = False
             self._extractionControls(False)
             if self._job is not None:
                 self._job.cleanup()
@@ -343,13 +398,19 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             segment_id = seg.GetSegmentation().AddEmptySegment('ExternalContour', 'External contour')
             slicer.util.updateSegmentBinaryLabelmapFromArray(body, seg, segment_id, volume)
             segment = seg.GetSegmentation().GetSegment(segment_id)
-            segment.AddRepresentation('Closed surface', poly)
+            original_reader = vtk.vtkXMLPolyDataReader()
+            original_reader.SetFileName(str(folder/'original_surface.vtp'))
+            original_reader.Update()
+            original = vtk.vtkPolyData()
+            original.DeepCopy(original_reader.GetOutput())
+            segment.AddRepresentation('Closed surface', original)
+            seg.GetDisplayNode().SetVisibility3D(False)
             self.segmentationNode, self.volumeNode = seg, volume
             self.segmentId, self.thresholdHU = segment_id, float(threshold_hu)
             self.decimation = json.loads((folder/'result.json').read_text(encoding='utf-8'))
             self._preparedPoly = poly
-            self._preparedKey = (seg.GetID(), poly.GetMTime(), poly.GetPoints().GetMTime(),
-                                 poly.GetPolys().GetMTime(), self.targetTriangles)
+            self._preparedKey = (seg.GetID(), original.GetMTime(), original.GetPoints().GetMTime(),
+                                 original.GetPolys().GetMTime(), self.targetTriangles)
             if previous is not None and previous.GetScene() is not None:
                 previous.GetDisplayNode().SetVisibility(False)
             slicer.util.resetThreeDViews()
@@ -454,9 +515,12 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         if quality["boundary_edges"]:
             warnings.append("Hay aristas abiertas; revise la integridad de la malla.")
         if self.decimation.get("fallback_original"):
-            warnings.append("No se obtuvo una reducción válida: la vista previa y exportación conservan la malla original. No acelerará el cálculo.")
+            warnings.append("No se obtuvo una reducción que cumpla el margen y las tolerancias. Se conserva el original para revisión; la exportación reducida no está disponible.")
         if not self.decimation["target_reached"]:
-            warnings.append("Objetivo no alcanzado: se conserva la topología. Puede exportar con más triángulos.")
+            warnings.append("Margen no alcanzado sin alterar la superficie. Revise el diagnóstico de simplificación.")
+        if self.decimation.get("below_range_without_subdivision"):
+            warnings.append("El original tiene menos de 100 000 caras; se conserva sin añadir triángulos artificiales.")
+        warnings.append("El número de caras no certifica la precisión de la PSD; compare 150 000 y 300 000.")
         return {
             **quality,
             "original_triangles": self.decimation["input_triangles"],
@@ -472,6 +536,9 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             raise FileExistsError("Ya existe el STL o su JSON; elija un nombre nuevo (por ejemplo superficie_150k_v3.stl).")
         qa = self.inspect()
         poly = self.preparedSurface()
+        if not self.decimation.get("export_allowed", False):
+            raise ValueError("No hay una reducción válida dentro de 100 000–200 000 caras. "
+                             "Se conserva el original; no se cerrarán agujeros ni se forzará su geometría.")
         matrix = vtk.vtkMatrix4x4()
         self.volumeNode.GetIJKToRASMatrix(matrix)
         # Stage in the destination filesystem. Never overwrite an existing file.

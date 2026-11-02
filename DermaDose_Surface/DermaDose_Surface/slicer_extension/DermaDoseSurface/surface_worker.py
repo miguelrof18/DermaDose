@@ -74,6 +74,11 @@ def run(folder):
     del values
     progress('Construyendo superficie cerrada en coordenadas RAS')
     poly = make_surface(body, job['ijk_to_ras'])
+    original_writer = vtk.vtkXMLPolyDataWriter()
+    original_writer.SetFileName(str(folder/'original_surface.vtp'))
+    original_writer.SetInputData(poly)
+    if not original_writer.Write() or original_writer.GetErrorCode():
+        raise OSError('No se pudo conservar la superficie original.')
     poly, decimation = simplify_surface(poly, job['target_triangles'], progress)
     progress('Guardando el resultado para Slicer')
     np.save(folder/'body.npy', body)

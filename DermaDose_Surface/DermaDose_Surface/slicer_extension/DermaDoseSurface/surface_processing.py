@@ -77,19 +77,37 @@ def valid_surface(quality):
             and abs(quality["signed_volume_mm3"]) > 1e-9)
 
 
-def simplify_surface(poly, target_triangles=150000, progress=None):
-    """Try conservative reductions; retain the original if all reductions fail."""
+def shape_difference(source, candidate):
+    """Bidirectional vertex-to-surface distances, not a continuous Hausdorff bound."""
+    distance = vtk.vtkDistancePolyDataFilter()
+    distance.SetInputData(0, source)
+    distance.SetInputData(1, candidate)
+    distance.SignedDistanceOff()
+    distance.ComputeSecondDistanceOn()
+    distance.Update()
+    values = [np.abs(vtk_to_numpy(distance.GetOutput(i).GetPointData().GetArray("Distance")))
+              for i in (0, 1)]
+    if any(not len(v) or not np.isfinite(v).all() for v in values):
+        raise ValueError("No se pudo comprobar la desviación de la superficie.")
+    return float(max(v.max() for v in values))
+
+
+def simplify_surface(poly, target_triangles=150000, progress=None,
+                     max_deviation_mm=1.0, max_volume_change=0.01,
+                     minimum_triangles=None, maximum_triangles=None):
+    """Accept a count band only when topology and geometric tolerances pass.
+
+    No smoothing, hole filling, subdivision or coordinate-system changes.
+    The unchanged source remains available for inspection if reduction fails.
+    """
+    target_triangles = int(target_triangles)
     if target_triangles < 100:
         raise ValueError("El objetivo mínimo es de 100 triángulos.")
+    if not np.isfinite(max_deviation_mm) or max_deviation_mm <= 0:
+        raise ValueError("La tolerancia geométrica debe ser positiva y finita.")
+    lower = int(minimum_triangles if minimum_triangles is not None else round(target_triangles * 2 / 3))
+    upper = int(maximum_triangles if maximum_triangles is not None else round(target_triangles * 4 / 3))
     source = clean_surface(poly)
-    before = surface_quality(source)
-    if not valid_surface(before):
-        raise ValueError("Superficie original inválida: " + str(before)
-                         + ". Corrija la segmentación antes de simplificar.")
-    count = before["triangles"]
-    result = source
-    attempts = []
-    reduced = False
     def orient(candidate):
         normals = vtk.vtkPolyDataNormals()
         normals.SetInputData(candidate)
@@ -98,19 +116,25 @@ def simplify_surface(poly, target_triangles=150000, progress=None):
         normals.AutoOrientNormalsOn()
         normals.Update()
         return clean_surface(normals.GetOutput())
-
-    budgets = []
-    if count > target_triangles:
-        budgets = [int(target_triangles)]
-    chosen_method = "unchanged"
-    found = False
-    for budget in budgets:
-        if budget >= count:
-            continue
-        # Try both available VTK decimators; accept only independently checked outputs.
-        for method in ("vtkDecimatePro", "vtkQuadricDecimation"):
+    source = orient(source)
+    before = surface_quality(source)
+    if not valid_surface(before):
+        raise ValueError("Superficie original inválida: " + str(before)
+                         + ". Corrija la segmentación antes de simplificar.")
+    count = before["triangles"]
+    euler_before = source.GetNumberOfPoints() - count // 2
+    result, chosen_method, attempts = source, "unchanged", []
+    metrics = dict(max_vertex_surface_distance_mm=0.0, relative_volume_change=0.0)
+    accepted = count <= upper
+    if not accepted:
+        # Raising the feature angle releases voxel-scale facets without allowing
+        # topology changes. Every candidate is independently checked afterwards.
+        for method, budget in (("vtkDecimatePro", target_triangles),
+                               ("vtkQuadricDecimation", target_triangles),
+                               ("vtkDecimatePro", upper),
+                               ("vtkQuadricDecimation", upper)):
             if progress:
-                progress(f'Simplificando: {method}, {count} a {budget} triángulos')
+                progress(f"Simplificando: {method}, objetivo {budget}; margen {lower}–{upper}")
             decimator = getattr(vtk, method)()
             decimator.SetInputData(source)
             decimator.SetTargetReduction(1.0 - budget / count)
@@ -118,28 +142,51 @@ def simplify_surface(poly, target_triangles=150000, progress=None):
                 decimator.PreserveTopologyOn()
                 decimator.SplittingOff()
                 decimator.BoundaryVertexDeletionOff()
+                decimator.SetFeatureAngle(180.0)
+            elif hasattr(decimator, "VolumePreservationOn"):
+                decimator.VolumePreservationOn()
             decimator.Update()
             candidate = orient(clean_surface(decimator.GetOutput()))
+            # STL stores float32 coordinates. Validate that precision before acceptance.
+            candidate.GetPoints().SetData(
+                __import__("vtk.util.numpy_support", fromlist=["numpy_to_vtk"]).numpy_to_vtk(
+                    vtk_to_numpy(candidate.GetPoints().GetData()).astype(np.float32), deep=True))
+            candidate = clean_surface(candidate)
             quality = surface_quality(candidate)
-            attempts.append({"method": method, "requested_triangles": budget, **quality})
-            if valid_surface(quality) and quality["triangles"] < count:
-                result, chosen_method, found = candidate, method, True
+            attempt = dict(method=method, requested_triangles=budget, **quality)
+            topology_ok = (valid_surface(quality)
+                and candidate.GetNumberOfPoints() - quality["triangles"] // 2 == euler_before)
+            attempt["topology_preserved"] = topology_ok
+            attempt["within_count_range"] = lower <= quality["triangles"] <= upper
+            if topology_ok and attempt["within_count_range"]:
+                deviation = shape_difference(source, candidate)
+                volume_change = abs(abs(quality["signed_volume_mm3"]) /
+                                    abs(before["signed_volume_mm3"]) - 1)
+                attempt.update(max_vertex_surface_distance_mm=deviation,
+                               relative_volume_change=volume_change)
+                accepted = deviation <= max_deviation_mm and volume_change <= max_volume_change
+                if accepted:
+                    result, chosen_method = candidate, method
+                    metrics = dict(max_vertex_surface_distance_mm=deviation,
+                                   relative_volume_change=volume_change)
+            attempt["accepted"] = bool(accepted)
+            attempts.append(attempt)
+            if accepted:
                 break
-        if found:
-            break
-    if not found:
-        result = orient(source)
     after = surface_quality(result)
-    if not valid_surface(after):
-        raise ValueError("Superficie original: fallo al orientar normales. Diagnóstico: " + str(after))
-    return result, {
-        "method": chosen_method,
-        "target_triangles": int(target_triangles),
-        "input_triangles": count, "output_triangles": after["triangles"],
-        "target_reached": after["triangles"] <= target_triangles,
-        "fallback_original": count > target_triangles and not found,
-        "attempts": attempts,
-    }
+    return result, dict(
+        method=chosen_method, target_triangles=target_triangles,
+        minimum_triangles=lower, maximum_triangles=upper,
+        input_triangles=count, output_triangles=after["triangles"],
+        within_range=lower <= after["triangles"] <= upper,
+        target_reached=bool(accepted), export_allowed=bool(accepted),
+        below_range_without_subdivision=count < lower,
+        fallback_original=not accepted, attempts=attempts,
+        max_deviation_tolerance_mm=max_deviation_mm,
+        relative_volume_tolerance=max_volume_change,
+        distance_measure="bidirectional vertices to opposing surface; not continuous Hausdorff",
+        precision_validated=False, **metrics,
+    )
 
 
 def write_stl_checked(poly, path):
