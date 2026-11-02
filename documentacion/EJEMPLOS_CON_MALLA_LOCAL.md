@@ -1,57 +1,36 @@
-# Ejecutar ejemplos con la malla elegida
+# Ejecutar ejemplos con XCAT o malla del paciente
 
-Cada carpeta `ejemplos rdsr/ejemploXX/`, hermana del programa, contiene:
+En cada carpeta `ejemplos rdsr/ejemploXX/`, hermana del programa, guarda el RDSR .dcm y el JSON del equipo. Para usar una superficie de TC, añade su .stl con cualquier nombre. Para XCAT no hace falta copiar una malla: se usa la incluida en el programa.
 
-- Un RDSR `.dcm`.
-- Un JSON de equipo, por ejemplo `equipo_mrc200_conjunto_investigacion.json`.
-- Una malla `.stl`, con cualquier nombre. Puede ser una copia del XCAT o una superficie segmentada.
-- Opcionalmente el JSON de metadatos exportado por Slicer junto al STL.
-- Opcionalmente `paciente.json`, con unidades y registro geom�trico propios del caso.
+Al ejecutar EJECUTAR_EJEMPLO.bat:
 
-Ejecute `EJECUTAR_EJEMPLO.bat` e introduzca el n�mero. Un �nico archivo de cada tipo se selecciona autom�ticamente. Si hay varios RDSR, equipos o STL, el lanzador pregunta cu�l usar. Solo los JSON con version, manufacturer, model, geometry y factors se consideran equipos; el JSON de Slicer no se confunde con ellos.
+1. Introduce el número de ejemplo.
+2. Elige **1: XCAT** o **2: TC del paciente (STL local)**.
+3. Si hay varios archivos del tipo elegido, selecciona uno.
+4. Consulta el resumen de colocación; el cálculo continúa automáticamente.
 
-El STL local sustituye la ruta de malla del JSON de equipo. Para usar XCAT puede copiar su STL a la carpeta, o invocar `--mesh xcat`. Si no existe ning�n STL local, el lanzador interactivo ofrece el XCAT incluido. No se cambia el modelo espectral ni se elige otro equipo de forma silenciosa.
+Los JSON de metadatos de Slicer no se confunden con equipos. No se requiere paciente.json, ni se utiliza aunque exista; tampoco se utilizan por ahora los metadatos acompañantes del STL. La colocación procede del bloque patient del equipo. Los campos ausentes se completan con mm, orientación identidad, traslaciones nulas, resolución de 5 mm y espesor de 220 mm. No se centra automáticamente la superficie. El perfil y las tablas espectrales del equipo se conservan.
 
-## Colocaci�n del paciente
+## Resumen inicial legible
 
-STL no contiene unidades ni registro con el arco. Los metadatos RAS de Slicer tampoco establecen d�nde estaba el paciente respecto al equipo. Si no existe paciente.json, se muestra el bloque patient del equipo y se pide aceptar expl�citamente sus unidades, orientaci�n y posici�n. Esas coordenadas pueden ser las del XCAT: no deben aceptarse a ciegas para una segmentaci�n de TC.
+En consola se muestran las direcciones de los ejes del STL, las traslaciones en centímetros y las inclinaciones adicionales. La ficha resultados/colocacion_malla.html presenta la misma información con tarjetas de colores y una tabla; la matriz se puede desplegar como detalle técnico. Con el .bat se abre antes de iniciar el cálculo y el mapa 3D se abre al terminar.
 
-Para separar equipo y paciente, use `paciente.json` con este esquema, sustituyendo los valores por los del caso verificado:
+La convención del motor es +X izquierda, +Y cabeza, +Z anterior. Por ejemplo, con la matriz XCAT [[1,0,0],[0,0,1],[0,-1,0]], el eje +X del STL apunta a izquierda, +Y a posterior y +Z a cabeza. Una traslación [0,-500,40] se describe como **50 cm hacia pies y 4 cm hacia anterior**.
 
-```json
-{
-  "patient": {
-    "mesh_unit": "mm",
-    "mesh_axes_matrix": [[1,0,0],[0,1,0],[0,0,1]],
-    "mesh_origin_mm": [0,0,0],
-    "origin_on_table_mm": [0,0,0],
-    "resolution_mm": 5,
-    "mesh_max_edge_mm": null,
-    "thickness_mm": 220
-  }
-}
-```
+Estas etiquetas explican la transformación configurada: no identifican la anatomía de una malla arbitraria ni confirman su registro real. La traslación de la malla se aplica antes de las inclinaciones adicionales; el desplazamiento adicional respecto a la mesa y sus movimientos del RDSR se aplican después. La colocación se registra como provisional sin bloquear la ejecución. El resumen no deduce posiciones clínicas como cabeza primero o decúbito a partir del STL.
 
-Los ceros, la identidad y 220 mm son ilustrativos, no un registro de paciente. Las coordenadas se transforman como `p_local = escala * matriz * p_STL + mesh_origin_mm`; despu�s intervienen origin_on_table_mm y la geometr�a de mesa del motor. No se centra ni rota autom�ticamente una malla. mesh_max_edge_mm controla el refinamiento triangular; resolution_mm no fija el tama�o de tri�ngulo de un STL.
-
-El JSON de equipo conserva los factores y la geometr�a del aparato. El bloque patient de paciente.json reemplaza el del equipo: incluya tambi�n el espesor si lo necesitan sus factores. El hash y unidades del metadato acompa�ante se comprueban cuando existen. La revisi�n de integridad de la malla contin�a en el motor habitual.
-
-## Tablas espectrales
-
-Al copiar un JSON desde config/ al ejemplo, las referencias relativas conocidas a `skindose_verifier/data/derived_mrc200_nominal`, `derived_azurion_spekpy` o `derived_azurion_qc_conditional` se resuelven contra los datos del programa si la ruta original ya no existe. Las rutas personalizadas inv�lidas producen error: no se sustituye una tabla por otra.
-
-El perfil MRC200 conserva sus hip�tesis nominales de 2,5 mm Al equivalente y 11 grados. La selecci�n autom�tica del STL no caracteriza la instalaci�n ni altera su espectro.
-
-## Comandos expl�citos
+## Comandos
 
 ```powershell
 .\.venv\Scripts\python.exe -m skindose_verifier.example_runner "..\ejemplos rdsr\ejemplo07" --interactive
-.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "..\ejemplos rdsr\ejemplo07" --config equipo.json --mesh superficie.stl --patient paciente.json
-.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "..\ejemplos rdsr\ejemplo07" --mesh xcat --use-configured-placement
+.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "..\ejemplos rdsr\ejemplo07" --mesh xcat
+.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "..\ejemplos rdsr\ejemplo07" --mesh superficie.stl
 ```
 
-`--use-configured-placement` acepta expresamente la colocaci�n existente; `--prepare-only` prepara y valida la configuraci�n sin calcular dosis. Los nombres expl�citos se interpretan desde la carpeta del ejemplo. El comando cl�sico `skindose_verifier run` mantiene su comportamiento.
+--prepare-only valida y guarda la configuración y el resumen sin calcular dosis. --open-viewer abre la ficha inicial y el mapa final. Los nombres explícitos se interpretan desde la carpeta del ejemplo. El comando clásico skindose_verifier run mantiene su comportamiento.
 
-## Resultados y trazabilidad
+## Tablas y resultados
 
-Los originales nunca se reescriben. `resultados/configuracion_efectiva.json` registra las rutas resueltas y `resultados/seleccion_entrada.json` conserva la configuraci�n original, su hash, STL, hash, metadatos y origen de la colocaci�n. Los informes habituales quedan en resultados/. Al repetir se actualizan las salidas de esa carpeta; no representa un historial de ejecuciones.
+Las referencias relativas conocidas a skindose_verifier/data/derived_mrc200_nominal, derived_azurion_spekpy y derived_azurion_qc_conditional se resuelven contra los datos del programa si el JSON se ha copiado desde config/. Una ruta personalizada inválida produce error y no cambia de tablas.
+
+Los originales no se reescriben. resultados/configuracion_efectiva.json conserva los datos usados y resultados/seleccion_entrada.json registra rutas, hashes, selección XCAT/paciente y colocación provisional (registration_status: not_established). Al repetir se actualizan las salidas de esa carpeta.

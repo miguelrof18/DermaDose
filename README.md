@@ -34,7 +34,7 @@ Calculador_Dosis_Piel_Proyecto_v0.5.3/
       resultados/
 ```
 
-El lanzador detecta el JSON de equipo y utiliza el STL de la carpeta del ejemplo, con cualquier nombre. Si hay varios candidatos, permite elegir. Los metadatos de Slicer se distinguen del equipo. La colocación se define en `paciente.json` o se acepta explícitamente la del JSON de equipo. Véase [ejemplos con malla local](documentacion/EJEMPLOS_CON_MALLA_LOCAL.md). Las salidas quedan en `ejemploXX/resultados/` y se actualizan al repetir.
+El lanzador pregunta primero el ejemplo y después si usar XCAT o el STL del paciente guardado en esa carpeta, con cualquier nombre. Si hay varios candidatos, permite elegir. Solo se necesitan RDSR, JSON de equipo y, para paciente, STL. La colocación provisional del equipo se muestra en texto y en una ficha visual sin pedir confirmación ni `paciente.json`. Véase [ejemplos con malla local](documentacion/EJEMPLOS_CON_MALLA_LOCAL.md). Las salidas quedan en `ejemploXX/resultados/` y se actualizan al repetir.
 
 Para seleccionar archivos explícitamente:
 
