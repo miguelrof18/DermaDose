@@ -39,7 +39,18 @@ class ExampleIntegrationTest(unittest.TestCase):
             (folder/'mi superficie.json').write_text(json.dumps({'coordinate_system':'RAS','length_unit':'mm'}))
             make_synthetic_rdsr(folder/'informe.dcm')
             before=config_file.read_bytes()
-            self.assertEqual(main([str(folder)]),0)
+            (folder/'resultados').mkdir()
+            (folder/'resultados'/'colocacion_malla.html').write_text('obsolete report', encoding='utf-8')
+            from contextlib import redirect_stdout
+            import io
+            output = io.StringIO()
+            from unittest.mock import patch
+            with redirect_stdout(output), patch('webbrowser.open') as browser:
+                self.assertEqual(main([str(folder), '--open-viewer']),0)
+            browser.assert_called_once()
+            self.assertTrue(browser.call_args.args[0].endswith('/mapa_3d_interactivo.html'))
+            self.assertNotIn('COLOCACIÓN', output.getvalue())
+            self.assertNotIn('Eje +', output.getvalue())
             result=json.loads((folder/'resultados'/'resultados.json').read_text(encoding='utf-8'))
             self.assertGreater(result['psd_point_gy'],0)
             self.assertEqual(result['event_count'],2)
@@ -47,4 +58,4 @@ class ExampleIntegrationTest(unittest.TestCase):
             effective=json.loads((folder/'resultados'/'configuracion_efectiva.json').read_text(encoding='utf-8'))
             self.assertEqual(Path(effective['patient']['mesh_path']).name,'mi superficie.stl')
             self.assertTrue((folder/'resultados'/'mapa_3d_interactivo.html').is_file())
-            self.assertTrue((folder/'resultados'/'colocacion_malla.html').is_file())
+            self.assertFalse((folder/'resultados'/'colocacion_malla.html').exists())

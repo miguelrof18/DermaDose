@@ -31,7 +31,7 @@ SPECIFICATION = {
 
 
 def prepare_events(events, equipment):
-    """Preserve measured event geometry. Research overrides require explicit opt-in."""
+    """Preserve event distances and reject missing or invalid geometry."""
     profile = equipment.raw.get('azurion_profile', {})
     if not profile:
         return tuple(events)
@@ -52,30 +52,18 @@ def prepare_events(events, equipment):
         equipment.geometry['table_origin_mm'] = list(first_table)
     for index, event in enumerate(events, 1):
         updates = {}
-        replacements = {}
         quality = dict(event.quality)
         if profile.get('reference_table_from_first_event'):
             quality['table_reference'] = 'research_reference_first_event_not_clinical_registration'
-        for name, fallback in [('sid_mm', 'source_to_detector_mm'), ('sod_mm', 'source_to_isocenter_mm'), ('srp_mm', 'source_to_irp_mm')]:
+        for name in ('sid_mm', 'sod_mm', 'srp_mm'):
             value = getattr(event, name)
             if value is None or not math.isfinite(value) or value <= 0:
-                if research and profile.get('invalid_distance_policy') == 'configured_research':
-                    updates[name] = float(equipment.geometry_for(event.plane)[fallback])
-                    quality[name] = 'research_replacement_invalid_or_missing_event_distance'
-                    if not math.isfinite(updates[name]) or updates[name] <= 0:
-                        raise InputError(f'Azurion: distancia de investigación {fallback} inválida en el JSON.')
-                    replacements[name] = {
-                        'original_mm': value if value is None or math.isfinite(value) else str(value),
-                        'used_mm': updates[name], 'source': 'equipment.geometry.' + fallback}
-                else:
-                    invalid = ', '.join(f'{key}={getattr(event, key)}' for key in ('sid_mm', 'sod_mm', 'srp_mm')
-                                        if getattr(event, key) is None or not math.isfinite(getattr(event, key)) or getattr(event, key) <= 0)
-                    raise InputError(
-                        f'Azurion: evento {index}/{len(events)} (UID {event.uid}) con distancias inválidas: {invalid}. '
-                        f'Kerma de referencia: {event.ka_r_gy} Gy. No se descarta el evento ni se infiere una distancia clínica. '
-                        'Para un cálculo de investigación con las distancias del JSON, utilice el lanzador con --research-distances.')
-        if replacements:
-            updates['original'] = {**event.original, 'research_distance_replacements': replacements}
+                invalid = ', '.join(f'{key}={getattr(event, key)}' for key in ('sid_mm', 'sod_mm', 'srp_mm')
+                                    if getattr(event, key) is None or not math.isfinite(getattr(event, key)) or getattr(event, key) <= 0)
+                raise InputError(
+                    f'Azurion: evento {index}/{len(events)} (UID {event.uid}) con distancias inválidas: {invalid}. '
+                    f'Kerma de referencia: {event.ka_r_gy} Gy. No se descarta el evento ni se sustituyen las distancias. '
+                    'Se necesitan distancias válidas del evento para continuar.')
         updates['quality'] = quality
         result.append(replace(event, **updates))
     return tuple(result)
