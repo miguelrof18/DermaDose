@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.6.1-fast"
+MODULE_VERSION = "1.7.0-pose-evidence"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -130,6 +130,17 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         form.addRow(self.pairButton)
         self._pairJob = False
         self._reviewJob = False
+        self.poseButton = qt.QPushButton("Leer posición del TC")
+        self.poseButton.connect("clicked()", self.onReadPosition)
+        form.addRow(self.poseButton)
+        self.rdsrPoseButton = qt.QPushButton("Leer posición de un RDSR…")
+        self.rdsrPoseButton.connect("clicked()", self.onLoadRDSRPosition)
+        form.addRow(self.rdsrPoseButton)
+        self.poseReport = qt.QPlainTextEdit()
+        self.poseReport.readOnly = True
+        self.poseReport.setMinimumHeight(95)
+        self.poseReport.plainText = "Posición TC/RDSR todavía no leída."
+        form.addRow("Posición del paciente:", self.poseReport)
         self.layout.addStretch(1)
         self._reviewedKey = None
 
@@ -144,7 +155,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
     def _extractionControls(self, running):
         for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                        self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge):
+                        self.poseButton, self.rdsrPoseButton, self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge):
             control.setEnabled(not running)
         self.cancelButton.enabled = running
 
@@ -195,6 +206,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             self.logic.showPreview()
             self._reviewedKey = self.logic._preparedKey
             self.report.plainText = self._summaryText(result)
+            self.onReadPosition()
             self.progressLabel.text = "Superficie preparada. Revise el contorno y exporte."
         except Exception as exc:
             self.progressLabel.text = "El proceso no se completó."
@@ -216,7 +228,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
     @contextmanager
     def busy(self):
         controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
-                    self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge)
+                    self.poseButton, self.rdsrPoseButton, self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge)
         self._reviewedKey = None
         self.acknowledge.checked = False
         for control in controls:
@@ -229,6 +241,30 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             slicer.util.mainWindow().unsetCursor()
             for control in controls:
                 control.setEnabled(True)
+
+    def onReadPosition(self):
+        try:
+            from patient_position import describe, read_ct_volume
+            volume = self.volume.currentNode() or self.logic.volumeNode
+            if volume is None:
+                raise ValueError("Seleccione el TC.")
+            ct = read_ct_volume(volume)
+            self.poseReport.plainText = describe(ct, self.logic.rdsrPose)
+        except Exception as exc:
+            self.poseReport.plainText = str(exc)
+
+    def onLoadRDSRPosition(self):
+        path = qt.QFileDialog.getOpenFileName(
+            slicer.util.mainWindow(), "Seleccionar RDSR", "", "DICOM (*.dcm);;Todos (*)")
+        if not path:
+            return
+        try:
+            from patient_position import read_rdsr_file
+            self.logic.rdsrPose = read_rdsr_file(str(path))
+            self.onReadPosition()
+        except Exception as exc:
+            self.logic.rdsrPose = None
+            self.poseReport.plainText = str(exc)
 
     def onPriorityChanged(self, index):
         self.logic.optimizationMode = "fast" if int(index) == 0 else "compact"
@@ -467,6 +503,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         self.targetTriangles = 150000
         self.maxDeviationMm = 1.0
         self.optimizationMode = "fast"
+        self.rdsrPose = None
         self._qaKey = None
         self._qaResult = None
         self.previewNode = None
@@ -651,6 +688,8 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         if not self.decimation.get("export_allowed", False):
             raise ValueError("No hay una reducción válida dentro de 100 000–200 000 caras. "
                              "Se conserva el original; no se cerrarán agujeros ni se forzará su geometría.")
+        from patient_position import read_ct_volume
+        ct_pose = read_ct_volume(self.volumeNode)
         matrix = vtk.vtkMatrix4x4()
         self.volumeNode.GetIJKToRASMatrix(matrix)
         # Stage in the destination filesystem. Never overwrite an existing file.
@@ -658,7 +697,9 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             staged = Path(folder) / "surface.stl"
             disk_quality = write_stl_checked(poly, staged)
             metadata = {
-                "schema_version": 4, "module_version": MODULE_VERSION,
+                "schema_version": 5, "module_version": MODULE_VERSION,
+                "patient_position_evidence": {"ct": ct_pose, "rdsr": self.rdsrPose,
+                    "registration_established": False, "transform_applied": False},
                 "decimation": self.decimation,
                 "surface_definition": "external CT contour, not histological skin",
                 "mesh_file": path.name,
