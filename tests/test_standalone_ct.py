@@ -5,7 +5,7 @@ import subprocess
 import sys
 import numpy as np
 import pytest
-import vtk
+vtk = pytest.importorskip('vtk')
 ROOT=Path(__file__).resolve().parents[1]/'DermaDose_Surface'/'standalone_ct'
 sys.path.insert(0,str(ROOT))
 from dermadose_ct import segment_body, make_surface
