@@ -1,0 +1,19 @@
+name: Standalone CT surface
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy scipy vtk pytest
+      - run: python -m compileall -q DermaDose_Surface/standalone_ct
+      - run: python -m pytest tests/test_standalone_ct.py -v
