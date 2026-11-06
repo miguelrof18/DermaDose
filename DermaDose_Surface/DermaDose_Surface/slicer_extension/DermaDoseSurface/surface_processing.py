@@ -176,12 +176,15 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
     # to shave off additional faces. Extraction starts from the full-resolution mesh.
     best_score = None
     if not accepted:
-        budgets = list(dict.fromkeys((target_triangles, lower, upper)))
+        budgets = list(dict.fromkeys((target_triangles, upper) if optimization_mode == "fast"
+                                     else (target_triangles, lower, upper)))
         for budget in budgets:
             # A coarser accepted mesh makes a finer budget unnecessary.
             if best_score is not None and budget > result.GetNumberOfPolys():
                 continue
-            for method in ("quadric_normals_regularized", "topology_preserving"):
+            methods = (("topology_preserving", "quadric_normals_regularized") if optimization_mode == "fast"
+                       else ("quadric_normals_regularized", "topology_preserving"))
+            for method in methods:
                 if progress:
                     progress(f"Optimizando: {method}, {budget} caras; margen {lower}–{upper}")
                 settings = {}
@@ -213,6 +216,8 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                 decimator.SetInputData(source)
                 decimator.SetTargetReduction(1.0 - budget / count)
                 decimator.Update()
+                if progress:
+                    progress(f"Verificando topología de {method} ({budget:,} caras)")
                 candidate = orient(clean_surface(decimator.GetOutput()))
                 if candidate.GetNumberOfPoints() == 0:
                     attempts.append(dict(method=method, requested_triangles=budget,
@@ -230,13 +235,17 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                 candidate_ok = False
                 if topology_ok and attempt["within_count_range"]:
                     stats = triangle_statistics(candidate)
-                    deviation = shape_difference(source, candidate)
                     volume_change = abs(abs(quality["signed_volume_mm3"]) /
                                         abs(before["signed_volume_mm3"]) - 1)
                     area_change = abs(stats["area_mm2"]/source_stats["area_mm2"]-1)
                     shape_ok = stats["mean_ratio_p01"] >= min(.05, source_stats["mean_ratio_p01"])
-                    candidate_ok = (deviation <= max_deviation_mm and volume_change <= max_volume_change
-                                    and area_change <= .05 and shape_ok)
+                    if volume_change <= max_volume_change and area_change <= .05 and shape_ok:
+                        if progress:
+                            progress(f"Comprobando desviación geométrica ({budget:,} caras)")
+                        deviation = shape_difference(source, candidate)
+                        candidate_ok = deviation <= max_deviation_mm
+                    else:
+                        deviation = None
                     attempt.update(max_vertex_surface_distance_mm=deviation,
                                    relative_volume_change=volume_change, relative_area_change=area_change,
                                    triangle_quality=stats, triangle_shape_passed=bool(shape_ok))
@@ -253,6 +262,10 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                         accepted = True
                 attempt["accepted"] = bool(candidate_ok)
                 attempts.append(attempt)
+                if progress and not candidate_ok:
+                    progress(f"Candidato descartado: {quality['triangles']:,} caras; "
+                             f"topología={topology_ok}; desviación={attempt.get('max_vertex_surface_distance_mm')}; "
+                             f"cambio de área={attempt.get('relative_area_change')}")
                 if candidate_ok and optimization_mode == "fast":
                     break
             if accepted and optimization_mode == "fast":

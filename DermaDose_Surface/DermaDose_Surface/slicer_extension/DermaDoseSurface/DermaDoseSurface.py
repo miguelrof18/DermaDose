@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.7.0-pose-evidence"
+MODULE_VERSION = "1.7.1-worker-fix"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -68,11 +68,11 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         form.addRow("Umbral mínimo:", self.threshold)
 
         self.targetTriangles = qt.QSpinBox()
-        self.targetTriangles.minimum = 150000
-        self.targetTriangles.maximum = 150000
+        self.targetTriangles.minimum = 100000
+        self.targetTriangles.maximum = 300000
         self.targetTriangles.singleStep = 10000
         self.targetTriangles.value = 150000
-        self.targetTriangles.toolTip = "Objetivo 150 000; margen 100 000–200 000. No se fuerza la reducción si altera la superficie."
+        self.targetTriangles.toolTip = "Por defecto 150 000. El margen depende del objetivo; no se fuerza la reducción si altera la superficie."
         self.targetTriangles.connect("valueChanged(int)", self.onTargetChanged)
         form.addRow("Referencia de triángulos:", self.targetTriangles)
         form.addRow(qt.QLabel("Selección automática entre 100 000 y 200 000 caras."))
@@ -167,15 +167,15 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
     def _readWorker(self):
         if self._worker is not None:
-            text = bytes(self._worker.readAllStandardOutput()).decode('utf-8', errors='replace')
+            text = self._worker.readAllStandardOutput().data().decode('utf-8', errors='replace')
             self._workerLog += text
             self.report.plainText = self._workerLog[-12000:]
             if text.strip():
                 self.progressLabel.text = text.strip().splitlines()[-1]
 
     def _finishWorker(self, exitCode, exitStatus):
-        self._readWorker()
         try:
+            self._readWorker()
             if self._cancelled:
                 self.progressLabel.text = "Proceso cancelado; se conserva el resultado anterior."
                 return
@@ -286,7 +286,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         return "\n".join([
             status,
             f"Original: {result['original_triangles']:,} caras → salida: {result['triangles']:,} caras",
-            f"Reducción: {reduction:.1f}%; margen 100 000–200 000",
+            f"Reducción: {reduction:.1f}%; margen {info['minimum_triangles']:,}–{info['maximum_triangles']:,}",
             f"Desviación máxima muestreada: {info.get('max_vertex_surface_distance_mm',0):.3f} mm (límite {self.logic.maxDeviationMm:.2f} mm)",
             f"Cambio de volumen: {100*info.get('relative_volume_change',0):.2f}%",
             f"Caras muy alargadas: {100*stats.get('slender_face_fraction',0):.2f}%",
