@@ -20,163 +20,12 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.3.0-150k"
+MODULE_VERSION = "1.7.2-reduccion-progresiva"
 
-def surface_quality(poly):
-    connectivity = vtk.vtkPolyDataConnectivityFilter()
-    connectivity.SetInputData(poly)
-    connectivity.SetExtractionModeToAllRegions()
-    connectivity.Update()
-    counts = {}
-    for name in ("boundary_edges", "nonmanifold_edges"):
-        edges = vtk.vtkFeatureEdges()
-        edges.SetInputData(poly)
-        edges.FeatureEdgesOff()
-        edges.ManifoldEdgesOff()
-        edges.BoundaryEdgesOff()
-        edges.NonManifoldEdgesOff()
-        if name == "boundary_edges":
-            edges.BoundaryEdgesOn()
-        else:
-            edges.NonManifoldEdgesOn()
-        edges.Update()
-        counts[name] = int(edges.GetOutput().GetNumberOfCells())
-    triangle_filter = vtk.vtkTriangleFilter()
-    triangle_filter.SetInputData(poly)
-    triangle_filter.PassVertsOff()
-    triangle_filter.PassLinesOff()
-    triangle_filter.Update()
-    triangles = triangle_filter.GetOutput()
-    degenerate = 0
-    finite = False
-    volume = 0.0
-    if triangles.GetNumberOfPoints() and triangles.GetNumberOfPolys():
-        points = vtk_to_numpy(triangles.GetPoints().GetData())
-        faces = vtk_to_numpy(triangles.GetPolys().GetConnectivityArray()).reshape(-1, 3)
-        finite = bool(np.isfinite(points).all())
-        for start in range(0, len(faces), 100000):
-            vertices = points[faces[start:start + 100000]].astype(np.float64)
-            cross = np.cross(vertices[:, 1] - vertices[:, 0], vertices[:, 2] - vertices[:, 0])
-            degenerate += int(np.count_nonzero(np.linalg.norm(cross, axis=1) <= 1e-12))
-            volume += float(np.einsum("ij,ij->", vertices[:, 0], cross) / 6.0)
-    return {
-        "finite_coordinates": finite,
-        "degenerate_triangles": degenerate,
-        "signed_volume_mm3": volume,
-        "triangles": int(poly.GetNumberOfPolys()),
-        "components": int(connectivity.GetNumberOfExtractedRegions()),
-        **counts,
-    }
-
-
-def clean_surface(poly):
-    # Only weld exactly coincident vertices; do not close holes or move anatomy.
-    clean = vtk.vtkCleanPolyData()
-    clean.SetInputData(poly)
-    clean.PointMergingOn()
-    clean.ToleranceIsAbsoluteOn()
-    clean.SetAbsoluteTolerance(0.0)
-    clean.ConvertPolysToLinesOff()
-    clean.ConvertLinesToPointsOff()
-    clean.Update()
-    triangles = vtk.vtkTriangleFilter()
-    triangles.SetInputConnection(clean.GetOutputPort())
-    triangles.PassVertsOff()
-    triangles.PassLinesOff()
-    triangles.Update()
-    output = vtk.vtkPolyData()
-    output.DeepCopy(triangles.GetOutput())
-    return output
-
-
-def valid_surface(quality):
-    return (quality["triangles"] >= 4 and quality["components"] == 1
-            and quality["boundary_edges"] == 0 and quality["nonmanifold_edges"] == 0
-            and quality["finite_coordinates"] and quality["degenerate_triangles"] == 0
-            and abs(quality["signed_volume_mm3"]) > 1e-9)
-
-
-def simplify_surface(poly, target_triangles=150000):
-    """Try conservative reductions; retain the original if all reductions fail."""
-    if target_triangles < 100:
-        raise ValueError("El objetivo mínimo es de 100 triángulos.")
-    source = clean_surface(poly)
-    before = surface_quality(source)
-    if not valid_surface(before):
-        raise ValueError("Superficie original inválida: " + str(before)
-                         + ". Corrija la segmentación antes de simplificar.")
-    count = before["triangles"]
-    result = source
-    attempts = []
-    reduced = False
-    def orient(candidate):
-        normals = vtk.vtkPolyDataNormals()
-        normals.SetInputData(candidate)
-        normals.SplittingOff()
-        normals.ConsistencyOn()
-        normals.AutoOrientNormalsOn()
-        normals.Update()
-        return clean_surface(normals.GetOutput())
-
-    budgets = []
-    if count > target_triangles:
-        budgets = sorted(set([int(target_triangles), int((target_triangles * count) ** 0.5),
-                              max(int(target_triangles), int(count * 0.75))]))
-    chosen_method = "unchanged"
-    found = False
-    for budget in budgets:
-        if budget >= count:
-            continue
-        # Try both available VTK decimators; accept only independently checked outputs.
-        for method in ("vtkDecimatePro", "vtkQuadricDecimation"):
-            decimator = getattr(vtk, method)()
-            decimator.SetInputData(source)
-            decimator.SetTargetReduction(1.0 - budget / count)
-            if method == "vtkDecimatePro":
-                decimator.PreserveTopologyOn()
-                decimator.SplittingOff()
-                decimator.BoundaryVertexDeletionOff()
-            decimator.Update()
-            candidate = orient(clean_surface(decimator.GetOutput()))
-            quality = surface_quality(candidate)
-            attempts.append({"method": method, "requested_triangles": budget, **quality})
-            if valid_surface(quality) and quality["triangles"] < count:
-                result, chosen_method, found = candidate, method, True
-                break
-        if found:
-            break
-    if not found:
-        result = orient(source)
-    after = surface_quality(result)
-    if not valid_surface(after):
-        raise ValueError("Superficie original: fallo al orientar normales. Diagnóstico: " + str(after))
-    return result, {
-        "method": chosen_method,
-        "target_triangles": int(target_triangles),
-        "input_triangles": count, "output_triangles": after["triangles"],
-        "target_reached": after["triangles"] <= target_triangles,
-        "fallback_original": count > target_triangles and not found,
-        "attempts": attempts,
-    }
-
-
-def write_stl_checked(poly, path):
-    """Validate the bytes actually written, before exposing an STL to the user."""
-    writer = vtk.vtkSTLWriter()
-    writer.SetFileName(str(path))
-    writer.SetFileTypeToBinary()
-    writer.SetHeader("DermaDose SPACE=RAS; coordinates in mm")
-    writer.SetInputData(poly)
-    if not writer.Write() or writer.GetErrorCode() != 0:
-        raise OSError("No se pudo escribir el STL.")
-    reader = vtk.vtkSTLReader()
-    reader.SetFileName(str(path))
-    reader.MergingOn()
-    reader.Update()
-    quality = surface_quality(reader.GetOutput())
-    if not valid_surface(quality):
-        raise ValueError("El STL guardado pierde integridad al convertir a precisión STL: " + str(quality))
-    return quality
+import sys
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from surface_processing import surface_quality, clean_surface, valid_surface, simplify_surface, write_stl_checked
 
 
 class DermaDoseSurface(ScriptedLoadableModule):
@@ -219,17 +68,41 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         form.addRow("Umbral mínimo:", self.threshold)
 
         self.targetTriangles = qt.QSpinBox()
-        self.targetTriangles.minimum = 100
-        self.targetTriangles.maximum = 10000000
+        self.targetTriangles.minimum = 100000
+        self.targetTriangles.maximum = 300000
         self.targetTriangles.singleStep = 10000
         self.targetTriangles.value = 150000
-        self.targetTriangles.toolTip = "Objetivo aproximado; se conserva la topología aunque se supere el objetivo."
+        self.targetTriangles.toolTip = "En Velocidad, si falla el objetivo inicial, se prueba con 100 000 caras más."
         self.targetTriangles.connect("valueChanged(int)", self.onTargetChanged)
-        form.addRow("Objetivo de triángulos:", self.targetTriangles)
+        form.addRow("Referencia de triángulos:", self.targetTriangles)
+        form.addRow(qt.QLabel("Selección automática entre 100 000 y 200 000 caras."))
+        self.maxDeviation = qt.QDoubleSpinBox()
+        self.maxDeviation.minimum = 0.05
+        self.maxDeviation.maximum = 5.0
+        self.maxDeviation.singleStep = 0.1
+        self.maxDeviation.decimals = 2
+        self.maxDeviation.value = 1.0
+        self.maxDeviation.suffix = " mm"
+        self.maxDeviation.toolTip = "Máxima desviación muestreada admitida respecto al original. No certifica la precisión de PSD."
+        self.maxDeviation.connect("valueChanged(double)", self.onDeviationChanged)
+        form.addRow("Tolerancia de superficie:", self.maxDeviation)
+        self.priority = qt.QComboBox()
+        self.priority.addItems(["Velocidad", "Menos triángulos"])
+        self.priority.toolTip = "Velocidad acepta la primera reducción validada. Menos triángulos explora más alternativas y tarda más."
+        self.priority.connect("currentIndexChanged(int)", self.onPriorityChanged)
+        form.addRow("Prioridad:", self.priority)
 
         self.extractButton = qt.QPushButton("Extraer superficie")
         self.extractButton.connect("clicked()", self.onExtract)
         form.addRow(self.extractButton)
+        self.cancelButton = qt.QPushButton("Cancelar proceso")
+        self.cancelButton.enabled = False
+        self.cancelButton.connect("clicked()", self.onCancelExtraction)
+        form.addRow(self.cancelButton)
+        self.progressLabel = qt.QLabel("Listo para extraer")
+        form.addRow("Estado:", self.progressLabel)
+        self._worker = None
+        self._job = None
 
         self.editButton = qt.QPushButton("Abrir Segment Editor para corregir")
         self.editButton.connect("clicked()", self.onEdit)
@@ -252,13 +125,110 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.exportButton = qt.QPushButton("Exportar STL y metadatos")
         self.exportButton.connect("clicked()", self.onExport)
         form.addRow(self.exportButton)
+        self.pairButton = qt.QPushButton("Exportar comparación 150 000 / 300 000")
+        self.pairButton.connect("clicked()", self.onExportPair)
+        form.addRow(self.pairButton)
+        self._pairJob = False
+        self._reviewJob = False
+        self.poseButton = qt.QPushButton("Leer posición del TC")
+        self.poseButton.connect("clicked()", self.onReadPosition)
+        form.addRow(self.poseButton)
+        self.rdsrPoseButton = qt.QPushButton("Leer posición de un RDSR…")
+        self.rdsrPoseButton.connect("clicked()", self.onLoadRDSRPosition)
+        form.addRow(self.rdsrPoseButton)
+        self.poseReport = qt.QPlainTextEdit()
+        self.poseReport.readOnly = True
+        self.poseReport.setMinimumHeight(95)
+        self.poseReport.plainText = "Posición TC/RDSR todavía no leída."
+        form.addRow("Posición del paciente:", self.poseReport)
         self.layout.addStretch(1)
         self._reviewedKey = None
 
+
+    def cleanup(self):
+        if self._worker is not None:
+            self._worker.blockSignals(True)
+            self._worker.kill()
+            self._worker.waitForFinished(3000)
+        if self._job is not None:
+            self._job.cleanup()
+
+    def _extractionControls(self, running):
+        for control in (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
+                        self.poseButton, self.rdsrPoseButton, self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge):
+            control.setEnabled(not running)
+        self.cancelButton.enabled = running
+
+    def onCancelExtraction(self):
+        if self._worker is not None:
+            self._cancelled = True
+            self.progressLabel.text = "Cancelando…"
+            self._worker.kill()
+
+    def _readWorker(self):
+        if self._worker is not None:
+            text = self._worker.readAllStandardOutput().data().decode('utf-8', errors='replace')
+            self._workerLog += text
+            self.report.plainText = self._workerLog[-12000:]
+            if text.strip():
+                self.progressLabel.text = text.strip().splitlines()[-1]
+
+    def _finishWorker(self, exitCode, exitStatus):
+        try:
+            self._readWorker()
+            if self._cancelled:
+                self.progressLabel.text = "Proceso cancelado; se conserva el resultado anterior."
+                return
+            if exitCode != 0:
+                raise RuntimeError("Falló el proceso:\n" + self._workerLog[-4000:])
+            volume = self._jobVolume
+            if (volume.GetScene() is None or volume.GetImageData() is None
+                    or volume.GetMTime() != self._jobVolumeMTime
+                    or volume.GetImageData().GetMTime() != self._jobImageMTime):
+                raise ValueError("El TC cambió durante la extracción. Vuelva a extraer.")
+            if self._pairJob:
+                self.progressLabel.text = "Comparación exportada. La PSD todavía no se ha comparado."
+                slicer.util.infoDisplay("Exportadas mallas 150k y 300k desde el mismo original en " + self._pairDestination)
+                return
+            if self._reviewJob:
+                if self.logic.surfaceKey() != self._reviewSourceKey:
+                    raise ValueError("La segmentación cambió durante la optimización; vuelva a revisarla.")
+                reader = vtk.vtkXMLPolyDataReader()
+                reader.SetFileName(str(Path(self._job.name)/'surface.vtp'))
+                reader.Update()
+                self.logic._preparedPoly = vtk.vtkPolyData()
+                self.logic._preparedPoly.DeepCopy(reader.GetOutput())
+                self.logic.decimation = json.loads((Path(self._job.name)/'result.json').read_text(encoding='utf-8'))
+                self.logic._preparedKey = self._reviewSourceKey
+            else:
+                self.logic.installExtraction(Path(self._job.name), volume, self._jobThreshold)
+            result = self.logic.inspect()
+            self.logic.showPreview()
+            self._reviewedKey = self.logic._preparedKey
+            self.report.plainText = self._summaryText(result)
+            self.onReadPosition()
+            self.progressLabel.text = "Superficie preparada. Revise el contorno y exporte."
+        except Exception as exc:
+            self.progressLabel.text = "El proceso no se completó."
+            slicer.util.errorDisplay(str(exc))
+        finally:
+            self._worker.deleteLater()
+            self._worker = None
+            self._pairJob = False
+            self._reviewJob = False
+            self._job.cleanup()
+            self._job = None
+            self._extractionControls(False)
+
+    def _workerError(self, error):
+        if self._worker is not None and error == qt.QProcess.FailedToStart:
+            self._workerLog += '\nNo se pudo iniciar PythonSlicer: ' + self._worker.errorString()
+            self._finishWorker(-1, 1)
+
     @contextmanager
     def busy(self):
-        controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton,
-                    self.targetTriangles, self.volume, self.threshold, self.acknowledge)
+        controls = (self.extractButton, self.editButton, self.qaButton, self.exportButton, self.pairButton,
+                    self.poseButton, self.rdsrPoseButton, self.targetTriangles, self.maxDeviation, self.priority, self.volume, self.threshold, self.acknowledge)
         self._reviewedKey = None
         self.acknowledge.checked = False
         for control in controls:
@@ -272,19 +242,170 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
             for control in controls:
                 control.setEnabled(True)
 
+    def onReadPosition(self):
+        try:
+            from patient_position import describe, read_ct_volume
+            volume = self.volume.currentNode() or self.logic.volumeNode
+            if volume is None:
+                raise ValueError("Seleccione el TC.")
+            ct = read_ct_volume(volume)
+            self.poseReport.plainText = describe(ct, self.logic.rdsrPose)
+        except Exception as exc:
+            self.poseReport.plainText = str(exc)
+
+    def onLoadRDSRPosition(self):
+        path = qt.QFileDialog.getOpenFileName(
+            slicer.util.mainWindow(), "Seleccionar RDSR", "", "DICOM (*.dcm);;Todos (*)")
+        if not path:
+            return
+        try:
+            from patient_position import read_rdsr_file
+            self.logic.rdsrPose = read_rdsr_file(str(path))
+            self.onReadPosition()
+        except Exception as exc:
+            self.logic.rdsrPose = None
+            self.poseReport.plainText = str(exc)
+
+    def onPriorityChanged(self, index):
+        self.logic.optimizationMode = "fast" if int(index) == 0 else "compact"
+        self._reviewedKey = None
+        self.acknowledge.checked = False
+        self.report.plainText = "Prioridad cambiada. Pulse Revisar malla para actualizar."
+
+    def onDeviationChanged(self, value):
+        self.logic.maxDeviationMm = float(value)
+        self._reviewedKey = None
+        self.acknowledge.checked = False
+        self.report.plainText = "Tolerancia cambiada. Pulse Revisar malla para optimizar de nuevo."
+
+    def _summaryText(self, result):
+        info = self.logic.decimation
+        stats = info.get('triangle_quality', {})
+        reduction = 100*(1-result['triangles']/max(1,result['original_triangles']))
+        status = "Lista para exportar" if info.get('export_allowed') else "Necesita revisión: no hay reducción aceptable"
+        return "\n".join([
+            status,
+            f"Original: {result['original_triangles']:,} caras → salida: {result['triangles']:,} caras",
+            (f"Objetivo inicial: {info['target_triangles']:,}; aceptado: {info['selected_target_triangles']:,}"
+             if info.get("export_allowed") else f"Objetivo inicial: {info['target_triangles']:,}; ningún candidato aceptado"),
+            f"Reducción: {reduction:.1f}%; margen {info['minimum_triangles']:,}–{info['maximum_triangles']:,}",
+            f"Desviación máxima muestreada: {info.get('max_vertex_surface_distance_mm',0):.3f} mm (límite {self.logic.maxDeviationMm:.2f} mm)",
+            f"Cambio de volumen: {100*info.get('relative_volume_change',0):.2f}%",
+            f"Caras muy alargadas: {100*stats.get('slender_face_fraction',0):.2f}%",
+            f"Método seleccionado: {info['method']}",
+            ("Prioridad: velocidad; alternativas adicionales solo si la reducción falla."
+             if info.get('optimization_mode') == 'fast'
+             else "Prioridad: menos triángulos entre las alternativas probadas."),
+            *["AVISO: " + message for message in result['warnings']],
+        ])
+
     def onTargetChanged(self, value):
         self.logic.targetTriangles = int(value)
         self.acknowledge.checked = False
         self.report.plainText = "Objetivo cambiado. Pulse Revisar malla para actualizar la vista previa."
 
     def onExtract(self):
+        if self._worker is not None:
+            return
         try:
-            with self.busy():
-                self.logic.extract(self.volume.currentNode(), self.threshold.value)
+            volume = self.volume.currentNode()
+            if volume is None:
+                volumes = slicer.util.getNodesByClass('vtkMRMLScalarVolumeNode')
+                volumes = [v for v in volumes if v.GetImageData() is not None]
+                if len(volumes) == 1:
+                    volume = volumes[0]
+                    self.volume.setCurrentNode(volume)
+            if volume is None or volume.GetImageData() is None:
+                raise ValueError("Seleccione el TC en el desplegable 'TC (volumen)'.")
+            if volume.GetParentTransformNode():
+                raise ValueError("Endurezca la transformación del TC antes de extraer.")
+            values = slicer.util.arrayFromVolume(volume)
+            if values.size > 160_000_000:
+                raise ValueError("TC demasiado grande: recorte una ROI o remuestree antes de extraer.")
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = Path(slicer.app.applicationDirPath())/'PythonSlicer'
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer junto a la aplicación.")
+            self._extractionControls(True)
+            self.progressLabel.text = "Preparando el TC temporal…"
+            slicer.app.processEvents()
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_surface_')
+            folder = Path(self._job.name)
+            np.save(folder/'input.npy', values)
+            matrix = vtk.vtkMatrix4x4()
+            volume.GetIJKToRASMatrix(matrix)
+            self._jobThreshold = float(self.threshold.value)
+            job = dict(threshold_hu=self._jobThreshold, target_triangles=int(self.targetTriangles.value),
+                       max_deviation_mm=float(self.maxDeviation.value), optimization_mode=self.logic.optimizationMode,
+                       ijk_to_ras=[[matrix.GetElement(i,j) for j in range(4)] for i in range(4)])
+            (folder/'job.json').write_text(json.dumps(job), encoding='utf-8')
+            self._jobVolume = volume
+            self._jobVolumeMTime = volume.GetMTime()
+            self._jobImageMTime = volume.GetImageData().GetMTime()
+            self._cancelled = False
+            self._workerLog = ''
+            self._reviewedKey = None
             self.acknowledge.checked = False
-            self.onCheck()
-            slicer.util.selectModule("DermaDoseSurface")
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u', str(Path(__file__).with_name('surface_worker.py')), str(folder)])
         except Exception as exc:
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
+            slicer.util.errorDisplay(str(exc))
+
+    def onExportPair(self):
+        if self._worker is not None:
+            return
+        try:
+            source = self.logic._surface()
+            if source.GetNumberOfPolys() < 300000:
+                raise ValueError("El original tiene menos de 300 000 caras; no se subdividirá artificialmente.")
+            destination = qt.QFileDialog.getExistingDirectory(
+                slicer.util.mainWindow(), "Carpeta para comparar 150k / 300k")
+            if not destination:
+                return
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = executable.with_suffix('')
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer.")
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_pair_')
+            original_path = Path(self._job.name)/'original.vtp'
+            writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetCompressorTypeToNone()
+            writer.EncodeAppendedDataOff()
+            writer.SetFileName(str(original_path))
+            writer.SetInputData(source)
+            if not writer.Write() or writer.GetErrorCode():
+                raise OSError("No se pudo preparar el original.")
+            self._jobVolume = self.logic.volumeNode
+            self._jobVolumeMTime = self._jobVolume.GetMTime()
+            self._jobImageMTime = self._jobVolume.GetImageData().GetMTime()
+            self._pairDestination = str(destination)
+            self._pairJob = True
+            self._cancelled = False
+            self._workerLog = ''
+            self._extractionControls(True)
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u',
+                str(Path(__file__).with_name('surface_pair.py')), str(original_path), str(destination), str(self.logic.maxDeviationMm), self.logic.optimizationMode])
+        except Exception as exc:
+            self._pairJob = False
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
             slicer.util.errorDisplay(str(exc))
 
     def onEdit(self):
@@ -302,24 +423,56 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.acknowledge.checked = False
 
     def onCheck(self):
+        if self._worker is not None:
+            return
         try:
-            with self.busy():
+            key = self.logic.surfaceKey()
+            if key == self.logic._preparedKey:
                 result = self.logic.inspect()
                 self.logic.showPreview()
-            self._reviewedKey = self.logic._preparedKey
-            lines = [
-                f"Triángulos originales: {result['original_triangles']}",
-                f"Triángulos de salida: {result['triangles']} (objetivo {self.logic.targetTriangles})",
-                f"Componentes de superficie: {result['components']}",
-                f"Aristas no manifold: {result['nonmanifold_edges']}",
-                f"Aristas abiertas: {result['boundary_edges']}",
-                f"Triángulos degenerados: {result['degenerate_triangles']}",
-                f"Método: {self.logic.decimation['method']}",
-                *["AVISO: " + warning for warning in result["warnings"]],
-            ]
-            self.report.plainText = "\n".join(lines)
+                self._reviewedKey = key
+                self.acknowledge.checked = False
+                self.report.plainText = self._summaryText(result)
+                return
+            executable = Path(slicer.app.applicationDirPath())/'PythonSlicer.exe'
+            if not executable.exists():
+                executable = executable.with_suffix('')
+            if not executable.exists():
+                raise FileNotFoundError("No se encuentra PythonSlicer.")
+            self._job = tempfile.TemporaryDirectory(prefix='dermadose_review_')
+            folder = Path(self._job.name)
+            writer = vtk.vtkXMLPolyDataWriter()
+            writer.SetCompressorTypeToNone()
+            writer.EncodeAppendedDataOff()
+            writer.SetFileName(str(folder/'original_surface.vtp'))
+            writer.SetInputData(self.logic._surface())
+            if not writer.Write() or writer.GetErrorCode():
+                raise OSError("No se pudo preparar el original para revisión.")
+            job = dict(mode='review', target_triangles=self.logic.targetTriangles,
+                       max_deviation_mm=self.logic.maxDeviationMm, optimization_mode=self.logic.optimizationMode)
+            (folder/'job.json').write_text(json.dumps(job),encoding='utf-8')
+            self._reviewSourceKey = key
+            self._jobVolume = self.logic.volumeNode
+            self._jobVolumeMTime = self._jobVolume.GetMTime()
+            self._jobImageMTime = self._jobVolume.GetImageData().GetMTime()
+            self._reviewJob = True
+            self._cancelled = False
+            self._workerLog = ''
+            self._reviewedKey = None
             self.acknowledge.checked = False
+            self._extractionControls(True)
+            self._worker = qt.QProcess()
+            self._worker.setProcessChannelMode(qt.QProcess.MergedChannels)
+            self._worker.connect('readyReadStandardOutput()', self._readWorker)
+            self._worker.connect('finished(int,QProcess::ExitStatus)', self._finishWorker)
+            self._worker.connect('errorOccurred(QProcess::ProcessError)', self._workerError)
+            self._worker.start(str(executable), ['-u', str(Path(__file__).with_name('surface_worker.py')), str(folder)])
         except Exception as exc:
+            self._reviewJob = False
+            self._extractionControls(False)
+            if self._job is not None:
+                self._job.cleanup()
+                self._job = None
             slicer.util.errorDisplay(str(exc))
 
     def onExport(self):
@@ -332,8 +485,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         if not target:
             return
         try:
-            self.logic.preparedSurface()
-            if self._reviewedKey != self.logic._preparedKey:
+            if self._reviewedKey != self.logic.surfaceKey():
                 self.acknowledge.checked = False
                 raise ValueError("La malla cambió desde la revisión. Pulse Revisar malla y compruebe la nueva vista previa.")
             with self.busy():
@@ -351,10 +503,57 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         self.segmentId = None
         self.thresholdHU = None
         self.targetTriangles = 150000
+        self.maxDeviationMm = 1.0
+        self.optimizationMode = "fast"
+        self.rdsrPose = None
+        self._qaKey = None
+        self._qaResult = None
         self.previewNode = None
         self._preparedKey = None
         self._preparedPoly = None
         self.decimation = None
+
+
+    def installExtraction(self, folder, volume, threshold_hu):
+        """Import finished output on the main thread without re-decimation."""
+        reader = vtk.vtkXMLPolyDataReader()
+        reader.SetFileName(str(folder/'surface.vtp'))
+        reader.Update()
+        poly = vtk.vtkPolyData()
+        poly.DeepCopy(reader.GetOutput())
+        if poly.GetNumberOfPolys() < 4:
+            raise ValueError('El proceso no devolvió una superficie válida.')
+        body = np.load(folder/'body.npy')
+        if tuple(body.shape) != tuple(slicer.util.arrayFromVolume(volume).shape):
+            raise ValueError('La geometría del resultado no coincide con el TC.')
+        previous = self.segmentationNode
+        seg = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode', 'DermaDose external contour')
+        try:
+            seg.CreateDefaultDisplayNodes()
+            seg.SetReferenceImageGeometryParameterFromVolumeNode(volume)
+            segment_id = seg.GetSegmentation().AddEmptySegment('ExternalContour', 'External contour')
+            slicer.util.updateSegmentBinaryLabelmapFromArray(body, seg, segment_id, volume)
+            segment = seg.GetSegmentation().GetSegment(segment_id)
+            original_reader = vtk.vtkXMLPolyDataReader()
+            original_reader.SetFileName(str(folder/'original_surface.vtp'))
+            original_reader.Update()
+            original = vtk.vtkPolyData()
+            original.DeepCopy(original_reader.GetOutput())
+            segment.AddRepresentation('Closed surface', original)
+            seg.GetDisplayNode().SetVisibility3D(False)
+            self.segmentationNode, self.volumeNode = seg, volume
+            self.segmentId, self.thresholdHU = segment_id, float(threshold_hu)
+            self.decimation = json.loads((folder/'result.json').read_text(encoding='utf-8'))
+            self._preparedPoly = poly
+            self._preparedKey = (seg.GetID(), original.GetMTime(), original.GetPoints().GetMTime(),
+                                 original.GetPolys().GetMTime(), self.targetTriangles, self.maxDeviationMm, self.optimizationMode)
+            if previous is not None and previous.GetScene() is not None:
+                previous.GetDisplayNode().SetVisibility(False)
+            slicer.util.resetThreeDViews()
+            return seg
+        except Exception:
+            slicer.mrmlScene.RemoveNode(seg)
+            raise
 
     def extract(self, volume, threshold_hu):
         if volume is None or volume.GetImageData() is None:
@@ -413,13 +612,18 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             raise ValueError("No se pudo obtener la superficie del segmento.")
         return poly
 
-    def preparedSurface(self):
-        # Read the live representation without copying millions of triangles on cache hits.
+    def surfaceKey(self):
         representation = self._surface()
-        key = (self.segmentationNode.GetID(), representation.GetMTime(),
-               representation.GetPoints().GetMTime(), representation.GetPolys().GetMTime(), self.targetTriangles)
+        return (self.segmentationNode.GetID(), representation.GetMTime(),
+                representation.GetPoints().GetMTime(), representation.GetPolys().GetMTime(),
+                self.targetTriangles, self.maxDeviationMm, self.optimizationMode)
+
+    def preparedSurface(self):
+        key = self.surfaceKey()
         if key != self._preparedKey:
-            self._preparedPoly, self.decimation = simplify_surface(representation, self.targetTriangles)
+            self._preparedPoly, self.decimation = simplify_surface(
+                self._surface(), self.targetTriangles, max_deviation_mm=self.maxDeviationMm,
+                optimization_mode=self.optimizationMode, fallback_step_triangles=100000)
             self._preparedKey = key
         return self._preparedPoly
 
@@ -435,7 +639,14 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
 
     def inspect(self):
         poly = self.preparedSurface()
-        quality = surface_quality(poly)
+        qa_key = (self._preparedKey, self.segmentationNode.GetMTime(),
+                  self.volumeNode.GetMTime(), self.volumeNode.GetImageData().GetMTime())
+        if qa_key == self._qaKey:
+            from copy import deepcopy
+            return deepcopy(self._qaResult)
+        quality = self.decimation.get("surface_quality")
+        if quality is None:
+            quality = surface_quality(poly)
         mask = slicer.util.arrayFromSegmentBinaryLabelmap(
             self.segmentationNode, self.segmentId, self.volumeNode
         )
@@ -452,14 +663,20 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         if quality["boundary_edges"]:
             warnings.append("Hay aristas abiertas; revise la integridad de la malla.")
         if self.decimation.get("fallback_original"):
-            warnings.append("No se obtuvo una reducción válida: la vista previa y exportación conservan la malla original. No acelerará el cálculo.")
+            warnings.append("No se obtuvo una reducción que cumpla el margen y las tolerancias. Se conserva el original para revisión; la exportación reducida no está disponible.")
         if not self.decimation["target_reached"]:
-            warnings.append("Objetivo no alcanzado: se conserva la topología. Puede exportar con más triángulos.")
-        return {
+            warnings.append("Margen no alcanzado sin alterar la superficie. Revise el diagnóstico de simplificación.")
+        if self.decimation.get("below_range_without_subdivision"):
+            warnings.append("El original tiene menos de 100 000 caras; se conserva sin añadir triángulos artificiales.")
+        warnings.append("El número de caras no certifica la precisión de la PSD; compare 150 000 y 300 000.")
+        result = {
             **quality,
             "original_triangles": self.decimation["input_triangles"],
             "warnings": warnings,
         }
+        self._qaKey, self._qaResult = qa_key, result
+        from copy import deepcopy
+        return deepcopy(result)
 
     def export(self, path):
         path = Path(path)
@@ -470,6 +687,11 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             raise FileExistsError("Ya existe el STL o su JSON; elija un nombre nuevo (por ejemplo superficie_150k_v3.stl).")
         qa = self.inspect()
         poly = self.preparedSurface()
+        if not self.decimation.get("export_allowed", False):
+            raise ValueError("No hay una reducción válida dentro de 100 000–200 000 caras. "
+                             "Se conserva el original; no se cerrarán agujeros ni se forzará su geometría.")
+        from patient_position import read_ct_volume
+        ct_pose = read_ct_volume(self.volumeNode)
         matrix = vtk.vtkMatrix4x4()
         self.volumeNode.GetIJKToRASMatrix(matrix)
         # Stage in the destination filesystem. Never overwrite an existing file.
@@ -477,7 +699,9 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
             staged = Path(folder) / "surface.stl"
             disk_quality = write_stl_checked(poly, staged)
             metadata = {
-                "schema_version": 4, "module_version": MODULE_VERSION,
+                "schema_version": 5, "module_version": MODULE_VERSION,
+                "patient_position_evidence": {"ct": ct_pose, "rdsr": self.rdsrPose,
+                    "registration_established": False, "transform_applied": False},
                 "decimation": self.decimation,
                 "surface_definition": "external CT contour, not histological skin",
                 "mesh_file": path.name,
@@ -565,3 +789,4 @@ class DermaDoseSurfaceTest(ScriptedLoadableModuleTest):
         plane.Update()
         with self.assertRaises(ValueError):
             simplify_surface(plane.GetOutput(), 150000)
+
