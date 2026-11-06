@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .config import Equipment, Factor
+from .geometry import field_reference_distance
 from .domain import IrradiationEvent, InputError
 
 
@@ -29,7 +30,7 @@ def verify_irp(ev: IrradiationEvent, equipment: Equipment) -> dict:
                 "ka_r_gy": independent, "yield_identifier": yield_factor.identifier,
                 "relative_difference_to_reported": None if not ev.ka_r_gy else independent/ev.ka_r_gy-1.}
     if ev.kap_gy_m2 is not None and ev.field_width_mm is not None and ev.field_height_mm is not None:
-        field_ref_distance = float(ev.sid_mm) if g["field_reference"] == "detector" else float(ev.sod_mm)
+        field_ref_distance = field_reference_distance(ev, equipment)
         area_m2 = float(ev.field_width_mm)*float(ev.field_height_mm)*(
             srp/field_ref_distance)**2/1e6
         if area_m2 <= 0:

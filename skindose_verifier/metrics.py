@@ -55,6 +55,11 @@ def neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: float = 
     if not np.any(np.isfinite(result)):
         return None
     idx = int(np.argmax(result))
+    # Valid discs may exist only in unirradiated boundary strips when the
+    # lattice disc area exceeds the acceptance band in the interior. Reporting
+    # zero then misrepresents unresolved positive dose as a zero local peak.
+    if result[idx] <= 0 and np.any(dose > 0):
+        return None
     selected = np.unique(np.asarray(tree.query_ball_point(uv[idx], radius), dtype=int) % len(dose))
     return {"dose_gy": float(result[idx]), "patient_point_mm": surface.points_mm[idx].tolist(),
             "sampled_area_mm2": float(surface.area_mm2[selected].sum()),
@@ -111,7 +116,7 @@ def _mesh_neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: fl
         mean = float(np.dot(dose[indices], weights)/area)
         if mean > best_value or (mean == best_value and origin < best_idx):
             best_value, best_idx, best_area = mean, origin, area
-    if best_idx < 0:
+    if best_idx < 0 or (best_value <= 0 and np.any(dose > 0)):
         return None
     return {"dose_gy": best_value, "patient_point_mm": surface.points_mm[best_idx].tolist(),
             "sampled_area_mm2": best_area, "target_area_mm2": area_mm2,
