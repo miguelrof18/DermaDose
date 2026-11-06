@@ -1,0 +1,78 @@
+{
+  "stage": "skin_dose",
+  "values": [
+    {
+      "resolution_mm": 10.0,
+      "psd_point_gy": 0.03523595872302047,
+      "point_mm": [
+        -45.0,
+        -5.0,
+        -100.0
+      ],
+      "psd_neighbourhood_1cm2": {
+        "dose_gy": 0.03523595872302047,
+        "patient_point_mm": [
+          -45.0,
+          -5.0,
+          -100.0
+        ],
+        "sampled_area_mm2": 100.0,
+        "target_area_mm2": 100.0,
+        "definition": "media ponderada en vecindad circular discreta; no equivale necesariamente a PSD cl\u00ednica"
+      },
+      "surface_samples": 1296,
+      "irradiated_area_cm2": 124.0,
+      "dose_area_integral_gy_cm2": 3.73237980782256,
+      "seconds": 0.019315098999868496,
+      "maximum_triangle_area_mm2": null
+    },
+    {
+      "resolution_mm": 5.0,
+      "psd_point_gy": 0.03525804352900233,
+      "point_mm": [
+        -52.5,
+        -2.5,
+        -100.0
+      ],
+      "psd_neighbourhood_1cm2": {
+        "dose_gy": 0.03524380252200238,
+        "patient_point_mm": [
+          -47.5,
+          -2.5,
+          -100.0
+        ],
+        "sampled_area_mm2": 125.0,
+        "target_area_mm2": 100.0,
+        "definition": "media ponderada en vecindad circular discreta; no equivale necesariamente a PSD cl\u00ednica"
+      },
+      "surface_samples": 5184,
+      "irradiated_area_cm2": 137.5,
+      "dose_area_integral_gy_cm2": 4.219804459421177,
+      "seconds": 0.06816329600019344,
+      "maximum_triangle_area_mm2": null
+    },
+    {
+      "resolution_mm": 2.5,
+      "psd_point_gy": 0.03526084657100623,
+      "point_mm": [
+        -53.75,
+        -1.25,
+        -100.0
+      ],
+      "psd_neighbourhood_1cm2": null,
+      "surface_samples": 20736,
+      "irradiated_area_cm2": 139.625,
+      "dose_area_integral_gy_cm2": 4.211682923693282,
+      "seconds": 0.2988210229998458,
+      "maximum_triangle_area_mm2": null
+    }
+  ],
+  "method": "resampled_analytic_surface",
+  "mesh_refinement_roi_mm": null,
+  "relative_integral_change_last_refinement": -0.001924623713253748,
+  "relative_irradiated_area_change_last_refinement": 0.015454545454545388,
+  "relative_point_psd_change_last_refinement": 7.950078119310052e-05,
+  "point_displacement_mm_last_refinement": 1.7677669529663689,
+  "clinical_validation": false,
+  "interpretation": "Sensibilidad de discretizaci\u00f3n; no demuestra exactitud anat\u00f3mica ni convergencia mon\u00f3tona en bordes de campo."
+}

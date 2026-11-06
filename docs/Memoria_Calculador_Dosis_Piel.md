@@ -1,7 +1,7 @@
 ---
 title: "Calculador independiente de dosis en piel"
 subtitle: "Memoria técnica y científica del prototipo skindose-verifier 0.5.3"
-date: "6 de octubre de 2026"
+date: "6 de noviembre de 2026"
 lang: es-ES
 documentclass: report
 classoption: [11pt, a4paper, oneside]
@@ -35,6 +35,22 @@ La revisión comprende el código ejecutable, los parámetros, los modelos, la d
 El principal resultado es una plataforma verificable para investigación geométrica y dosimétrica, con mapas por evento, métricas ponderadas por área, propagación paramétrica y visor tridimensional autónomo. La demostración histórica conserva factores sintéticos para mantener reproducibilidad, pero el modo de investigación dispone además de un proveedor tabulado basado en Benmakhlouf, Fransson y Andreo (KS-ASF-201101-IR) para $k_{BS}$ y $k_f$ en agua. Esta incorporación está verificada numéricamente, pero no sustituye una caracterización del equipo: no existen medidas propias de validación y no se ha ejecutado una comparación externa del mapa completo con transporte Monte Carlo. Por tanto, no puede asignarse una precisión clínica al programa. La siguiente fase debe priorizar caracterización de equipo, registro anatómico, pruebas con RDSR reales y validación experimental independiente.
 
 **Palabras clave:** dosis en piel; radiología intervencionista; RDSR; fantoma triangular; dosis pico; verificación computacional; incertidumbre.
+
+# Actualización de implementación — 4 de noviembre de 2026
+
+Esta sección actualiza el estado de software; los resultados de octubre que siguen se conservan como históricos, no como nuevas mediciones. Base revisada: `main` c59ed26. Las mejoras se proponen en `fix/physics-audit-20261104`; no están integradas en main por el hecho de aparecer en esta memoria.
+
+La revisión corrigió la referencia de colimación: los conceptos DICOM 113788/113789 se definen en el detector y ya no pueden reinterpretarse silenciosamente mediante `field_reference=isocenter` del equipo. Cada evento leído declara su referencia; proyección, visualización y KAP/área la comparten. Los eventos manuales conservan la posibilidad de una referencia explícita. La caché distingue ambas geometrías. Un campo de 200 mm, SID 1000 mm y profundidad axial 500 mm mide 100 mm, no los 142,86 mm que resultan al tratarlo erróneamente como definido en SOD 700 mm.
+
+También se rechazan UID duplicados en la API de cálculo, se reconocen los códigos actuales de Al/Cu y se propaga coherentemente el Al añadido al proveedor espectral. El área de campo no positiva produce un error controlado. La hipótesis de cuadrado equivalente, si solo existe área, queda explícita en el informe por evento; no recupera forma ni asimetría del campo.
+
+El estudio de convergencia detectó además una media local de 1 cm² falsamente nula a 2,5 mm: el criterio de área rechazaba las vecindades irradiadas y solo aceptaba discos de borde sin dosis. Ahora se declara no disponible por muestreo cuando sucede esto, conservando la PSD puntual. Entre 5 y 2,5 mm la PSD puntual cambió +0,00795% mientras el área irradiada cambió +1,545%; este ejemplo no valida mallas de paciente de 150k caras.
+
+La acumulación mantiene el orden y evita una matriz temporal de todos los eventos. En un benchmark de 200 mapas y 150 000 puntos: mediana 0,1063 a 0,0316 s; memoria adicional rastreada 241,2 a 1,2 MB; diferencia numérica 0 Gy. Son cifras de ese paso, no de todo el cálculo ni de Slicer. Se retienen los mapas por evento y la exportación todavía tiene un coste de memoria adicional.
+
+Verificación de esta revisión: 163 pruebas base superadas y una omitida; 174 pruebas superadas y una omitida en la repetición final del 6 de noviembre, después de añadir once regresiones. El caso reproducible conserva PSD 0,03947233203405644 Gy y su mapa dentro de las tolerancias archivadas. No se han realizado nuevas medidas físicas. El informe detallado y los resultados adicionales están en `documentacion/revision_20261104/AUDITORIA.md`.
+
+El módulo Slicer de main aún contiene trabajo síncrono; las PR #11 y #12 contienen respectivamente el módulo asíncrono y el script independiente, con ejecución gráfica pendiente. Leer orientación TC/RDSR no establece un registro entre exploraciones. El objetivo de 100 000–200 000 caras requiere controlar error geométrico y estudiar PSD frente a una malla más fina: no garantiza precisión por sí solo. Se mantienen las limitaciones de transporte, endurecimiento por mesa, equivalencia agua/piel e incertidumbre parcial descritas en esta memoria.
 
 # Introducción
 

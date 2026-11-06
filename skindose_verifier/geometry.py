@@ -53,6 +53,14 @@ class Projection:
     statistics: dict
 
 
+def field_reference_distance(ev: IrradiationEvent, equipment: Equipment) -> float:
+    """Prefer the explicit event plane over defaults for manually constructed events."""
+    reference = ev.field_reference or equipment.geometry_for(ev.plane)["field_reference"]
+    if reference not in ("detector", "isocenter"):
+        raise InputError(f"Plano de referencia de colimación desconocido: {reference}.")
+    return float(ev.sid_mm if reference == "detector" else ev.sod_mm)
+
+
 def beam_from_event(ev: IrradiationEvent, equipment: Equipment) -> Beam:
     g = equipment.geometry_for(ev.plane)
     if g["primary_sign"] not in (-1, 1) or g["secondary_sign"] not in (-1, 1):
@@ -66,7 +74,7 @@ def beam_from_event(ev: IrradiationEvent, equipment: Equipment) -> Beam:
         raise InputError("Geometría fuente/isocentro/detector/IRP físicamente inconsistente.")
     iso = np.asarray(g.get("isocenter_mm", [0., 0., 0.]), dtype=float)
     source = iso - direction*sod
-    ref = sid if g["field_reference"] == "detector" else sod
+    ref = field_reference_distance(ev, equipment)
     return Beam(source, source+direction*sid, direction, x_axis, y_axis, ref, srp)
 
 

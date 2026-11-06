@@ -211,6 +211,9 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     progress = progress_callback if progress_callback is not None else lambda message: None
     if not events:
         raise InputError("No hay eventos de irradiación.")
+    uids = [event.uid for event in events]
+    if len(set(uids)) != len(uids):
+        raise InputError("UID de evento repetido; no se duplicará su dosis.")
     if equipment.raw.get("azurion_profile"):
         from .azurion import prepare_events
         # Enforce the same profile policy for Python callers and the CLI.
@@ -249,7 +252,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         event_pairs_available = True
         for piece in sliced:
             key = (piece.plane, piece.primary_deg, piece.secondary_deg, tuple(piece.table_mm),
-                   piece.sid_mm, piece.sod_mm, piece.srp_mm, piece.field_width_mm, piece.field_height_mm)
+                   piece.sid_mm, piece.sod_mm, piece.srp_mm, piece.field_width_mm, piece.field_height_mm,
+                   piece.field_reference)
             geo = cache.get(key) if cache_geometry else None
             if geo is None:
                 geo = project(piece, equipment, surface)
@@ -278,6 +282,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                         "kap_gy_m2": ev.kap_gy_m2, "status": ev.quality,
                         "table_coordinate_conversion": ev.original.get("table_coordinate_conversion"),
                         "sample_count": len(sliced),
+                        "field_reference": ev.field_reference or equipment.geometry_for(ev.plane)["field_reference"],
+                        "field_shape_assumption": ev.quality.get("field_size"),
                         "geometry_samples": [beam_view(piece, equipment) for piece in sliced],
                         "performance": {"seconds": time.perf_counter()-event_started,
                                         "rays_traced": event_rays,
@@ -296,7 +302,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                         "surface_factor_audit_per_sample": [x.get("surface_factor_audit") for x in subreports],
                         "factor_ranges_per_sample": [x.get("component_ranges", {}) for x in subreports]})
         maps.append(event_map)
-    total = np.sum(np.stack(maps), axis=0)
+    # Preserve event order without allocating a second events-by-surface matrix.
+    total = np.zeros_like(maps[0])
+    for event_map in maps:
+        total += event_map
     if not np.any(total > 0):
         raise InputError("Ningún rayo incide en la superficie de piel modelada; revisar campo, geometría y paciente.")
     peak_index = int(np.argmax(total))

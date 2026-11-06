@@ -1,0 +1,35 @@
+{
+  "events": 200,
+  "points": 150000,
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "cases": [
+    {
+      "method": "stack",
+      "seconds": [
+        0.10629369000002953,
+        0.09807728999999199,
+        0.10061897099990347,
+        0.2823377160000291,
+        0.2819435540000086
+      ],
+      "median_seconds": 0.10629369000002953,
+      "additional_traced_peak_bytes": 241201256,
+      "max_difference_gy": 0.0
+    },
+    {
+      "method": "ordered_in_place",
+      "seconds": [
+        0.035189263999882314,
+        0.03159273400001439,
+        0.027888846999985617,
+        0.029762159000028987,
+        0.033899552000093536
+      ],
+      "median_seconds": 0.03159273400001439,
+      "additional_traced_peak_bytes": 1200200,
+      "max_difference_gy": 0.0
+    }
+  ],
+  "scope": "aggregation only; retained event maps excluded from traced allocation"
+}

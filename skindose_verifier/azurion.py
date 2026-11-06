@@ -10,7 +10,7 @@ import math
 from pathlib import Path
 
 from .domain import InputError
-from .rdsr import read_rdsr
+from .rdsr import read_rdsr, ALUMINIUM_FILTERS
 
 SOURCES = {
     'ifu': 'https://www.documents.philips.com/assets/Instruction%20for%20Use/20201222/c122581e1172411b8c0eac9900949a77.pdf',
@@ -78,7 +78,7 @@ def inspect_azurion(path, fixed_al_mm=None):
     families = Counter()
     for e in report.events:
         al = sum(p['selected_mm'] for p in e.original.get('filter_stack', [])
-                 if (p['material_scheme'], p['material_code']) == ('SRT', 'C-120F9'))
+                 if (p['material_scheme'], p['material_code']) in ALUMINIUM_FILTERS)
         filters[(e.quality['filtration_mm_cu'], al, e.filtration_mm_cu)] += 1
         for name in ('sid_mm', 'sod_mm', 'srp_mm', 'field_width_mm', 'field_height_mm'):
             if getattr(e, name) is None or getattr(e, name) <= 0:

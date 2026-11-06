@@ -97,8 +97,8 @@ def scalar(item: Dataset, field: str) -> tuple[float | None, list[dict]]:
     return vals[0], readings
 
 
-COPPER_FILTERS = {("SCT", "66925006"), ("SRT", "C-127F9")}
-ALUMINIUM_FILTERS = {("SRT", "C-120F9")}
+COPPER_FILTERS = {("SCT", "66925006"), ("SRT", "C-12700"), ("SRT", "C-127F9")}
+ALUMINIUM_FILTERS = {("SCT", "12503006"), ("SRT", "C-12000"), ("SRT", "C-120F9")}
 
 
 def filter_stack(item: Dataset, uid: str) -> tuple[float | None, list[dict], str]:
@@ -237,6 +237,8 @@ def parse_event(item: Dataset) -> IrradiationEvent:
     else:
         table, system = None, None
     if values["field_width_mm"] is None and values["field_height_mm"] is None and values["field_area_m2"] is not None:
+        if values["field_area_m2"] <= 0:
+            raise InputError(f"Evento {uid}: área de colimación no positiva.")
         side_mm = math.sqrt(values["field_area_m2"]) * 1000.0
         values["field_width_mm"] = side_mm
         values["field_height_mm"] = side_mm
@@ -256,7 +258,7 @@ def parse_event(item: Dataset) -> IrradiationEvent:
         table_system=system, sid_mm=values["sid_mm"], sod_mm=values["sod_mm"],
         srp_mm=values["srp_mm"], field_width_mm=values["field_width_mm"],
         field_height_mm=values["field_height_mm"], timestamp=textual(item, "timestamp"),
-        quality=quality, original=orig)
+        quality=quality, original=orig, field_reference="detector")
 
 
 def read_rdsr(path: str | Path) -> RDSRData:

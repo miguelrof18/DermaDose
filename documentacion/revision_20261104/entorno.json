@@ -1,0 +1,15 @@
+{
+  "verification_date": "2026-11-06",
+  "python": "3.12.14",
+  "platform": "Linux",
+  "packages": {
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pydicom": "3.0.2",
+    "trimesh": "5.2.0",
+    "rtree": "1.4.1",
+    "pytest": "9.2.0",
+    "spekpy": "2.5.4"
+  },
+  "real_slicer_gui_executed": false
+}

@@ -22,9 +22,17 @@ Usa LuaLaTeX. Con LaTeX Workshop selecciona una receta `latexmk -lualatex` o eje
 latexmk -lualatex -shell-escape main.tex
 ```
 
-La fuente monoespaciada se fija en Consolas para evitar el problema anterior con
-DejaVu Sans Mono en Windows.
+La fuente monoespaciada usa Consolas cuando está instalada y Latin Modern Mono
+como alternativa portable. La revisión del 4 de noviembre de 2026 se incluye en la fuente canónica.
 
 Las imágenes se buscan con rutas relativas a `docs/`. Si una copia local no contiene
 los ficheros gráficos referenciados por la memoria, LaTeX informará de ello aunque el
 texto científico siga siendo la fuente canónica.
+
+## Comprobación del 4 de noviembre de 2026
+
+La compilación se intentó con LuaLaTeX y se detuvo por ausencia de `spanish.ldf`.
+En TeX Live se requiere el soporte de español (por ejemplo, `texlive-lang-spanish`).
+Además faltan en el repositorio las figuras históricas de `docs/figuras/` y
+`docs/evidencias/` referenciadas por la memoria. Deben recuperarse de sus resultados
+originales; no se ha generado ni verificado un PDF completo en esta revisión.

@@ -11,6 +11,7 @@ import math
 import numpy as np
 
 from .domain import InputError
+from .rdsr import ALUMINIUM_FILTERS
 from .factor_tables import RectilinearFactorTable, FactorPair
 
 
@@ -114,7 +115,7 @@ class EventSurfaceFactors:
 
     def evaluate_event(self, event, field_area_cm2):
         added_al = [part for part in event.original.get('filter_stack', [])
-                    if (part['material_scheme'], part['material_code']) == ('SRT', 'C-120F9')
+                    if (part['material_scheme'], part['material_code']) in ALUMINIUM_FILTERS
                     and part['selected_mm'] > 0]
         selected_al = self.al
         if self.aluminium_policy == 'fixed_plus_event':

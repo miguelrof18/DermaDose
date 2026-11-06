@@ -28,6 +28,9 @@ class IrradiationEvent:
     quality: dict[str, str] = field(default_factory=dict)
     original: dict[str, Any] = field(default_factory=dict)
 
+    # DICOM collimation is defined at the detector; manual events may use the configuration.
+    field_reference: str | None = None
+
     def scaled(self, fraction: float) -> "IrradiationEvent":
         """Assign an exact fraction of integrated event kerma to a sweep sample."""
         return replace(self,
