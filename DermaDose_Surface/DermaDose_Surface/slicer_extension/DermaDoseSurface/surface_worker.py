@@ -90,7 +90,8 @@ def run(folder):
         np.save(folder/'body.npy', body)
     poly, decimation = simplify_surface(poly, job['target_triangles'], progress,
                                        max_deviation_mm=job.get('max_deviation_mm', 1.0),
-                                       optimization_mode=job.get('optimization_mode','fast'))
+                                       optimization_mode=job.get('optimization_mode','fast'),
+                                       fallback_step_triangles=100000)
     progress('Guardando el resultado para Slicer')
     writer = vtk.vtkXMLPolyDataWriter()
     writer.SetCompressorTypeToNone()

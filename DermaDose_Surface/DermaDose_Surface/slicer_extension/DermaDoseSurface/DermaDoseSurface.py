@@ -20,7 +20,7 @@ from slicer.ScriptedLoadableModule import (
 )
 
 
-MODULE_VERSION = "1.7.1-worker-fix"
+MODULE_VERSION = "1.7.2-reduccion-progresiva"
 
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -72,7 +72,7 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self.targetTriangles.maximum = 300000
         self.targetTriangles.singleStep = 10000
         self.targetTriangles.value = 150000
-        self.targetTriangles.toolTip = "Por defecto 150 000. El margen depende del objetivo; no se fuerza la reducción si altera la superficie."
+        self.targetTriangles.toolTip = "En Velocidad, si falla el objetivo inicial, se prueba con 100 000 caras más."
         self.targetTriangles.connect("valueChanged(int)", self.onTargetChanged)
         form.addRow("Referencia de triángulos:", self.targetTriangles)
         form.addRow(qt.QLabel("Selección automática entre 100 000 y 200 000 caras."))
@@ -286,6 +286,8 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         return "\n".join([
             status,
             f"Original: {result['original_triangles']:,} caras → salida: {result['triangles']:,} caras",
+            (f"Objetivo inicial: {info['target_triangles']:,}; aceptado: {info['selected_target_triangles']:,}"
+             if info.get("export_allowed") else f"Objetivo inicial: {info['target_triangles']:,}; ningún candidato aceptado"),
             f"Reducción: {reduction:.1f}%; margen {info['minimum_triangles']:,}–{info['maximum_triangles']:,}",
             f"Desviación máxima muestreada: {info.get('max_vertex_surface_distance_mm',0):.3f} mm (límite {self.logic.maxDeviationMm:.2f} mm)",
             f"Cambio de volumen: {100*info.get('relative_volume_change',0):.2f}%",
@@ -621,7 +623,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         if key != self._preparedKey:
             self._preparedPoly, self.decimation = simplify_surface(
                 self._surface(), self.targetTriangles, max_deviation_mm=self.maxDeviationMm,
-                optimization_mode=self.optimizationMode)
+                optimization_mode=self.optimizationMode, fallback_step_triangles=100000)
             self._preparedKey = key
         return self._preparedPoly
 

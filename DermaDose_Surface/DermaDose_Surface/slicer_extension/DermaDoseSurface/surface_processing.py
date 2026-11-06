@@ -1,4 +1,6 @@
 """Standalone VTK validation, shared by Slicer and its extraction worker."""
+from itertools import chain
+
 import numpy as np
 import vtk
 from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
@@ -129,7 +131,8 @@ def shape_difference(source, candidate):
 
 def simplify_surface(poly, target_triangles=150000, progress=None,
                      max_deviation_mm=1.0, max_volume_change=0.01,
-                     minimum_triangles=None, maximum_triangles=None, optimization_mode="fast"):
+                     minimum_triangles=None, maximum_triangles=None, optimization_mode="fast",
+                     fallback_step_triangles=None):
     """Accept a count band only when topology and geometric tolerances pass.
 
     No smoothing, hole filling, subdivision or coordinate-system changes.
@@ -148,6 +151,8 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
         raise ValueError("Margen de caras inválido.")
     if not np.isfinite(max_volume_change) or not 0 <= max_volume_change < 1:
         raise ValueError("Tolerancia de volumen inválida.")
+    if fallback_step_triangles is not None and fallback_step_triangles <= 0:
+        raise ValueError("El salto de caras debe ser positivo.")
     source = clean_surface(poly)
     def orient(candidate):
         normals = vtk.vtkPolyDataNormals()
@@ -172,13 +177,25 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
     metrics = dict(max_vertex_surface_distance_mm=0.0, relative_volume_change=0.0,
                    relative_area_change=0.0)
     accepted = count <= upper
+    selected_target, selected_lower, selected_upper = target_triangles, lower, upper
     # Existing meshes in the band are already usable; don't move anatomy merely
     # to shave off additional faces. Extraction starts from the full-resolution mesh.
     best_score = None
     if not accepted:
         budgets = list(dict.fromkeys((target_triangles, upper) if optimization_mode == "fast"
                                      else (target_triangles, lower, upper)))
+        if fallback_step_triangles is not None and optimization_mode == "fast":
+            budgets = range(target_triangles, count - 1, fallback_step_triangles)
+            # A final smaller step lets us try just below the original when
+            # the next regular target would exceed it.
+            if budgets and budgets[-1] != count - 2:
+                budgets = chain(budgets, (count - 2,))
         for budget in budgets:
+            attempt_lower, attempt_upper = lower, upper
+            if fallback_step_triangles is not None and optimization_mode == "fast":
+                offset = budget - target_triangles
+                attempt_lower = lower + offset
+                attempt_upper = min(upper + offset, count - 2)
             # A coarser accepted mesh makes a finer budget unnecessary.
             if best_score is not None and budget > result.GetNumberOfPolys():
                 continue
@@ -186,7 +203,7 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                        else ("quadric_normals_regularized", "topology_preserving"))
             for method in methods:
                 if progress:
-                    progress(f"Optimizando: {method}, {budget} caras; margen {lower}–{upper}")
+                    progress(f"Optimizando: {method}, {budget} caras; margen {attempt_lower}–{attempt_upper}")
                 settings = {}
                 if method == "topology_preserving":
                     decimator = vtk.vtkDecimatePro()
@@ -227,11 +244,12 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                     vtk_to_numpy(candidate.GetPoints().GetData()).astype(np.float32), deep=True))
                 candidate = clean_surface(candidate)
                 quality = surface_quality(candidate)
-                attempt = dict(method=method, requested_triangles=budget, settings=settings, **quality)
+                attempt = dict(method=method, requested_triangles=budget, settings=settings,
+                               minimum_triangles=attempt_lower, maximum_triangles=attempt_upper, **quality)
                 topology_ok = (valid_surface(quality)
                     and candidate.GetNumberOfPoints() - quality["triangles"] // 2 == euler_before)
                 attempt["topology_preserved"] = topology_ok
-                attempt["within_count_range"] = lower <= quality["triangles"] <= upper
+                attempt["within_count_range"] = attempt_lower <= quality["triangles"] <= attempt_upper
                 candidate_ok = False
                 if topology_ok and attempt["within_count_range"]:
                     stats = triangle_statistics(candidate)
@@ -257,6 +275,8 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
                         if best_score is None or score < best_score:
                             best_score = score
                             result, chosen_method = candidate, method
+                            if fallback_step_triangles is not None and optimization_mode == "fast":
+                                selected_target, selected_lower, selected_upper = budget, attempt_lower, attempt_upper
                             metrics = dict(max_vertex_surface_distance_mm=deviation,
                                            relative_volume_change=volume_change, relative_area_change=area_change)
                         accepted = True
@@ -273,9 +293,10 @@ def simplify_surface(poly, target_triangles=150000, progress=None,
     after = surface_quality(result)
     return result, dict(
         method=chosen_method, target_triangles=target_triangles,
-        minimum_triangles=lower, maximum_triangles=upper,
+        selected_target_triangles=selected_target,
+        minimum_triangles=selected_lower, maximum_triangles=selected_upper,
         input_triangles=count, output_triangles=after["triangles"],
-        within_range=lower <= after["triangles"] <= upper,
+        within_range=selected_lower <= after["triangles"] <= selected_upper,
         target_reached=bool(accepted), export_allowed=bool(accepted),
         below_range_without_subdivision=count < lower,
         fallback_original=not accepted, attempts=attempts,
