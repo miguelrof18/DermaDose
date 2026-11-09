@@ -51,14 +51,6 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     entries = [p for p in folder.iterdir() if p.is_file()]
     def local(value):
         return None if value is None else folder/Path(value)
-    if mesh is None and interactive:
-        print('¿Qué superficie quieres utilizar?')
-        print('  1: Maniquí XCAT incluido en el programa')
-        print('  2: TC del paciente (malla STL de la carpeta del ejemplo)')
-        answer = input_fn('Opción [1/2]: ').strip()
-        if answer not in ('1', '2'):
-            raise ExampleError('Seleccione 1 para XCAT o 2 para la malla del paciente.')
-        mesh = 'xcat' if answer == '1' else 'patient'
     configs = []
     for path in entries:
         if path.suffix.lower() == '.json':
@@ -77,7 +69,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     data = deepcopy(read_json(config_path))
     dicom = choose([p for p in entries if p.suffix.lower()=='.dcm'], 'RDSR (.dcm)', local(rdsr), interactive, input_fn)
     candidates = [p for p in entries if p.suffix.lower()=='.stl']
-    selected = resources/'xcat_wholebody_body.stl' if mesh=='xcat' else choose(candidates, 'malla STL del paciente', local(mesh) if mesh not in (None, 'patient') else None, interactive, input_fn)
+    selected = choose(candidates, 'malla STL del paciente', local(mesh) if mesh not in (None, 'patient') else None, interactive, input_fn)
     selected = selected.resolve()
     if not selected.is_file():
         raise ExampleError(f'No existe la malla: {selected}')
@@ -85,12 +77,9 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     defaults = dict(mesh_unit='mm', mesh_axes_matrix=[[1,0,0],[0,1,0],[0,0,1]],
                     mesh_origin_mm=[0,0,0], origin_on_table_mm=[0,0,0],
                     resolution_mm=5, mesh_max_edge_mm=None, thickness_mm=220)
-    if mesh == 'xcat':
-        # Match the bundled demo's XCAT orientation when the profile supplies no pose.
-        defaults['mesh_axes_matrix'] = [[1, 0, 0], [0, 0, 1], [0, -1, 0]]
     data['patient'] = {**defaults, **data.get('patient', {})}
     placement_source = 'equipment_patient_assumed' if 'patient' in read_json(config_path) else 'provisional_defaults_assumed'
-    data['patient'].update(type='mesh', mesh_path=str(selected), phantom_name='XCAT50' if mesh=='xcat' else selected.stem)
+    data['patient'].update(type='mesh', mesh_path=str(selected), phantom_name=selected.stem)
     data.pop('phantom', None)  # legacy blocks must not replace the selected STL
     digest = sha256(selected.read_bytes()).hexdigest()
     sf = data.get('surface_factors', {})
@@ -111,7 +100,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     audit = dict(source_config=str(config_path), source_config_sha256=sha256(config_path.read_bytes()).hexdigest(),
                  rdsr=str(dicom), mesh=str(selected), mesh_sha256=digest,
                  placement_source=placement_source, registration_status='not_established',
-                 mesh_choice='xcat' if mesh=='xcat' else 'patient_stl',
+                 mesh_choice='patient_stl',
                  dataset_directory=sf.get('dataset_directory'),
                  registration_note='Seleccionar un STL no establece el registro paciente-equipo.')
     return data, audit
