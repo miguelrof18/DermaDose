@@ -8,7 +8,7 @@
 | [`examples/equipo_benmakhlouf_investigacion.json`](../examples/equipo_benmakhlouf_investigacion.json) | Ejemplo y regresión con equipo simulado y superficie plana. | `benmakhlouf_2011`. Usa las tablas publicadas, para campos cuadrados y una familia de tungsteno con 3,1 mm Al asumidos. |
 | [`skindose_verifier/data/equipo_sintetico.json`](../skindose_verifier/data/equipo_sintetico.json) | Perfil interno del comando `demo`. El comando puede sustituir la superficie plana por XCAT con `--model mesh`. | Factores constantes ficticios: retrodispersión 1,25 y conversión a piel 1,05. Sirve para verificar el flujo de ejecución. |
 
-XCAT define la superficie. El JSON de equipo define la dosimetría. Con XCAT y un RDSR propio, sigue el [ejemplo Azurion](../examples/ejemplo/README.md). Para comprobar la instalación, sigue la [demo XCAT](../examples/xcat/README.md).
+XCAT define la superficie. El JSON de equipo define la dosimetría. Con XCAT y un RDSR propio, sigue el [ejemplo Azurion](../examples/ejemplo/README.md).
 
 ## Identificación y geometría
 
