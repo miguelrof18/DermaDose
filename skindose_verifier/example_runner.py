@@ -85,6 +85,9 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     defaults = dict(mesh_unit='mm', mesh_axes_matrix=[[1,0,0],[0,1,0],[0,0,1]],
                     mesh_origin_mm=[0,0,0], origin_on_table_mm=[0,0,0],
                     resolution_mm=5, mesh_max_edge_mm=None, thickness_mm=220)
+    if mesh == 'xcat':
+        # Match the bundled demo's XCAT orientation when the profile supplies no pose.
+        defaults['mesh_axes_matrix'] = [[1, 0, 0], [0, 0, 1], [0, -1, 0]]
     data['patient'] = {**defaults, **data.get('patient', {})}
     placement_source = 'equipment_patient_assumed' if 'patient' in read_json(config_path) else 'provisional_defaults_assumed'
     data['patient'].update(type='mesh', mesh_path=str(selected), phantom_name='XCAT50' if mesh=='xcat' else selected.stem)
