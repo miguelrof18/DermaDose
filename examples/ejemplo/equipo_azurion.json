@@ -12,6 +12,11 @@
     "primary_sign": 1,
     "secondary_sign": 1,
     "rotation_order": "primary_then_secondary",
+    "isocenter_mm": [
+      0,
+      0,
+      0
+    ],
     "table_coordinates": "legacy",
     "table_origin_mm": [
       0,
@@ -39,21 +44,59 @@
     "table_half_width_mm": 300,
     "table_half_length_mm": 600
   },
+  "patient": {
+    "type": "mesh",
+    "mesh_path": "../../skindose_verifier/data/xcat_wholebody_body.stl",
+    "mesh_unit": "mm",
+    "mesh_axes_matrix": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        -1,
+        0
+      ]
+    ],
+    "mesh_origin_mm": [
+      0,
+      175,
+      35
+    ],
+    "thickness_mm": 220,
+    "origin_on_table_mm": [
+      0,
+      0,
+      0
+    ],
+    "resolution_mm": 5,
+    "mesh_max_edge_mm": null
+  },
   "factors": {
     "cf": {
-      "value": 1.0,
+      "value": 1,
       "provenance": "synthetic_not_measured",
-      "identifier": "DEMO-CF"
+      "identifier": "DEMO-CF",
+      "relative_standard_uncertainty": null
     },
     "table_normal": {
       "value": 0.8,
       "provenance": "synthetic_not_measured",
-      "identifier": "DEMO-TAF"
+      "identifier": "DEMO-TAF",
+      "relative_standard_uncertainty": null
     },
     "table_angular": {
-      "value": 1.0,
+      "value": 1,
       "provenance": "synthetic_not_measured",
-      "identifier": "DEMO-ANG"
+      "identifier": "DEMO-ANG",
+      "relative_standard_uncertainty": null
     }
   },
   "tube_output": {
@@ -61,9 +104,12 @@
     "yield_gy_per_mas": {
       "value": 0.0003,
       "provenance": "synthetic_not_measured",
-      "identifier": "DEMO-YIELD"
+      "identifier": "DEMO-YIELD",
+      "relative_standard_uncertainty": null
     }
   },
+  "rdsr_relative_standard_uncertainty": null,
+  "allow_uniform_sweep": false,
   "surface_factors": {
     "provider": "tabulated_water",
     "inherent_al_mm": 2.5,
@@ -76,7 +122,7 @@
     "allow_water_phantom_approximation": true,
     "aluminium_policy": "fixed_plus_event",
     "dataset_directory": "../../skindose_verifier/data/derived_mrc200_nominal",
-    "expected_anode_angle_deg": 11.0
+    "expected_anode_angle_deg": 11
   },
   "azurion_profile": {
     "name": "philips_azurion",
@@ -84,12 +130,31 @@
     "fixed_filtration_characterized": false,
     "geometry_characterized": false,
     "calibration_characterized": false,
+    "invalid_distance_policy": "error",
     "reference_table_from_first_event": true,
+    "notes": "Research profile: first event sets the provisional table origin. XCAT placement is an approximation.",
     "tube_model": "MRC 200 0407"
   },
   "tube_characterization": {
     "model": "MRC 200 0407",
+    "assembly": "ROT-GS1004",
+    "anode_angle_deg": 11,
+    "anode_material": "rhenium-alloyed tungsten; W spectral approximation",
+    "focal_spots_mm": [
+      0.4,
+      0.7
+    ],
+    "assembly_max_kvp": 125,
     "fixed_effective_al_mm": 2.5,
-    "filtration_basis": "nominal_assembly_scenario"
+    "filtration_basis": "nominal_assembly_scenario",
+    "assembly_minimum_total_al_equivalent_mm": 2.5,
+    "included_plate_al_mm": 1.7,
+    "inherent_al_equivalent_mm": 0.8,
+    "collimator_label_al_equivalent_mm": 0.1,
+    "installation_verified": false,
+    "sources": [
+      "Philips 4512-988-00132 REV AC 04/2011 section 4.4, Z-1, Z-2",
+      "Philips Azurion IFU Release 2.2 label examples"
+    ]
   }
 }
