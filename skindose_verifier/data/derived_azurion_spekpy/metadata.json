@@ -1,0 +1,2177 @@
+{
+  "schema_version": 1,
+  "dataset_id": "DERIVED-SPEKPY-BENMAKHLOUF-EQ13",
+  "version": "1.0",
+  "medium": "water",
+  "formalism": "B_air_times_surface_water_air_ratio",
+  "source": "Calculated with SpekPy + Benmakhlouf KS-ASF-201101-IR Table 1 Eq13, not published clinical nodes",
+  "quantities": {
+    "k_bs": "kerma weighted B(E)",
+    "k_f": "effective C(Q)/B(Q); not Eq12"
+  },
+  "geometry": {
+    "material": "water",
+    "thickness_cm": 15,
+    "focus_surface_distance_cm": 100,
+    "scoring_voxel_cm": [
+      1,
+      1,
+      0.01
+    ],
+    "position": "centre of flat entrance surface; square field, normal central-axis incidence",
+    "field_side_cm": [
+      5,
+      10,
+      20,
+      25,
+      35
+    ],
+    "field_reference": "phantom entrance surface, plane perpendicular to beam",
+    "lateral_extent_section_3_2": "variable, margin exceeding 5 cm at beam exit",
+    "lateral_extent_table_1_3_caption_cm": [
+      30,
+      30
+    ],
+    "inconsistency": "A fixed 30 x 30 cm phantom conflicts with the 35 x 35 cm field and section 3.2. Both statements are preserved; no resolution is assumed."
+  },
+  "units": {
+    "energy": "keV",
+    "Al_Cu": "mm",
+    "field_side": "cm"
+  },
+  "tables": {
+    "clinical": {
+      "axes": [
+        "kvp",
+        "added_cu_mm",
+        "field_side_cm"
+      ],
+      "groups": [
+        "inherent_al_mm"
+      ],
+      "file": "derived_clinical.csv",
+      "rows": 390,
+      "source_table": "calculated_Eq13_from_Table1"
+    }
+  },
+  "files_sha256": {
+    "derived_clinical.csv": "fb6740fd06f408c8fb0768bdb52ce7c547394214225d1f75cd6da1d07906b7d9"
+  },
+  "spectra": [
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 1.7886770255519988,
+      "hvl2_mm_al": 2.2497103689374045,
+      "homogeneity": 0.7950699122202279,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "308b70c24b102902cd7f9b6e4240f62ca7e56f81d114ffda3edba718623295d3",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 6.089940739951081e-81,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 2.5641405169184677,
+      "hvl2_mm_al": 2.9525298323844127,
+      "homogeneity": 0.8684554136571455,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "0cb7a29bd735cc4c721088d2b18f9d75f81d4178fa4d15e7fa5b3b02b8c9e222",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 6.061009301451936e-89,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 3.688590911953732,
+      "hvl2_mm_al": 3.9085335273115303,
+      "homogeneity": 0.94372758636432,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "86e40610894f1e2d7c9e5e9892650c9ccc707b2aa16eaa216017b0e32a563e77",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.689853955718346e-113,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 1.9504575591185107,
+      "hvl2_mm_al": 2.507852376880418,
+      "homogeneity": 0.7777401800439047,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "d746a29c6f74cf4d82a32356f90ff91f15b20382c6e274adcc23bb1d3254a0b5",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.672854181850156e-81,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 2.8296264358998955,
+      "hvl2_mm_al": 3.312804248122354,
+      "homogeneity": 0.854148396333313,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "e40b66bcf0ac43b52c5520a4fed79dcae9670001167860e42176ce817e1026ee",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.236618861989611e-89,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 4.1357866479636725,
+      "hvl2_mm_al": 4.420849234228226,
+      "homogeneity": 0.9355185913019903,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1a323d65ded364e77276f76cfbb9b161132245a21b9ae17a23e9b09a191b75c7",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 9.368410255087497e-114,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 2.328912356837763,
+      "hvl2_mm_al": 3.1358213921041576,
+      "homogeneity": 0.7426801675318144,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "2d2026e0f043a51264bc88b16d8418e5263ae2f0530fafa6959475d3bcc2fa87",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.689685368579902e-81,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 3.442011099185575,
+      "hvl2_mm_al": 4.1738214705053025,
+      "homogeneity": 0.8246665851687396,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "e381ba8cafc2dd3a14aa68d9195c94ceecca4ee8c401959603c77a71a2b7f13c",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.0657981651734915e-89,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 5.158581282634666,
+      "hvl2_mm_al": 5.6193960218056525,
+      "homogeneity": 0.917995681852137,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1346fc883a6014ca6170aaa7d7cdb6dd5f7e92eb0d2d2c63f1057c3a41ccffdd",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.091230612652097e-114,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 2.6852168000145884,
+      "hvl2_mm_al": 3.749329984900676,
+      "homogeneity": 0.7161857747460239,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "87c32e35257299b57496612502679b6fefafb426605d33809a865317df67a614",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.7683482207647884e-81,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 4.000947047926519,
+      "hvl2_mm_al": 4.983594461255437,
+      "homogeneity": 0.8028235601896517,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "3053b44e3929a44d5df9ca1bc17b2e8b5c07fbe5e8f34641e4c37c4419f4a840",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.2135460430085695e-89,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 6.055620968375444,
+      "hvl2_mm_al": 6.686751522691661,
+      "homogeneity": 0.9056147739041208,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "86632d9b3e8df0579eb0bee25cf98fb48fb0bffc4136b5bff8f49937e1ec0b8f",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.4200175157504536e-114,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 3.0652545343966953,
+      "hvl2_mm_al": 4.419915901714885,
+      "homogeneity": 0.6935096962382036,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "c3f0eac42433cee4fe44175dfed0bb7697a7d92f8cb034757a98041bdad93579",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.2445229537673721e-81,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 4.5771575231212775,
+      "hvl2_mm_al": 5.822652088522821,
+      "homogeneity": 0.7860949707339427,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "f3b48ba120a935254972b3926dda4b5861784c540d21666d09eb656497d14274",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.796241284867894e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 6.90863780630584,
+      "hvl2_mm_al": 7.685919857285579,
+      "homogeneity": 0.8988693526067744,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "a7e1de4240f81a6fb68b56fc1bee63fd0e26eff310d72027fe063491cec45655",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.571677168582933e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 3.4622894813357563,
+      "hvl2_mm_al": 5.111305423657721,
+      "homogeneity": 0.6773787113778252,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "6b69c9718d297f08de6aa3aa742894a9b84d66d30dd76c52e62a747b1e7271b7",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 9.149357800098793e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 5.138381771676484,
+      "hvl2_mm_al": 6.613564853703367,
+      "homogeneity": 0.7769458507387538,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "dbd1d7cdc4d310210a6d96fdf31b114e2400e5a9fc3281f8fb8fcc503bcadcae",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.323091493549825e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 7.640961458632317,
+      "hvl2_mm_al": 8.51933982661839,
+      "homogeneity": 0.8968959583885115,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "8682a05ca0eb71d31069ebfa3a2df2aa6cf7c043a9864552acfd203201eb64a1",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.507782488852452e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 3.861859860268526,
+      "hvl2_mm_al": 5.784887648937021,
+      "homogeneity": 0.6675773315974679,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "954b3b31f8013b4f7e85ca1f36566075ce647a667c65383680bcbc62c1535683",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.053994451516613e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 5.664199099385058,
+      "hvl2_mm_al": 7.325008203936065,
+      "homogeneity": 0.7732686355684111,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "9c3e29bcd7948d1bd5010f076d3afda93bdc3e99c61d2a57602901c0a78feffa",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.8667565080875833e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 8.26387255205416,
+      "hvl2_mm_al": 9.217912349028786,
+      "homogeneity": 0.8965015330097876,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "e418423cf2facbf9d3676ddf8a7a09e33e101fa3ba9396384a66fc897bfd3c45",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.956093332296701e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.273606566839979,
+      "hvl2_mm_al": 6.4463704564829145,
+      "homogeneity": 0.6629477154143609,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "7bf1b30aa1fb286548212c8995568b1616260a4db735a6009be718746e1aa9d9",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.557940741765986e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 6.168802401644553,
+      "hvl2_mm_al": 7.976586102905398,
+      "homogeneity": 0.7733637325619318,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "7b63553b9d80e0e740c472ed7175ebb3ff1c904833aa707a5a91f36ab745833b",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.896797548865324e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 8.812898032094493,
+      "hvl2_mm_al": 9.8260691446306,
+      "homogeneity": 0.8968894786284148,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "cd7dd7fe81502d3345e98d92057ce1439f6e6b225b9e9bf6c5a041273faca70a",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.0417393045983857e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.669382423588667,
+      "hvl2_mm_al": 7.054335532833312,
+      "homogeneity": 0.661916689652165,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "7291da7d7ca24f74aaf65c0829cc8116e50da9d72638ce826c1174e5e4b19500",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.529749925885803e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 6.628016394368569,
+      "hvl2_mm_al": 8.555775143296572,
+      "homogeneity": 0.7746833318266437,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "fcc2c3f6ae31fe54b3b7168278abe9ab0cea1814a922c5b9de93a91c83c2fcd4",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.2664121820985507e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.299063087294629,
+      "hvl2_mm_al": 10.371648261804184,
+      "homogeneity": 0.8965848872392269,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "a271f3c9197cfe4ee4d6dadc78ebeb4e7c09f267b58c7fbe57230cd8e94ea918",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.4991428120634893e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.863202764897849,
+      "hvl2_mm_al": 7.343533402213689,
+      "homogeneity": 0.6622428875222178,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "207c0bdef1b3c114e9d3ea6a20e51dd804e1003ae35301bf4ed7cc7416c67536",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.13507013844786e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 6.845958269302282,
+      "hvl2_mm_al": 8.827287110868358,
+      "homogeneity": 0.7755449871878962,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "6b8d3fb09872bb2f20a7e3d5c6b2e1afa00d4b305f2ff59a29e95daebc0999c4",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.032360894772691e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.526731284479107,
+      "hvl2_mm_al": 10.628902010921527,
+      "homogeneity": 0.8963043665930963,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "cbda4e7e69a37d234581f77d70e888df2f5ef4079160cd949e94fb469f6170e6",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.3081509452385431e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.066258870468594,
+      "hvl2_mm_al": 7.636160182685004,
+      "homogeneity": 0.6634563379061033,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "aa7ba46cf18a872cb2696c8ce345a1e130416fa59b1fe98ae7be6952be03744f",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.7763379350030845e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.066976376386987,
+      "hvl2_mm_al": 9.093457647455132,
+      "homogeneity": 0.7771495343539352,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1c83d67aec2d4eea8a7bcb841ecbdefb0aad909e7d654380cff44a0dfaf3f7e2",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.8239743103893926e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.745526456102162,
+      "hvl2_mm_al": 10.87160974600621,
+      "homogeneity": 0.8964198204118092,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "20623fc66f66991e00a575b1701fc64760ee41ff459d7eee211963ad60530e99",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.14400681666092e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.463581639459909,
+      "hvl2_mm_al": 8.192400909559469,
+      "homogeneity": 0.6669084801605129,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "b8a75ced88cbe4e7b46a3fb6b10587b18cceb5391cbc6e69646aac9e9d87b9f9",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.2011958315326936e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.4885779145820655,
+      "hvl2_mm_al": 9.596900164073716,
+      "homogeneity": 0.7803121619015879,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1cdf3b67a70ba264c262b4094788019c4894331ff2a36e207524c0d266d9cfac",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.4992247437270488e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 10.160924609962466,
+      "hvl2_mm_al": 11.336322650408144,
+      "homogeneity": 0.8963157562912731,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "f2e8f37ce1051b6d2a2de99e54bce05ef237bddd3271084591f0b1b81ec2d569",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 8.985791394176617e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.851683808346575,
+      "hvl2_mm_al": 8.718128966348761,
+      "homogeneity": 0.671208676877066,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "95c3aa85489af10d702c0a646b3c1080041159c991bace7a87e8cd5984d970e3",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.7663805300393243e-82,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.889520689738434,
+      "hvl2_mm_al": 10.071904816601627,
+      "homogeneity": 0.7833196235863998,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "03815f6269057dd72651f8b421215f9150eb98ffc98b9162a4a9563d3ce635d1",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.2615654671385655e-90,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 3.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 10.554218212859158,
+      "hvl2_mm_al": 11.779819216579806,
+      "homogeneity": 0.8959575710639393,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "6f546322a38307f62e9df5ff4e80a904b3d6e1a62eeace643b8eb47cc5fdf516",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.272792307348955e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 2.0645078967022226,
+      "hvl2_mm_al": 2.5047340942756913,
+      "homogeneity": 0.8242423422991048,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "b94439986eb1df4eb66119902b54a63e3daa2bab94eee0ca28b6c8cc0d291d8a",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 6.229322168874324e-107,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 2.730585802017261,
+      "hvl2_mm_al": 3.0945249557173113,
+      "homogeneity": 0.8823925614082859,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1637f1646e857741e6e770a44881cd58787d1ef5341678791597f820dd53a92b",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.468125745447499e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 46.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 3.7534981361516517,
+      "hvl2_mm_al": 3.963319458537654,
+      "homogeneity": 0.947059195055798,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "fdd2629f18428455d9c6df1712c6706b0874b752be0f1d3d3d17c897d8d9046f",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.3911409160442257e-139,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 2.259412221442764,
+      "hvl2_mm_al": 2.797097761351754,
+      "homogeneity": 0.8077702011927024,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "abf362f31837f6944aabf22a02bb62b737b42e31fad7d66e8fc1aaf66b6cb6db",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.641678760408318e-107,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 3.019376918298961,
+      "hvl2_mm_al": 3.4751805929298487,
+      "homogeneity": 0.868840291189987,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "c059748866220ec2c48cb3dc9568b7abcf9000d92bf0b86824837ed5ea6eda89",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.731161074096355e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 50.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 4.211659251126269,
+      "hvl2_mm_al": 4.48422472012334,
+      "homogeneity": 0.9392168131597175,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "47b85ae16f4bc14642a8ccbd685bdf5500a1784c53d23165fd5467530c685241",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.5601851345930305e-140,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 2.711862825896869,
+      "hvl2_mm_al": 3.50289384232436,
+      "homogeneity": 0.7741778506474525,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "8ad498abb9c3108711908f34be6498c49c23096c7419ad6aaaf1f7d19bd00404",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.534503581366198e-107,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 3.6840604188026846,
+      "hvl2_mm_al": 4.381881668139694,
+      "homogeneity": 0.840748495238744,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "852d0d27d94604e0d8caa3aef4994fff56a3607a1d94001257c1f9062bdcbe7d",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.7455168639915753e-115,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 60.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 5.2592771746409515,
+      "hvl2_mm_al": 5.701786913640348,
+      "homogeneity": 0.9223910423694047,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "c40707c4bab391385351a01ab737a5b7c5e989a510386407f215f665f32134fa",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.414644855314144e-140,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 3.1323193379830863,
+      "hvl2_mm_al": 4.182683040021333,
+      "homogeneity": 0.7488780067750749,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "c9c2b0fddfbe63e4537c950c93b4e7de867b73f5e8f299f8351b95a89a15d7e9",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.6069158998923848e-107,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 4.286974942477347,
+      "hvl2_mm_al": 5.228017758503071,
+      "homogeneity": 0.8200000727818546,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "a6374b58b4de7534e2658dc0d982da17b79a801fbf81f21654e73e07813ce1e3",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 9.981937400059552e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 70.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 6.1757640140657175,
+      "hvl2_mm_al": 6.782564620984613,
+      "homogeneity": 0.9105352265953336,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "d956f7241292fcd7b8e5b695d439d4373cb65883ca2f8d62e879afdec03dac17",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.0876979914698892e-140,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 3.5758864297091772,
+      "hvl2_mm_al": 4.913137840535594,
+      "homogeneity": 0.7278213121167715,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "0a1064c9030e2930eea9919a0459c093069c8ac2c8d53bf10c4ad8823aec6c15",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.0978619986360837e-107,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 4.902985077604515,
+      "hvl2_mm_al": 6.093978015801455,
+      "homogeneity": 0.8045623178966612,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "315d41ef221172f5fcab909b6fa2df07c7ecd91e03ed10282326b579141b5564",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 6.278971137170881e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 80.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 7.041949098996026,
+      "hvl2_mm_al": 7.787583259049258,
+      "homogeneity": 0.9042534589679286,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "4f712359b038cf2aee798255786ca0177aabb5905b82e61f32c18fd86259d1ee",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.718459360195127e-141,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.029115489698948,
+      "hvl2_mm_al": 5.644159997957579,
+      "homogeneity": 0.7138556474580703,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1c777a9472089b0b13ae37039c99624a2cf1884092c22f8c9b739943f4462f59",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 7.875740580599974e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 5.493406103009139,
+      "hvl2_mm_al": 6.895925080122854,
+      "homogeneity": 0.796616268184757,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "9275c5e65c9fd672605906225acff391f31a41ae313ca698683a4bfeeb688746",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.2174035020289197e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 90.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 7.780423326107384,
+      "hvl2_mm_al": 8.621456926412817,
+      "homogeneity": 0.9024487847606324,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "98fd172812a032b6c5e3b5cb05b76859e7f48662274689a42de7896bf1491df7",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.371274330939832e-141,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.474587008699219,
+      "hvl2_mm_al": 6.336369552379759,
+      "homogeneity": 0.7061751957031439,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "960ff6e9a5dd794d0c41aa54567bb7bc58fd1c3953497bbc0cdb76d08f1e9a3d",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.951356068551491e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 6.038530516847668,
+      "hvl2_mm_al": 7.607859199722494,
+      "homogeneity": 0.7937226962701848,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "ef9edd6969e564757873cb066c32d2da86dda38b8084f95e321a474bdf95f400",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.024711890646177e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 100.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 8.406238607442617,
+      "hvl2_mm_al": 9.319463857354627,
+      "homogeneity": 0.9020088211199702,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "cd912324ac0e96d7c7d160e6f9023087504681b445ac95436dd7786bd6666ec2",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.1952356084989557e-141,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 4.922676260506954,
+      "hvl2_mm_al": 6.998739874511427,
+      "homogeneity": 0.7033660842910809,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1a2a8b828fc72371a9ae0bf77c488917a04c6eb8ca4c2638c7eb3de75ceef286",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 4.608861318005673e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 6.5545960561264,
+      "hvl2_mm_al": 8.2532262010789,
+      "homogeneity": 0.7941859215332728,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "d0593ec924b25f50a96e246170f3322e988150546227b8cd6f951b2355563c07",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.2422849712168105e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 110.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 8.956217176521962,
+      "hvl2_mm_al": 9.926758766042473,
+      "homogeneity": 0.9022297597438806,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "2a5b250a540c4e67ac1052b6f4445d6fd738e5b55fec6c7551a94b490ab95874",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.5079592666141842e-141,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.34455761032088,
+      "hvl2_mm_al": 7.598428389958579,
+      "homogeneity": 0.7033767163462094,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "342a508123263f1f4c88f7b9bec142bdaaa5b8191c0914abdfaa080e2321832b",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.703407929664894e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.02063300942827,
+      "hvl2_mm_al": 8.825888655889916,
+      "homogeneity": 0.795459050431492,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "f487735f6a342ff972a0790e0dc01d1cc57728ad80608316df65b5f9333ee9b6",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.739740623513287e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 120.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.443768778433233,
+      "hvl2_mm_al": 10.472718983735822,
+      "homogeneity": 0.9017494686049962,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "a721b3e89e00ef2d37d0ff75a5cab7c184bea15e4b3c6c04c093443e01acb552",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.1024731745359972e-141,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.54866854717628,
+      "hvl2_mm_al": 7.881690705488078,
+      "homogeneity": 0.7039947080532738,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "3818012b8590d32088a84d2b76363ac8a3320e1eee50edf5f815a953058b0169",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.3597409931765477e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.24093657520008,
+      "hvl2_mm_al": 9.094292122956045,
+      "homogeneity": 0.7962067280555375,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "f5d3d4241f8c926537150c8b09fcb611d0a42b4373ee0c6d78b066d5fbd196ff",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.5544443845017865e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 125.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.672220623181,
+      "hvl2_mm_al": 10.730359361185256,
+      "homogeneity": 0.9013883223863086,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "10c0bd5e8c70f24b9fccddff428d3724ab607824cf8c1f5cd99a9b370f4fd439",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 9.602321718207822e-142,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 5.760292615360712,
+      "hvl2_mm_al": 8.165187550840233,
+      "homogeneity": 0.7054697249137839,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "5543b8076af4a1a6131ef34dac30eda7cb91c394609b69cc0773f6d7baec7018",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 3.0495780089869932e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.46279732725357,
+      "hvl2_mm_al": 9.35591663511381,
+      "homogeneity": 0.7976553894510828,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "3ef4b25eb739afc1b083428f32ae54e90c0e059a3e01decd0fb14f124c2fd1dd",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.390182970081775e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 130.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 9.891117468445682,
+      "hvl2_mm_al": 10.973019929160401,
+      "homogeneity": 0.901403399638453,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "c8027314653514533b5b79292461332601223b8afe3465b0e65ae916ebc28177",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 8.382966161615846e-142,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 6.170133140236884,
+      "hvl2_mm_al": 8.702254809227576,
+      "homogeneity": 0.709026944797604,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "86192fcacb85563d3f1e7e3dac77767d01305640ed49d47a728d6b77e469c193",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.5571795258904053e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 7.884905477983311,
+      "hvl2_mm_al": 9.851370683263903,
+      "homogeneity": 0.8003866397372154,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1fc8511adb0725b2a4084bde70ce4f052d43cdcede0c07bf77d0f4fa5e7eedb0",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 1.1356361071321064e-116,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 140.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 10.307095447504896,
+      "hvl2_mm_al": 11.438069731637274,
+      "homogeneity": 0.9011219278543,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "2bf983ead79bbbad55601b446405302807b5a2544bcc2bf635369601148b113b",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 6.564406406748005e-142,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.0,
+      "hvl1_mm_al": 6.566079597445969,
+      "hvl2_mm_al": 9.208844044469448,
+      "homogeneity": 0.713018872481542,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "450f0d770b6617bcd0a8a5d9dee0c3e738def0f2ad9157ac326b033bc261735a",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 2.1891042112051388e-108,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.1,
+      "hvl1_mm_al": 8.285358455800726,
+      "hvl2_mm_al": 10.319622834548024,
+      "homogeneity": 0.8028741542823649,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "1ebd2011a2fb14be69f68ee4789c04e3b688ea9485b4655ce75a547ab9748904",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 9.505434107982676e-117,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    },
+    {
+      "generator": "SpekPy",
+      "version": "2.5.4",
+      "anode_angle_deg": 12.0,
+      "dk_kev": 0.5,
+      "kvp": 150.0,
+      "total_al_mm": 4.1,
+      "cu_mm": 0.4,
+      "hvl1_mm_al": 10.701278806650434,
+      "hvl2_mm_al": 11.882179270543899,
+      "homogeneity": 0.9006158351085533,
+      "muen_air_source": "nist_muen_air.dat",
+      "physics_model": "spekpy-v2-casim",
+      "spectrum_sha256": "33175f219243455fadc54cf0cf44e2a1875d012e66c7db64d93d6acf827d1ba3",
+      "hvl_measurement_status": "not_supplied",
+      "integration_audit": {
+        "excluded_kerma_fraction": 5.298841219103963e-142,
+        "retained_kerma_fraction": 1.0,
+        "renormalized_after_truncation": true,
+        "energy_domain_kev": [
+          5.0,
+          150.0
+        ],
+        "conversion_definition": "effective_ratio_C_over_B_not_Eq12",
+        "mono_data_sha256": "dbfb57e99c602dff0ec8b3c59888f6e42ddbc291fda6c5e04ae30b1e875c2a08"
+      }
+    }
+  ],
+  "clinical_validation": false,
+  "hvl_comparison_complete": false,
+  "hvl_relative_tolerance": 0.05,
+  "limitations": [
+    "Spectrum at air surface; table/pad spectral hardening not simulated.",
+    "Central-axis water phantom normal incidence; no patient-specific scattering.",
+    "Excluded spectral kerma limited to 1e-4 and renormalized explicitly.",
+    "No interpolation/extrapolation across Al families; no spectrum reconstruction from a single HVL."
+  ]
+}

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dermadose"
+version = "0.5.3"
+description = "Prototipo trazable de calculo y verificacion de dosis cutanea en intervencionismo"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24,<3", "scipy>=1.10,<2", "pydicom>=3,<4", "matplotlib>=3.7,<4", "trimesh>=4,<6", "rtree>=1.3,<2", "charset-normalizer>=3,<4", "plotly>=6,<7"]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "spekpy==2.5.4"]
+spectral = ["spekpy==2.5.4"]
+
+[project.scripts]
+skindose = "skindose_verifier.cli:main"
+dermadose = "skindose_verifier.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["skindose_verifier*"]
+
+[tool.setuptools.package-data]
+skindose_verifier = ["data/*.json", "data/*.stl", "data/*.txt", "data/visor_3d_template.html", "data/benmakhlouf_2011/*.csv", "data/benmakhlouf_2011/*.json", "data/benmakhlouf_2011/*.txt", "data/derived_mrc200_nominal/*.csv", "data/derived_mrc200_nominal/*.json", "data/derived_azurion_spekpy/*.csv", "data/derived_azurion_spekpy/*.json", "data/derived_azurion_qc_conditional/*.csv", "data/derived_azurion_qc_conditional/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
