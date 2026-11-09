@@ -281,6 +281,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         reports.append({"event_uid": ev.uid, "plane": ev.plane, "ka_r_gy": ev.ka_r_gy,
                         "kap_gy_m2": ev.kap_gy_m2, "status": ev.quality,
                         "table_coordinate_conversion": ev.original.get("table_coordinate_conversion"),
+                        "geometry_recovery": ev.original.get("geometry_recovery"),
+                        "sid_recovery": ev.original.get("sid_recovery"),
                         "sample_count": len(sliced),
                         "field_reference": ev.field_reference or equipment.geometry_for(ev.plane)["field_reference"],
                         "field_shape_assumption": ev.quality.get("field_size"),
