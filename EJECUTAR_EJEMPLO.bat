@@ -9,8 +9,8 @@ if not exist "%PY%" (
 if errorlevel 1 (
     "%PY%" -m pip install -e . || goto error
 )
-set "CASE=%USERPROFILE%\OneDrive\Escritorio\ejemplos rdsr\ejemplo08"
-echo Introduce la ruta de la carpeta con el RDSR.
+set "CASE=%~dp0examples\ejemplo"
+echo Introduce otra ruta o pulsa Intro para usar el ejemplo incluido.
 echo Pulsa Intro para usar: "%CASE%"
 set /p "CASE=Carpeta: "
 set "CASE=%CASE:"=%"
