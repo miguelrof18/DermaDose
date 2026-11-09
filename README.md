@@ -14,6 +14,8 @@ python -m venv .venv
 
 Abre `resultados/demo/mapa_3d_interactivo.html` en el navegador y consulta `resultados/demo/resultados.json` para ver la PSD y la trazabilidad.
 
+El [ejemplo XCAT](examples/xcat/README.md) incluye el STL del maniquí y las instrucciones para ejecutar la demostración.
+
 ## Ejecutar un caso
 
 Prepara una carpeta con un RDSR DICOM y un JSON del equipo. Para utilizar la superficie del paciente, añade un STL y su JSON homónimo exportados por DermaDose Surface.
