@@ -67,7 +67,7 @@
     ],
     "mesh_origin_mm": [
       0,
-      175,
+      -5,
       35
     ],
     "thickness_mm": 220,
