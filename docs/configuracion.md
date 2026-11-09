@@ -4,11 +4,11 @@
 
 | Configuración | Uso | Modelo dosimétrico |
 |---|---|---|
-| [`examples/ejemplo/equipo_azurion.json`](../examples/ejemplo/equipo_azurion.json) | Perfil de investigación para RDSR del Philips Azurion con tubo MRC 200 0407. Admite XCAT o un STL de Slicer mediante el lanzador. | `tabulated_water`. Tablas precalculadas con los datos monoenergéticos de Benmakhlouf y espectros de SpekPy. Supone 2,5 mm Al equivalentes de filtración fija y ánodo de 11°. |
+| [`examples/ejemplo/equipo_azurion.json`](../examples/ejemplo/equipo_azurion.json) | Perfil de investigación para RDSR del Philips Azurion con tubo MRC 200 0407. Usa el STL de Slicer de la carpeta del caso. | `tabulated_water`. Tablas precalculadas con los datos monoenergéticos de Benmakhlouf y espectros de SpekPy. Supone 2,5 mm Al equivalentes de filtración fija y ánodo de 11°. |
 | [`examples/equipo_benmakhlouf_investigacion.json`](../examples/equipo_benmakhlouf_investigacion.json) | Ejemplo y regresión con equipo simulado y superficie plana. | `benmakhlouf_2011`. Usa las tablas publicadas, para campos cuadrados y una familia de tungsteno con 3,1 mm Al asumidos. |
 | [`skindose_verifier/data/equipo_sintetico.json`](../skindose_verifier/data/equipo_sintetico.json) | Perfil interno del comando `demo`. El comando puede sustituir la superficie plana por XCAT con `--model mesh`. | Factores constantes ficticios: retrodispersión 1,25 y conversión a piel 1,05. Sirve para verificar el flujo de ejecución. |
 
-XCAT define la superficie. El JSON de equipo define la dosimetría. Con XCAT y un RDSR propio, sigue el [ejemplo Azurion](../examples/ejemplo/README.md).
+El STL define la superficie y el JSON de equipo define la dosimetría. Sigue el [ejemplo Azurion](../examples/ejemplo/README.md).
 
 ## Identificación y geometría
 
