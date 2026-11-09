@@ -16,10 +16,10 @@ Abre `resultados/demo/mapa_3d_interactivo.html` en el navegador y consulta `resu
 
 ## Ejecutar un caso
 
-Prepara una carpeta con un RDSR DICOM y un JSON del equipo. Para utilizar la superficie del paciente, añade un STL y su JSON homónimo exportados por DermaDose Surface.
+Prepara una carpeta con un RDSR DICOM y un solo JSON de equipo, copiado de [los perfiles disponibles](config/). Para utilizar la superficie del paciente, añade un STL y su JSON homónimo exportados por DermaDose Surface.
 
 ```powershell
-.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "C:\casos\ejemplo" --config ".\examples\ejemplo\equipo_azurion.json" --mesh patient
+.\.venv\Scripts\python.exe -m skindose_verifier.example_runner "C:\casos\ejemplo" --mesh patient
 ```
 
 Los resultados se guardan en la subcarpeta `resultados` del caso. Consulta [el ejemplo](examples/ejemplo/README.md) y la [guía de equipo](docs/configuracion.md).
