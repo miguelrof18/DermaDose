@@ -15,11 +15,7 @@ echo Pulsa Intro para usar: "%CASE%"
 set /p "CASE=Carpeta: "
 set "CASE=%CASE:"=%"
 if not exist "%CASE%\." goto error
-choice /c 12 /n /m "Superficie: 1 = XCAT, 2 = TC del paciente: "
-if errorlevel 3 goto error
-set "MESH=xcat"
-if errorlevel 2 set "MESH=patient"
-"%PY%" -m skindose_verifier.example_runner "%CASE%" --config "%CD%\examples\ejemplo\equipo_azurion.json" --mesh %MESH% --open-viewer || goto error
+"%PY%" -m skindose_verifier.example_runner "%CASE%" --config "%CD%\examples\ejemplo\equipo_azurion.json" --interactive --open-viewer || goto error
 echo.
 pause
 exit /b 0
