@@ -15,7 +15,17 @@ echo Pulsa Intro para usar: "%CASE%"
 set /p "CASE=Carpeta: "
 set "CASE=%CASE:"=%"
 if not exist "%CASE%\." goto error
-"%PY%" -m skindose_verifier.example_runner "%CASE%" --config "%CD%\examples\ejemplo\equipo_azurion.json" --interactive --open-viewer || goto error
+echo.
+echo 1. Factores sinteticos historicos
+echo 2. Tablas publicadas de Benmakhlouf
+echo 3. Philips Azurion: Benmakhlouf y SpekPy
+choice /c 123 /n /m "Elige el perfil de calculo: "
+if errorlevel 4 goto error
+if not errorlevel 1 goto error
+if errorlevel 1 set "CONFIG=%~dp0skindose_verifier\data\equipo_sintetico.json"
+if errorlevel 2 set "CONFIG=%~dp0examples\equipo_benmakhlouf_investigacion.json"
+if errorlevel 3 set "CONFIG=%~dp0examples\ejemplo\equipo_azurion.json"
+"%PY%" -m skindose_verifier.example_runner "%CASE%" --config "%CONFIG%" --interactive --open-viewer || goto error
 echo.
 pause
 exit /b 0
