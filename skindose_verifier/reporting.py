@@ -10,6 +10,41 @@ import numpy as np
 from .engine import Calculation
 
 
+def _results_overview(report: dict) -> str:
+    """Explain the main metrics and where to find the detailed results."""
+    def dose(value):
+        return "no calculada" if value is None else f"{value * 1000:.2f} mGy"
+
+    skin = report["surface_metrics"]["irradiated_surface"]
+    points = report.get("psd_point_patient_mm")
+    location = (
+        ", ".join(f"{value:.1f}" for value in points) + " mm (x, y, z)"
+        if points is not None else "no calculada"
+    )
+    return "\n".join([
+        "# Resumen de DermaDose",
+        "",
+        "- **Dosis pico puntual (PSD):** " + dose(report["psd_point_gy"]),
+        "- **Ubicación del pico en el modelo:** " + location,
+        "- **Dosis media de la superficie irradiada:** " + dose(skin["dmean_gy"]),
+        f"- **Superficie irradiada:** {skin['area_cm2']:.1f} cm²",
+        f"- **Eventos del cálculo:** {report['event_count']}",
+        "- **Magnitud calculada:** " + report["quantity"],
+        "",
+        "Estimación de investigación sin validación clínica.",
+        "",
+        "## Qué archivo abrir",
+        "",
+        "- **mapa_3d_interactivo.html:** explora dónde se acumula la dosis sobre la superficie.",
+        "- **mapa_2d.png y mapa_3d.png:** imágenes del mapa para una revisión rápida.",
+        "- **eventos.csv:** kerma de referencia, dosis máxima y puntos irradiados por evento.",
+        "- **histograma_dosis_area.png y .csv:** superficie que recibe al menos cada nivel de dosis.",
+        "- **resultados.json:** métricas detalladas, hipótesis y trazabilidad del cálculo.",
+        "- **mapa_dosis.npz:** datos numéricos para análisis con Python.",
+        "",
+    ])
+
+
 def save_results(calculation: Calculation, directory: str | Path, *, audit: dict) -> dict[str, str]:
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -128,7 +163,9 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     fig.savefig(dah_image, dpi=150); plt.close(fig)
     interactive_path = directory/"mapa_3d_interactivo.html"
     save_interactive(calculation, interactive_path)
-    return {k: str(v) for k, v in {"summary": json_path, "numeric_map": raw_path,
+    overview_path = directory/"RESUMEN.md"
+    overview_path.write_text(_results_overview(report), encoding="utf-8")
+    return {k: str(v) for k, v in {"summary": json_path, "overview": overview_path, "numeric_map": raw_path,
                                      "events": csv_path, "map_2d": map_path, "map_3d": map3_path,
                                      "interactive_3d": interactive_path, "dose_area_csv": dah_path,
                                      "dose_area_plot": dah_image}.items()}
