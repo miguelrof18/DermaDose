@@ -54,8 +54,51 @@ def _recover_sid(events, index):
                 method='agreeing_nearby_events_same_plane')
 
 
+_DISTANCE_FIELDS = ('sid_mm', 'sod_mm', 'srp_mm')
+
+
+def _valid_distance(value):
+    return value is not None and math.isfinite(value) and value > 0
+
+
+def _recover_geometry(events, index):
+    """Use bracketing events only when their recorded geometry agrees."""
+    if not 0 < index < len(events) - 1:
+        return None
+    event = events[index]
+    before, after = events[index - 1], events[index + 1]
+    if (not event.plane or event.table_system is None or event.table_mm is None
+            or not all(math.isfinite(v) for v in event.table_mm)
+            or event.primary_deg is None or event.secondary_deg is None
+            or not all(math.isfinite(v) for v in (event.primary_deg, event.secondary_deg))
+            or any(e.primary_end_deg is not None or e.secondary_end_deg is not None
+                   for e in (event, before, after))):
+        return None
+    for donor in (before, after):
+        if (donor.plane, donor.table_system, donor.table_mm, donor.primary_deg, donor.secondary_deg) != (
+                event.plane, event.table_system, event.table_mm, event.primary_deg, event.secondary_deg):
+            return None
+    values = {}
+    for key in _DISTANCE_FIELDS:
+        left, right, original = (getattr(e, key) for e in (before, after, event))
+        if (not _valid_distance(left) or not _valid_distance(right)
+                or not math.isclose(left, right, abs_tol=0.1, rel_tol=0)):
+            return None
+        if _valid_distance(original) and not math.isclose(original, left, abs_tol=0.1, rel_tol=0):
+            return None
+        values[key] = original if _valid_distance(original) else left
+    if values['sid_mm'] <= values['sod_mm']:
+        return None
+    return {
+        'method': 'matching_bracketing_events',
+        'source_event_uids': [before.uid, after.uid],
+        'original_mm': {key: getattr(event, key) for key in _DISTANCE_FIELDS},
+        'values_mm': values,
+    }
+
+
 def prepare_events(events, equipment):
-    """Recover supported SID gaps in research configurations."""
+    """Recover supported geometry gaps in research configurations."""
     profile = equipment.raw.get('azurion_profile', {})
     if not profile:
         return tuple(events)
@@ -89,7 +132,16 @@ def prepare_events(events, equipment):
                 updates['sid_mm'] = recovery['value_mm']
                 updates['original'] = {**event.original, 'sid_recovery': recovery}
                 quality['sid_mm'] = 'estimated_from_agreeing_nearby_events'
-        for name in ('sid_mm', 'sod_mm', 'srp_mm'):
+        if (research and profile.get('recover_missing_geometry', True) is True
+                and any(not _valid_distance(getattr(event, key)) for key in ('sod_mm', 'srp_mm'))):
+            geometry = _recover_geometry(events, index - 1)
+            if geometry:
+                for key, value in geometry['values_mm'].items():
+                    if not _valid_distance(getattr(event, key)):
+                        updates[key] = value
+                        quality[key] = 'estimated_from_matching_bracketing_events'
+                updates['original'] = {**event.original, 'geometry_recovery': geometry}
+        for name in _DISTANCE_FIELDS:
             if name in updates:
                 continue
             value = getattr(event, name)
