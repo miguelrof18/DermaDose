@@ -2,15 +2,15 @@
 
 ## Qué archivo usar
 
-`EJECUTAR_EJEMPLO.bat` permite elegir los tres perfiles para el STL del caso: **1** sintético, **2** tablas publicadas de Benmakhlouf y **3** Azurion con Benmakhlouf y SpekPy. Para un RDSR del Azurion MRC 200 0407, el perfil 3 es el modelo más específico de los disponibles. SpekPy se usó para generar las tablas previamente. El cálculo consulta esas tablas por evento. Los parámetros de instalación del perfil siguen siendo nominales o provisionales.
+Los perfiles reutilizables están en [`config/`](../config). Copia **un solo JSON de equipo** a la carpeta del caso, junto al RDSR, el STL y el JSON homónimo de Slicer. El lanzador detecta el JSON de equipo por sus campos. El JSON de Slicer sigue siendo necesario para la malla.
 
-| Configuración | Uso | Modelo dosimétrico |
+| Perfil | Qué utiliza | Para qué sirve |
 |---|---|---|
-| [`examples/ejemplo/equipo_azurion.json`](../examples/ejemplo/equipo_azurion.json) | Perfil de investigación para RDSR del Philips Azurion con tubo MRC 200 0407. Usa el STL de Slicer de la carpeta del caso. | `tabulated_water`. Tablas precalculadas con los datos monoenergéticos de Benmakhlouf y espectros de SpekPy. Supone 2,5 mm Al equivalentes de filtración fija y ánodo de 11°. |
-| [`examples/equipo_benmakhlouf_investigacion.json`](../examples/equipo_benmakhlouf_investigacion.json) | Ejemplo y regresión con equipo simulado y superficie plana. | `benmakhlouf_2011`. Usa las tablas publicadas, para campos cuadrados y una familia de tungsteno con 3,1 mm Al asumidos. |
-| [`skindose_verifier/data/equipo_sintetico.json`](../skindose_verifier/data/equipo_sintetico.json) | Perfil interno del comando `demo`. El comando puede sustituir la superficie plana por XCAT con `--model mesh`. | Factores constantes ficticios: retrodispersión 1,25 y conversión a piel 1,05. Sirve para verificar el flujo de ejecución. |
+| [`factores_sinteticos.json`](../config/factores_sinteticos.json) | Geometría simulada y factores constantes de la demo original. BSF 1,25, conversión a piel 1,05, corrección de kerma 1 y transmisión normal de mesa 0,8. | Comprobar el flujo y comparar con una referencia ficticia. |
+| [`benmakhlouf_tabulado.json`](../config/benmakhlouf_tabulado.json) | Tablas publicadas de Benmakhlouf para estimar dosis de entrada en agua. El perfil parte de tungsteno y 3,1 mm Al efectivos asumidos y exige campos cuadrados. Conserva geometría y correcciones de equipo simuladas. | Comparar los factores publicados con el modelo sintético o espectral. |
+| [`azurion_benmakhlouf_spekpy.json`](../config/azurion_benmakhlouf_spekpy.json) | Perfil específico de investigación del Philips Azurion MRC 200 0407. Usa factores monoenergéticos de Benmakhlouf integrados con espectros de SpekPy según la ecuación 13. Parte de 2,5 mm Al equivalentes de filtración fija nominal y 11° de ánodo. | Modelo más específico disponible para ese Azurion. La geometría y los factores de la instalación siguen siendo nominales o provisionales. |
 
-El STL define la superficie y el JSON de equipo define la dosimetría. Sigue el [ejemplo Azurion](../examples/ejemplo/README.md).
+Los dos primeros perfiles conservan una geometría de equipo ficticia. Una comparación que busque aislar el efecto del modelo dosimétrico requiere mantener la geometría y la colocación constantes. El tercer perfil consulta tablas precalculadas por evento, por lo que no necesita ejecutar SpekPy. El lanzador puede localizar las tablas incluidas en el paquete cuando se copia este perfil a una carpeta externa.
 
 ## Identificación y geometría
 
