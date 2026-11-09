@@ -44,41 +44,6 @@
     "table_half_width_mm": 300,
     "table_half_length_mm": 600
   },
-  "patient": {
-    "type": "mesh",
-    "mesh_path": "../../skindose_verifier/data/xcat_wholebody_body.stl",
-    "mesh_unit": "mm",
-    "mesh_axes_matrix": [
-      [
-        -1,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        -1
-      ],
-      [
-        0,
-        -1,
-        0
-      ]
-    ],
-    "mesh_origin_mm": [
-      0.21600341796875,
-      650,
-      35
-    ],
-    "thickness_mm": 220,
-    "origin_on_table_mm": [
-      0,
-      0,
-      0
-    ],
-    "resolution_mm": 5,
-    "mesh_max_edge_mm": null
-  },
   "factors": {
     "cf": {
       "value": 1,
@@ -132,7 +97,7 @@
     "calibration_characterized": false,
     "invalid_distance_policy": "error",
     "reference_table_from_first_event": true,
-    "notes": "Research profile: first event sets the provisional table origin. XCAT placement is an approximation.",
+    "notes": "Research profile: first event sets the provisional table origin.",
     "tube_model": "MRC 200 0407"
   },
   "tube_characterization": {
