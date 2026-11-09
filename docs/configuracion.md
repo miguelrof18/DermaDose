@@ -2,6 +2,8 @@
 
 ## Qué archivo usar
 
+`EJECUTAR_EJEMPLO.bat` permite elegir los tres perfiles para el STL del caso: **1** sintético, **2** tablas publicadas de Benmakhlouf y **3** Azurion con Benmakhlouf y SpekPy. Para un RDSR del Azurion MRC 200 0407, el perfil 3 es el modelo más específico de los disponibles. SpekPy se usó para generar las tablas previamente. El cálculo consulta esas tablas por evento. Los parámetros de instalación del perfil siguen siendo nominales o provisionales.
+
 | Configuración | Uso | Modelo dosimétrico |
 |---|---|---|
 | [`examples/ejemplo/equipo_azurion.json`](../examples/ejemplo/equipo_azurion.json) | Perfil de investigación para RDSR del Philips Azurion con tubo MRC 200 0407. Usa el STL de Slicer de la carpeta del caso. | `tabulated_water`. Tablas precalculadas con los datos monoenergéticos de Benmakhlouf y espectros de SpekPy. Supone 2,5 mm Al equivalentes de filtración fija y ánodo de 11°. |
