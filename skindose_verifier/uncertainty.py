@@ -101,8 +101,9 @@ def propagate_parameters(events: Sequence[IrradiationEvent], equipment: Equipmen
     for i, values in enumerate(draws):
         params = dict(zip(names, values))
         cfg = deepcopy(equipment.raw)
-        origin = np.asarray(cfg["patient"].get("origin_on_table_mm", [0, 0, 0]), dtype=float)
-        cfg["patient"]["origin_on_table_mm"] = (origin + [params.get(f"patient_{axis}_mm", 0.) for axis in "xyz"]).tolist()
+        offset_key = "registration_shift_room_mm" if equipment.registered_frames is not None else "origin_on_table_mm"
+        origin = np.asarray(cfg["patient"].get(offset_key, [0, 0, 0]), dtype=float)
+        cfg["patient"][offset_key] = (origin + [params.get(f"patient_{axis}_mm", 0.) for axis in "xyz"]).tolist()
         # A source/isocenter frame translation: detector follows, preserving
         # collimation direction and source-reference distances. No independent
         # source motion relative to a fixed detector is implied.
@@ -113,6 +114,13 @@ def propagate_parameters(events: Sequence[IrradiationEvent], equipment: Equipmen
             for plane in g.get("planes", {}).values():
                 plane["isocenter_mm"] = (np.asarray(plane.get("isocenter_mm", base_iso))+delta_source).tolist()
             g["isocenter_mm"] = (base_iso+delta_source).tolist()
+            if equipment.registered_frames is not None:
+                # Express the fixed physical marker in the perturbed isocentre.
+                from .reference_frames import ROOM_FROM_I
+                ref = g["table_calibration"]["reference"]
+                marker = equipment.registered_frames.reference_origin_i + np.asarray(ref["marker_table_mm"])
+                ref.pop("calibrated_views", None)
+                ref["marker_isocenter_mm"] = (marker - ROOM_FROM_I.T @ delta_source).tolist()
         for name, factor_names in mapping.items():
             if name not in params:
                 continue

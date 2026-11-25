@@ -21,6 +21,8 @@ def _results_overview(report: dict) -> str:
         ", ".join(f"{value:.1f}" for value in points) + " mm (x, y, z)"
         if points is not None else "no calculada"
     )
+    if report.get("patient_coordinate_system") == "CT_LPS_mm":
+        location += " en el TC (izquierda, posterior, cabeza)"
     return "\n".join([
         "# Resumen de DermaDose",
         "",
@@ -60,7 +62,9 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
                         normals=calculation.surface.normals, area_mm2=calculation.surface.area_mm2,
                         axis_rows=calculation.surface.axes[0], axis_columns=calculation.surface.axes[1],
                         vertices_mm=(calculation.surface.mesh.vertices if calculation.surface.mesh is not None else np.zeros((0, 3))),
-                        faces=(calculation.surface.mesh.faces if calculation.surface.mesh is not None else np.zeros((0, 3), dtype=int)))
+                        faces=(calculation.surface.mesh.faces if calculation.surface.mesh is not None else np.zeros((0, 3), dtype=int)),
+                        **({"patient_coordinate_system": report["patient_coordinate_system"]}
+                           if "patient_coordinate_system" in report else {}))
     csv_path = directory/"eventos.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["event_index", "plane", "ka_r_gy", "kap_gy_m2",
@@ -79,6 +83,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     dose_palette = LinearSegmentedColormap.from_list(
         "dermadose", [(0.00, "#2ca25f"), (0.33, "#ffe34d"),
                       (0.67, "#fb8c00"), (1.00, "#d7191c")])
+    ct_lps = report.get("patient_coordinate_system") == "CT_LPS_mm"
     if calculation.surface.kind == "mesh":
         shades = dose_palette(np.linspace(0, 1, 256))
         shades[0] = [.26, .29, .32, 1.]
@@ -92,7 +97,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
         points = calculation.surface.points_mm
         # A projection overlays surfaces; the 3D picture contains the real faces.
         order = np.argsort(calculation.total_gy)
-        im = ax.scatter(points[order, 0], points[order, 1], c=calculation.total_gy[order],
+        im = ax.scatter(points[order, 0], points[order, 2 if ct_lps else 1], c=calculation.total_gy[order],
                         s=3, cmap=palette, vmin=0, linewidths=0)
         ax.set_aspect("equal")
         ax.set_xlabel("x lateral paciente [mm]")
@@ -106,7 +111,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
             ax.set_xlabel("ángulo circunferencial θ [rad]")
         else:
             ax.set_xlabel("posición lateral local [mm]")
-    ax.set_ylabel("posición longitudinal local [mm]")
+    ax.set_ylabel("z craneal TC [mm]" if ct_lps else "posición longitudinal local [mm]")
     fig.colorbar(im, ax=ax, label="Gy")
     fig.tight_layout()
     map_path = directory/"mapa_2d.png"
@@ -126,7 +131,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
         ax3.add_collection3d(collection)
         ax3.auto_scale_xyz(*mesh.bounds.T)
         ax3.set_box_aspect(np.ptp(np.asarray(mesh.vertices), axis=0))
-        ax3.view_init(elev=-65, azim=90)
+        ax3.view_init(elev=10 if ct_lps else -65, azim=90)
         sc = ScalarMappable(norm=norm, cmap=palette)
     else:
         stride = max(1, len(points)//15000)
@@ -137,8 +142,8 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
         sc = ax3.scatter(points[selected, 0], points[selected, 1], points[selected, 2],
                          c=calculation.total_gy[selected], s=4, cmap=palette, norm=norm)
     ax3.set_xlabel("x [mm]")
-    ax3.set_ylabel("y [mm]")
-    ax3.set_zlabel("z [mm]")
+    ax3.set_ylabel("y posterior TC [mm]" if ct_lps else "y [mm]")
+    ax3.set_zlabel("z craneal TC [mm]" if ct_lps else "z [mm]")
     fig.colorbar(sc, ax=ax3, label="Gy", shrink=.7)
     fig.suptitle("Distribución de dosis, geometría de investigación")
     fig.tight_layout()

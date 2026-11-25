@@ -68,6 +68,8 @@ def normalize(ev: IrradiationEvent, equipment: Equipment) -> IrradiationEvent:
             updates["table_mm"] = tuple(raw[k][0]["value"] for k in keys)
             updates["table_system"] = system
             q["table_mm"] = f"selected_{system}_from_rdsr"
+        elif equipment.registered_frames is not None:
+            raise InputError(f"Evento {ev.uid}: el registro requiere las tres lecturas originales DCM 113751–113753.")
         elif ev.table_system == "isocenter" and system == "legacy" and ev.table_mm is not None:
             # Isocenter positions are offsets, whereas legacy positions use the
             # configured table zero. Keep the axes chosen in this JSON; do not
@@ -367,11 +369,21 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "surface_factor_dataset": equipment.surface_factor_provider.dataset.metadata
             if equipment.surface_factor_provider is not None and stage == "skin_dose" else None,
         "configuration_version": equipment.version,
-        "assumptions": ["Colimación rectangular; perfil uniforme salvo beam_profile calibrado", "Paciente rígido y centrado según configuración",
+        "assumptions": ["Colimación rectangular; perfil uniforme salvo beam_profile calibrado",
+                        ("Paciente rígido registrado en el tablero. Mesa nivelada, sin giro y quieta durante cada evento."
+                         if equipment.registered_frames else "Paciente rígido y centrado según configuración"),
                         "Mapa calculado sobre puntos de superficie; sin transporte Monte Carlo"] + (
-                            ["Malla suministrada: procedencia anatómica y registro no verificados; resolución desigual de caras"]
+                            [("Malla de caras de resolución desigual. La precisión física del registro requiere verificación independiente."
+                              if equipment.registered_frames else
+                              "Malla suministrada: procedencia anatómica y registro no verificados; resolución desigual de caras")]
                             if surface.kind == "mesh" else []),
     }
+    if "table_calibration" in equipment.geometry:
+        summary["table_calibration"] = equipment.geometry["table_calibration"]
+        summary["table_placement"] = "marker_reference" if equipment.registered_frames else "legacy_placement"
+    if equipment.registered_frames is not None:
+        summary["ct_registration"] = equipment.registered_frames.evidence
+        summary["patient_coordinate_system"] = "CT_LPS_mm"
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,
                               "projection_cache_hits": cache_hits, "rays_traced": total_rays,
                               "candidate_triangle_pairs": total_pairs if pairs_available else None,

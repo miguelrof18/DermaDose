@@ -14,6 +14,8 @@ Los dos primeros perfiles conservan una geometría de equipo ficticia. Una compa
 
 ## Identificación y geometría
 
+Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la colocación TC → tablero → isocentro, consulta la [guía del registro geométrico del Azurion](registro_tc_azurion.md).
+
 | Campo | Significado |
 |---|---|
 | `version` | Identificador de revisión del perfil. Permite reproducir el cálculo. |

@@ -1,0 +1,25 @@
+{
+  "id": "azurion_hemodinamica_1_2026-11",
+  "name": "Azurion Hemodinamica 1",
+  "source": "Caracterizacion_Azurion(1).xlsx, hoja Calibración Radimetrics",
+  "length_mm": 3160,
+  "width_mm": 500,
+  "thickness_mm": 30,
+  "positive_primary_detector": "left",
+  "positive_secondary_detector": "cranial",
+  "radimetrics": {
+    "offsets_mm": {"lateral": 508, "longitudinal": -70.5, "height": -732},
+    "lateral_measurement_mm": {"ruler": 202.5, "image": 694, "beam": 1000},
+    "longitudinal_measurement_mm": {"ruler": 17.5, "image": 88},
+    "height_measurement_mm": {"ruler": 155, "image": 887},
+    "other_readings_mm": {"shoulder_to_head": 400, "anchura_del_colchon": 65, "floor_to_table_at_origin": 895},
+    "provenance": "B6:G10, D53:D61 y C95:C97. Los offsets usan la convención del asistente Philips de Radimetrics. Las capturas ilustran sus valores por defecto."
+  },
+  "motion_matrix_i_per_mm": [[1, 0, 0], [0, 0, -1], [0, null, 0]],
+  "motion_note": "Columnas DCM longitudinal, lateral, altura. D59 indica izquierda y D61 arriba. D58 indica el eje craneal/caudal sin elegir sentido. Ganancia unitaria nominal en mm/mm. Verificar con movimientos aislados.",
+  "reference": {
+    "readings_long_lat_height_mm": null,
+    "marker_table_mm": null,
+    "marker_isocenter_mm": null
+  }
+}

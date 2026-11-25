@@ -331,6 +331,15 @@
       lateral:{eye:{x:2.25, y:.20, z:.35}, up:{x:0, y:1, z:0}},
       superior:{eye:{x:.15, y:2.25, z:-.50}, up:{x:0, y:0, z:-1}}
     };
+    if (data.ct_lps) {
+      const toLps = ({x,y,z}) => ({x, y:-z, z:y});
+      for (const camera of Object.values(perspectives)) {
+        camera.eye = toLps(camera.eye);
+        camera.up = toLps(camera.up);
+      }
+      document.getElementById("enable-y").nextSibling.textContent = " Y · anterior/posterior";
+      document.getElementById("enable-z").nextSibling.textContent = " Z · pies/cabeza";
+    }
     function sampleGeometry() {
       const samples = data.geometry[Number(beamEvent.value)] || [];
       return samples[Number(beamSample.value)] || null;

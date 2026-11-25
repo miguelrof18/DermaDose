@@ -12,6 +12,7 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 from .domain import InputError, IrradiationEvent
+from .reference_frames import RegisteredFrames, configure_table
 
 
 ALLOWED_AXES = {"kvp", "filtration_mm_cu", "field_area_cm2", "table_angle_deg", "patient_thickness_mm",
@@ -88,6 +89,7 @@ class Equipment:
     version: str
     factors_by_mode: dict[str, dict[str, Factor]]
     surface_factor_provider: Any = None
+    registered_frames: RegisteredFrames | None = None
 
     @classmethod
     def load(cls, path: str | Path) -> "Equipment":
@@ -120,27 +122,35 @@ class Equipment:
         if u is not None and (not math.isfinite(float(u)) or float(u) < 0):
             raise InputError("Incertidumbre relativa RDSR no finita o negativa.")
         g = data["geometry"]
+        if "table_calibration" in g:
+            configure_table(g, base_directory)
+        registered = "ct_registration" in data["patient"]
+        if registered:
+            g.setdefault("table_coordinates", "legacy")
         required = ("source_to_isocenter_mm", "source_to_detector_mm", "source_to_irp_mm",
                     "field_reference", "primary_sign", "secondary_sign", "rotation_order",
-                    "table_coordinates", "table_origin_mm", "table_matrix", "table_plane_z_mm",
-                    "table_half_width_mm", "table_half_length_mm")
+                    "table_coordinates", "table_half_width_mm", "table_half_length_mm")
+        if not registered:
+            required += ("table_origin_mm", "table_matrix", "table_plane_z_mm")
         if any(k not in g for k in required):
             raise InputError("Geometría incompleta; se requiere caracterización explícita.")
         if g["field_reference"] not in ("detector", "isocenter") or g["rotation_order"] not in ("primary_then_secondary", "secondary_then_primary"):
             raise InputError("Referencia del campo u orden angular inválido.")
         if g["table_coordinates"] not in ("isocenter", "legacy"):
             raise InputError("Sistema de coordenadas de mesa no declarado.")
-        M = np.asarray(g["table_matrix"], dtype=float)
-        if M.shape != (3, 3) or not np.allclose(M.T @ M, np.eye(3)) or abs(round(np.linalg.det(M))) != 1:
-            raise InputError("La matriz de mesa debe ser una permutación/rotación ortonormal.")
-        if len(g["table_origin_mm"]) != 3 or not np.all(np.isfinite(g["table_origin_mm"])):
-            raise InputError("Origen de mesa inválido.")
+        if not registered:
+            M = np.asarray(g["table_matrix"], dtype=float)
+            if M.shape != (3, 3) or not np.allclose(M.T @ M, np.eye(3)) or abs(round(np.linalg.det(M))) != 1:
+                raise InputError("La matriz de mesa debe ser una permutación/rotación ortonormal.")
+            if len(g["table_origin_mm"]) != 3 or not np.all(np.isfinite(g["table_origin_mm"])):
+                raise InputError("Origen de mesa inválido.")
         for key in ("source_to_isocenter_mm", "source_to_detector_mm", "source_to_irp_mm"):
             if not math.isfinite(float(g[key])) or float(g[key]) <= 0:
                 raise InputError(f"Geometría: {key} inválida.")
         if g["source_to_detector_mm"] <= g["source_to_isocenter_mm"]:
             raise InputError("SID debe superar la distancia fuente-isocentro.")
-        if not all(math.isfinite(float(g[k])) for k in ("table_half_width_mm", "table_half_length_mm", "table_plane_z_mm")) or float(g["table_half_width_mm"]) <= 0 or float(g["table_half_length_mm"]) <= 0:
+        if not math.isfinite(float(g.get("table_plane_z_mm", 0))) or not all(
+                math.isfinite(float(g[k])) and float(g[k]) > 0 for k in ("table_half_width_mm", "table_half_length_mm")):
             raise InputError("Dimensiones de mesa inválidas.")
         if data["patient"]["type"] not in ("plane", "ellipse", "mesh"):
             raise InputError("Modelo paciente admitido: plane/ellipse/mesh.")
@@ -151,6 +161,9 @@ class Equipment:
             if not mesh_path.is_file():
                 raise InputError("La malla de piel no existe junto a la configuración.")
             data["patient"]["mesh_path"] = str(mesh_path.resolve())
+        frames = None
+        if registered:
+            frames = RegisteredFrames.from_inputs(g, data["patient"], base_directory)
         factors = {k: Factor.from_dict(k, v) for k, v in data["factors"].items()}
         if "table_total" in factors and ("table_normal" in factors or "table_angular" in factors):
             raise InputError("TAF total excluye TAF normal/angular: doble conteo.")
@@ -169,7 +182,7 @@ class Equipment:
                 if {"bsf", "f_skin"} & block.keys():
                     raise InputError("surface_factors excluye bsf/f_skin heredados: doble conteo o sustitución ambigua.")
             provider = make_event_provider(data["surface_factors"], base_directory=base_directory)
-        return cls(data, factors, str(data["version"]), modes, provider)
+        return cls(data, factors, str(data["version"]), modes, provider, frames)
 
     def factors_for(self, ev: IrradiationEvent) -> dict[str, Factor]:
         if not self.factors_by_mode:
@@ -187,6 +200,14 @@ class Equipment:
         if planes is not None and plane not in planes:
             raise InputError(f"Plano {plane!r} sin geometría de equipo caracterizada.")
         g = {**self.geometry, **(planes[plane] if planes else {})}
+        if "table_calibration" in self.geometry:
+            if plane not in ("113620", "113622"):
+                raise InputError(f"Plano {plane}: el perfil de la sala corresponde al arco único o plano A.")
+            # The board and detector conventions belong to the selected installation.
+            for key in ("table_calibration", "table_half_width_mm", "table_half_length_mm", "primary_sign", "secondary_sign"):
+                g[key] = self.geometry[key]
+        if self.registered_frames is not None and g["table_coordinates"] != "legacy":
+            raise InputError(f"Plano {plane}: el registro de esta mesa requiere las lecturas DCM 113751–113753.")
         if g["table_coordinates"] not in ("isocenter", "legacy"):
             raise InputError(f"Plano {plane}: sistema de mesa inválido.")
         if g["rotation_order"] not in ("primary_then_secondary", "secondary_then_primary") or g["field_reference"] not in ("detector", "isocenter"):
@@ -195,10 +216,12 @@ class Equipment:
             value = np.asarray(g.get(key, [0, 0, 0]), dtype=float)
             if value.shape != (3,) or not np.all(np.isfinite(value)):
                 raise InputError(f"Plano {plane}: {key} inválido.")
-        M = np.asarray(g["table_matrix"], dtype=float)
-        if M.shape != (3, 3) or not np.all(np.isfinite(M)) or not np.allclose(M.T @ M, np.eye(3), atol=1e-8):
-            raise InputError(f"Plano {plane}: matriz de mesa inválida.")
-        if any(not math.isfinite(float(g[k])) for k in ("table_plane_z_mm", "table_half_width_mm", "table_half_length_mm")) or min(float(g["table_half_width_mm"]), float(g["table_half_length_mm"])) <= 0:
+        if self.registered_frames is None:
+            M = np.asarray(g["table_matrix"], dtype=float)
+            if M.shape != (3, 3) or not np.all(np.isfinite(M)) or not np.allclose(M.T @ M, np.eye(3), atol=1e-8):
+                raise InputError(f"Plano {plane}: matriz de mesa inválida.")
+        if not math.isfinite(float(g.get("table_plane_z_mm", 0))) or not all(
+                math.isfinite(float(g[k])) and float(g[k]) > 0 for k in ("table_half_width_mm", "table_half_length_mm")):
             raise InputError(f"Plano {plane}: mesa inválida.")
         return g
 
@@ -220,6 +243,9 @@ class Equipment:
             raise InputError(f"Evento {ev.uid}: faltan {', '.join(missing)}.")
         if ev.table_system != self.geometry_for(ev.plane)["table_coordinates"]:
             raise InputError(f"Evento {ev.uid}: sistema de mesa {ev.table_system} diferente del configurado.")
+        if "table_calibration" in self.geometry:
+            from .rdsr import check_level_stationary_table
+            check_level_stationary_table(ev)
         if stage not in ("free_air", "calibrated_air", "skin_dose"):
             raise InputError(f"Etapa desconocida: {stage}.")
         factors = self.factors_for(ev) if stage != "free_air" else self.factors

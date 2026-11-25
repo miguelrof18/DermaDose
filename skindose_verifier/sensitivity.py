@@ -22,7 +22,8 @@ def position_sensitivity(events: Sequence[IrradiationEvent], equipment: Equipmen
     surface = sample_patient(equipment.patient)
     base = calculate(events, equipment, stage, surface=surface).summary
     reference = np.asarray(base["psd_point_patient_mm"], dtype=float)
-    original = np.asarray(equipment.patient.get("origin_on_table_mm", [0, 0, 0]), dtype=float)
+    offset_key = "registration_shift_room_mm" if equipment.registered_frames is not None else "origin_on_table_mm"
+    original = np.asarray(equipment.patient.get(offset_key, [0, 0, 0]), dtype=float)
     if original.shape != (3,) or not np.all(np.isfinite(original)):
         raise InputError("Posición del paciente sobre la mesa inválida.")
     scenarios = []
@@ -31,7 +32,7 @@ def position_sensitivity(events: Sequence[IrradiationEvent], equipment: Equipmen
             variation = np.zeros(3, dtype=float)
             variation[axis] = sign*offset_mm
             cfg = deepcopy(equipment.raw)
-            cfg["patient"]["origin_on_table_mm"] = (original+variation).tolist()
+            cfg["patient"][offset_key] = (original+variation).tolist()
             try:
                 result = calculate(events, replace(equipment, raw=cfg), stage, surface=surface).summary
             except InputError as exc:

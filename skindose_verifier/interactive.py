@@ -98,20 +98,24 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         fig.add_trace(go.Scatter3d(x=[], y=[], z=[], mode=mode, name=name,
                                   marker=dict(size=4, color=color), line=dict(width=3, color=color),
                                   textposition="top center", hoverinfo="skip", visible=False))
+    ct_lps = calculation.summary.get("patient_coordinate_system") == "CT_LPS_mm"
+    camera = (dict(eye=dict(x=.35, y=2.25, z=.20), up=dict(x=0, y=0, z=1)) if ct_lps else
+              dict(eye=dict(x=.35, y=.20, z=-2.25), up=dict(x=0, y=1, z=0)))
     fig.update_layout(
         paper_bgcolor="#111722", font=dict(color="#e7eaf2", family="Arial, sans-serif"),
         margin=dict(l=0, r=0, t=0, b=0), showlegend=False,
         scene=dict(xaxis=dict(title="x lateral [mm]", backgroundcolor="#182131", color="#c6d0df"),
-                   yaxis=dict(title="y craneal [mm]", backgroundcolor="#182131", color="#c6d0df"),
-                   zaxis=dict(title="z anterior [mm]", backgroundcolor="#182131", color="#c6d0df"),
+                   yaxis=dict(title="y posterior TC [mm]" if ct_lps else "y craneal [mm]", backgroundcolor="#182131", color="#c6d0df"),
+                   zaxis=dict(title="z craneal TC [mm]" if ct_lps else "z anterior [mm]", backgroundcolor="#182131", color="#c6d0df"),
                    aspectmode="data", dragmode="orbit",
-                   camera=dict(eye=dict(x=.35, y=.20, z=-2.25), up=dict(x=0, y=1, z=0))),
+                   camera=camera),
         uirevision="dose-map")
     figure = to_html(fig, full_html=False, include_plotlyjs=True, div_id="dose-map",
                      config=dict(displaylogo=False, responsive=True,
                                  modeBarButtonsToRemove=["lasso2d", "select2d"]))
     payload = {
         "kind": surface.kind,
+        "ct_lps": ct_lps,
         "vertices": np.round(coords, 3).tolist(),
         "faces": faces.tolist() if is_mesh else None,
         "doses": [np.round(m, 11).tolist() for m in modes],

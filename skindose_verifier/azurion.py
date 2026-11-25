@@ -114,15 +114,19 @@ def prepare_events(events, equipment):
     events = tuple(events)
     result = []
     first_table = next((e.table_mm for e in events if e.table_mm is not None), None)
-    if profile.get('reference_table_from_first_event'):
+    registered = getattr(equipment, 'registered_frames', None) is not None
+    reference_from_first = profile.get('reference_table_from_first_event') and not registered
+    if reference_from_first:
         if not research or first_table is None:
             raise InputError('Referencia de mesa desde primer evento solo permitida como hipótesis de investigación explícita.')
         equipment.geometry['table_origin_mm'] = list(first_table)
     for index, event in enumerate(events, 1):
         updates = {}
         quality = dict(event.quality)
-        if profile.get('reference_table_from_first_event'):
+        if reference_from_first:
             quality['table_reference'] = 'research_reference_first_event_not_clinical_registration'
+        elif registered:
+            quality['table_reference'] = 'fixed_tabletop_marker_reference'
         if (research and profile.get('recover_missing_sid', True) is True
                 and (event.sid_mm is None or not math.isfinite(event.sid_mm) or event.sid_mm <= 0)
                 and all(v is not None and math.isfinite(v) and v > 0

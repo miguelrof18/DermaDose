@@ -100,6 +100,24 @@ def scalar(item: Dataset, field: str) -> tuple[float | None, list[dict]]:
 COPPER_FILTERS = {("SCT", "66925006"), ("SRT", "C-12700"), ("SRT", "C-127F9")}
 ALUMINIUM_FILTERS = {("SCT", "12503006"), ("SRT", "C-12000"), ("SRT", "C-120F9")}
 
+# Optional motion fields for a level, stationary tabletop. Preserve observations even
+# when another registration mode does not use them.
+TABLE_ANGLES = {"113754", "113755", "113756", "128763", "128764", "128765"}
+TABLE_END_START = {"113759": "table_long", "113760": "table_lat", "113761": "table_height",
+                   "128769": "table_x_iso", "128770": "table_y_iso", "128771": "table_z_iso"}
+
+
+def check_level_stationary_table(event):
+    for code, values in event.original.get("table_motion", {}).items():
+        if code in TABLE_ANGLES:
+            expected = 0.
+        else:
+            start = event.original.get(TABLE_END_START[code], [])
+            expected = start[0]["value"] if start else None
+        if expected is None or any(v is None or not math.isclose(v, expected, rel_tol=0., abs_tol=1e-6)
+                                   for v in values):
+            raise InputError(f"Evento {event.uid}: DCM {code} incompatible con el registro de mesa nivelada, sin giro y quieta durante la exposición.")
+
 
 def filter_stack(item: Dataset, uid: str) -> tuple[float | None, list[dict], str]:
     """Normalize each filter independently; never interpret Al thickness as Cu.
@@ -223,6 +241,19 @@ def parse_event(item: Dataset) -> IrradiationEvent:
             shutters[side] = numeric(node, "field_width_mm")[0]
     if shutters:
         orig["philips_shutters_mm_at_1000_mm"] = shutters
+    motion = {}
+    for node in descendants(item):
+        code = concept(node)
+        if not code or code[0] != "DCM" or (code[1] not in TABLE_ANGLES and code[1] not in TABLE_END_START):
+            continue
+        field = "primary_deg" if code[1] in TABLE_ANGLES else TABLE_END_START[code[1]]
+        try:
+            value = numeric(node, field)[0]
+        except (ValueError, TypeError, AttributeError):
+            value = None
+        motion.setdefault(code[1], []).append(value)
+    if motion:
+        orig["table_motion"] = motion
     table, system = None, None
     iso = tuple(values[k] for k in ("table_x_iso", "table_y_iso", "table_z_iso"))
     legacy = tuple(values[k] for k in ("table_lat", "table_long", "table_height"))
