@@ -153,21 +153,47 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
 
         self.exportAnchor = qt.QCheckBox("Incluir registro TC → tablero al exportar STL")
         form.addRow(self.exportAnchor)
+        self.anchorPanel = qt.QWidget()
+        anchorForm = qt.QFormLayout(self.anchorPanel)
+        form.addRow(self.anchorPanel)
+        self.anchorPanel.hide()
+        self.exportAnchor.connect("toggled(bool)", self.anchorPanel.setVisible)
+        instruction = qt.QLabel("En el corte axial de hombros, pulsa Marcar y haz clic en el apoyo posterior de la línea media.")
+        instruction.wordWrap = True
+        anchorForm.addRow(instruction)
         self.anchorList = slicer.qMRMLNodeComboBox()
         self.anchorList.nodeTypes = ["vtkMRMLMarkupsFiducialNode"]
         self.anchorList.noneEnabled = True
+        self.anchorList.addEnabled = False
+        self.anchorList.removeEnabled = False
         self.anchorList.setMRMLScene(slicer.mrmlScene)
-        form.addRow("Markups del TC (un punto en línea media, apoyo y nivel de hombros):", self.anchorList)
+        self.anchorList.setCurrentNode(None)
+        self.anchorNode = None
+        self.anchorObservers = []
+        mark = qt.QPushButton("Marcar en el TC")
+        mark.connect("clicked()", self.onMarkAnchor)
+        anchorForm.addRow(mark)
+        anchorForm.addRow("Marca seleccionada", self.anchorList)
         self.tableInputs = []
         for label in ("Desplazamiento lateral (+ izquierda)", "Altura del apoyo sobre el tablero",
                       "Distancia desde cabecera hacia los pies al plano de hombros"):
             field = qt.QLineEdit()
-            form.addRow(label + " [mm]", field)
+            field.placeholderText = "mm"
+            anchorForm.addRow(label, field)
             self.tableInputs.append(field)
         self.aligned = qt.QCheckBox("Confirmo el modelo supino, cabeza primero y alineado con el tablero")
-        form.addRow(self.aligned)
+        anchorForm.addRow(self.aligned)
+        self.anchorPreview = qt.QLabel()
+        self.anchorPreview.wordWrap = True
+        anchorForm.addRow(self.anchorPreview)
+        self.anchorList.connect("currentNodeChanged(vtkMRMLNode*)", self.observeAnchor)
+        for field in self.tableInputs:
+            field.connect("textChanged(QString)", self.refreshAnchor)
+        self.refreshAnchor()
         self.exportButton = qt.QPushButton("Exportar STL y metadatos")
         self.exportButton.connect("clicked()", self.onExport)
+        self.exportAnchor.connect("toggled(bool)", lambda enabled: self.exportButton.setText(
+            "Exportar STL y registro" if enabled else "Exportar STL y metadatos"))
         form.addRow(self.exportButton)
         self.pairButton = qt.QPushButton("Exportar comparación 150 000 / 300 000")
         self.pairButton.connect("clicked()", self.onExportPair)
@@ -189,7 +215,59 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         self._reviewedKey = None
 
 
+    def onMarkAnchor(self):
+        volume = self.volume.currentNode()
+        if not volume:
+            slicer.util.errorDisplay("Selecciona primero el TC.")
+            return
+        node = self.anchorList.currentNode()
+        if (not node or node.GetNumberOfControlPoints() or
+                node.GetNodeReferenceID("DermaDoseAnchorVolume") != volume.GetID()):
+            node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "Anclaje de hombros")
+            node.SetNodeReferenceID("DermaDoseAnchorVolume", volume.GetID())
+            self.anchorList.setCurrentNode(node)
+        slicer.util.setSliceViewerLayers(background=volume)
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetReferenceActivePlaceNodeClassName(node.GetClassName())
+        selection.SetActivePlaceNodeID(node.GetID())
+        interaction = slicer.app.applicationLogic().GetInteractionNode()
+        interaction.SetPlaceModePersistence(0)
+        interaction.SetCurrentInteractionMode(interaction.Place)
+
+    def observeAnchor(self, node):
+        if self.anchorNode is not None:
+            for tag in self.anchorObservers:
+                self.anchorNode.RemoveObserver(tag)
+        self.anchorNode = node
+        self.anchorObservers = []
+        if node is not None:
+            for event in (node.PointModifiedEvent, node.PointPositionDefinedEvent, node.PointRemovedEvent):
+                self.anchorObservers.append(node.AddObserver(event, self.refreshAnchor))
+        self.refreshAnchor()
+
+    def refreshAnchor(self, *args):
+        node = self.anchorNode
+        parts = []
+        if node and node.GetNumberOfControlPoints() == 1 and node.GetNthControlPointPositionStatus(0) == node.PositionDefined:
+            x, y, z = self.anchorRAS(node)
+            parts.append(f"TC (LPS): ({-x:.1f}, {-y:.1f}, {z:.1f}) mm")
+        else:
+            parts.append("TC: selecciona o coloca un único punto.")
+        try:
+            values = make_anchor_registration([0, 0, 0], [field.text for field in self.tableInputs])["anchor_table_mm"]
+            parts.append("Tablero: (" + ", ".join(f"{v:g}" for v in values) + ") mm")
+        except ValueError:
+            parts.append("Tablero: completa las tres medidas en mm.")
+        self.anchorPreview.setText("\n".join(parts))
+
+    @staticmethod
+    def anchorRAS(node):
+        position = [0., 0., 0.]
+        node.GetNthControlPointPositionWorld(0, position)
+        return position
+
     def cleanup(self):
+        self.observeAnchor(None)
         if self._worker is not None:
             self._worker.blockSignals(True)
             self._worker.kill()
@@ -542,11 +620,16 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
                         raise ValueError("Seleccione una lista Markups con un solo punto definido en el TC de la malla.")
                     if node.GetParentTransformNode() or self.logic.volumeNode.GetParentTransformNode():
                         raise ValueError("Use el volumen y la marca en el marco original del TC, sin transformaciones de escena.")
-                    ras = [0., 0., 0.]
-                    node.GetNthControlPointPositionWorld(0, ras)
+                    origin = node.GetNodeReferenceID("DermaDoseAnchorVolume")
+                    if origin and origin != self.logic.volumeNode.GetID():
+                        raise ValueError("La marca seleccionada pertenece a otro TC.")
+                    ras = self.anchorRAS(node)
                     registration = make_anchor_registration(ras, [field.text for field in self.tableInputs])
                 self.logic.export(Path(target), registration=registration)
-            slicer.util.infoDisplay(f"Exportados {target} y su archivo .json")
+            message = f"Exportados {target} y su archivo .json"
+            if registration is not None:
+                message += f"\nRegistro: {Path(target).parent / 'registro_tc.json'}"
+            slicer.util.infoDisplay(message)
         except Exception as exc:
             slicer.util.errorDisplay(str(exc))
 
