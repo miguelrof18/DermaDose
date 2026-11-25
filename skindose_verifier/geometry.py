@@ -13,6 +13,7 @@ from .domain import InputError, IrradiationEvent
 from .config import Equipment
 from .patient import SkinSurface
 from .raytrace import first_hits
+from .reference_frames import ROOM_FROM_I, rigid
 
 
 def rot_x(deg: float) -> np.ndarray:
@@ -80,6 +81,9 @@ def beam_from_event(ev: IrradiationEvent, equipment: Equipment) -> Beam:
 
 def table_shift(ev: IrradiationEvent, equipment: Equipment) -> np.ndarray:
     g = equipment.geometry_for(ev.plane)
+    if equipment.registered_frames is not None:
+        iso = np.asarray(g.get("isocenter_mm", [0., 0., 0.]))
+        return iso + ROOM_FROM_I @ equipment.registered_frames.table_origin_i(ev)
     raw = np.asarray(ev.table_mm, dtype=float)
     zero = np.asarray(g["table_origin_mm"], dtype=float)
     if raw.shape != (3,) or not np.all(np.isfinite(raw)):
@@ -87,11 +91,40 @@ def table_shift(ev: IrradiationEvent, equipment: Equipment) -> np.ndarray:
     return np.asarray(g["table_matrix"], dtype=float) @ (raw - zero)
 
 
+def patient_pose(equipment, table_position):
+    """Rotation and translation from the sampled skin coordinates to the engine room."""
+    key = "registration_shift_room_mm" if equipment.registered_frames is not None else "origin_on_table_mm"
+    offset = np.asarray(equipment.patient.get(key, [0., 0., 0.]), dtype=float)
+    if offset.shape != (3,) or not np.all(np.isfinite(offset)):
+        raise InputError("Desplazamiento paciente-mesa inválido.")
+    if equipment.registered_frames is not None:
+        tc = equipment.registered_frames.table_from_ct
+        return ROOM_FROM_I @ tc[:3, :3], table_position + ROOM_FROM_I @ tc[:3, 3] + offset
+    rotation = rot_y(float(equipment.patient.get("tilt_y_deg", 0.))) @ rot_x(float(equipment.patient.get("tilt_x_deg", 0.)))
+    return rotation, table_position + offset
+
+
+def intersects_tabletop(source, delta, lower, upper):
+    """Positive-length intersection of each source-to-skin segment with the board."""
+    enter = np.zeros(len(delta))
+    leave = np.ones(len(delta))
+    for axis in range(3):
+        direction = delta[:, axis]
+        moving = np.abs(direction) > 1e-12
+        near = np.divide(lower[axis] - source[axis], direction, out=np.zeros_like(enter), where=moving)
+        far = np.divide(upper[axis] - source[axis], direction, out=np.zeros_like(enter), where=moving)
+        enter = np.where(moving, np.maximum(enter, np.minimum(near, far)), enter)
+        leave = np.where(moving, np.minimum(leave, np.maximum(near, far)), leave)
+        if not lower[axis] <= source[axis] <= upper[axis]:
+            leave[~moving] = 0.
+    return leave - enter > 1e-9
+
+
 def beam_view(ev: IrradiationEvent, equipment: Equipment) -> dict:
     """Schematic beam geometry, expressed in the SAME frame as stored dose."""
     b = beam_from_event(ev, equipment)
-    rotation = rot_y(float(equipment.patient.get("tilt_y_deg", 0.))) @ rot_x(float(equipment.patient.get("tilt_x_deg", 0.)))
-    shift = table_shift(ev, equipment) + np.asarray(equipment.patient.get("origin_on_table_mm", [0, 0, 0]))
+    table_position = table_shift(ev, equipment)
+    rotation, shift = patient_pose(equipment, table_position)
     to_patient = lambda points: ((np.asarray(points)-shift) @ rotation).tolist()
     iso = b.source_mm + b.direction*float(ev.sod_mm)
     center = b.source_mm + b.direction*b.reference_distance_mm
@@ -99,26 +132,32 @@ def beam_view(ev: IrradiationEvent, equipment: Equipment) -> dict:
                for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
     arc = [iso + float(ev.sod_mm)*(-np.cos(t)*b.direction + np.sin(t)*b.transverse_x)
            for t in np.linspace(-1.9, 1.9, 61)]
-    return {"source_patient_mm": to_patient(b.source_mm), "isocenter_patient_mm": to_patient(iso),
+    view = {"source_patient_mm": to_patient(b.source_mm), "isocenter_patient_mm": to_patient(iso),
             "detector_patient_mm": to_patient(b.detector_mm), "field_corners_patient_mm": to_patient(corners),
             "primary_deg": ev.primary_deg, "secondary_deg": ev.secondary_deg,
             "table_position_mm": list(ev.table_mm), "gantry_arc_patient_mm": to_patient(arc),
             "diagram_is_schematic": True}
+    if equipment.registered_frames is not None:
+        table_to_i = rigid(np.eye(3), ROOM_FROM_I.T @ (table_position - iso))
+        ct_to_i = rigid(ROOM_FROM_I.T @ rotation, ROOM_FROM_I.T @ (shift - iso))
+        view.update(M_I_from_T=table_to_i.tolist(), M_T_from_C=np.linalg.solve(table_to_i, ct_to_i).tolist(),
+                    M_I_from_C=ct_to_i.tolist(), M_C_from_I=np.linalg.inv(ct_to_i).tolist(),
+                    readings_long_lat_height_mm=[ev.table_mm[1], ev.table_mm[0], ev.table_mm[2]],
+                    direction_ct_lps=(rotation.T @ b.direction).tolist(),
+                    irp_ct_lps_mm=to_patient(b.source_mm + b.direction * b.irp_distance_mm))
+    return view
 
 
 def project(ev: IrradiationEvent, equipment: Equipment, skin: SkinSurface) -> Projection:
     b = beam_from_event(ev, equipment)
     g = equipment.geometry_for(ev.plane)
     shift = table_shift(ev, equipment)
-    offset = np.asarray(equipment.patient.get("origin_on_table_mm", [0., 0., 0.]), dtype=float)
-    if offset.shape != (3,) or not np.all(np.isfinite(offset)):
-        raise InputError("Desplazamiento paciente-mesa inválido.")
-    rotation = rot_y(float(equipment.patient.get("tilt_y_deg", 0.))) @ rot_x(float(equipment.patient.get("tilt_x_deg", 0.)))
-    points = skin.points_mm @ rotation.T + shift + offset
+    rotation, translation = patient_pose(equipment, shift)
+    points = skin.points_mm @ rotation.T + translation
     normals = skin.normals @ rotation.T
     if not np.all(np.isfinite(points)) or not np.all(np.isfinite(normals)):
         raise InputError("Transformación del paciente no finita.")
-    source_local = (b.source_mm - shift - offset) @ rotation
+    source_local = (b.source_mm - translation) @ rotation
     if skin.kind == "ellipse" and abs(source_local[1]) > float(equipment.patient["length_mm"])/2:
         raise InputError("El foco cae fuera de los extremos del cilindro abierto; requieren tapas/malla 3D.")
     delta = points - b.source_mm
@@ -146,15 +185,27 @@ def project(ev: IrradiationEvent, equipment: Equipment, skin: SkinSurface) -> Pr
     # Euclidean source-point distance would spuriously enlarge it off axis.
     area_cm2 = (float(ev.field_width_mm)*float(ev.field_height_mm)*
                  (depth/b.reference_distance_mm)**2/100.)
-    plane_z = float(g["table_plane_z_mm"]) + shift[2]
-    with np.errstate(divide="ignore", invalid="ignore"):
-        t = (plane_z - b.source_mm[2])/delta[:, 2]
-    crossing = np.isfinite(t) & (t > 1e-9) & (t < 1-1e-9)
-    t_safe = np.where(crossing, t, 0.)
-    xhit = b.source_mm[0]+t_safe*delta[:, 0]
-    yhit = b.source_mm[1]+t_safe*delta[:, 1]
-    crossing &= np.abs(xhit-shift[0]) <= float(g["table_half_width_mm"])
-    crossing &= np.abs(yhit-shift[1]) <= float(g["table_half_length_mm"])
+    if "table_calibration" in g:
+        table = g["table_calibration"]
+        half_w, half_l = g["table_half_width_mm"], g["table_half_length_mm"]
+        center = shift.copy()
+        if equipment.registered_frames is None:
+            center[2] += g["table_plane_z_mm"]
+        else:
+            center[1] -= half_l  # T starts at the head edge and extends towards the feet.
+        lower = center + [-half_w, -half_l, -table["thickness_mm"]]
+        upper = center + [half_w, half_l, 0.]
+        crossing = intersects_tabletop(b.source_mm, delta, lower, upper)
+    else:
+        plane_z = float(g["table_plane_z_mm"]) + shift[2]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            t = (plane_z - b.source_mm[2])/delta[:, 2]
+        crossing = np.isfinite(t) & (t > 1e-9) & (t < 1-1e-9)
+        t_safe = np.where(crossing, t, 0.)
+        xhit = b.source_mm[0]+t_safe*delta[:, 0]
+        yhit = b.source_mm[1]+t_safe*delta[:, 1]
+        crossing &= np.abs(xhit-shift[0]) <= float(g["table_half_width_mm"])
+        crossing &= np.abs(yhit-shift[1]) <= float(g["table_half_length_mm"])
     crossing &= inside
     # Incidence on the tabletop varies across a divergent field; use each ray.
     cos_table = np.clip(np.abs(delta[:, 2])/np.maximum(distance, 1e-12), 0., 1.)
@@ -163,7 +214,7 @@ def project(ev: IrradiationEvent, equipment: Equipment, skin: SkinSurface) -> Pr
     skin_angle = np.degrees(np.arccos(np.clip(cosine, -1., 1.)))
     xy = np.column_stack(((delta @ b.transverse_x)/np.maximum(half_x, 1e-12),
                           (delta @ b.transverse_y)/np.maximum(half_y, 1e-12)))
-    return Projection(inside, distance, crossing, table_angle, area_cm2, points, b, shift+offset,
+    return Projection(inside, distance, crossing, table_angle, area_cm2, points, b, translation,
                       skin_angle, xy, stats)
 
 
