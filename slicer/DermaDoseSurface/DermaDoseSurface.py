@@ -151,6 +151,21 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
         )
         form.addRow(self.acknowledge)
 
+        self.exportAnchor = qt.QCheckBox("Incluir registro TC → tablero al exportar STL")
+        form.addRow(self.exportAnchor)
+        self.anchorList = slicer.qMRMLNodeComboBox()
+        self.anchorList.nodeTypes = ["vtkMRMLMarkupsFiducialNode"]
+        self.anchorList.noneEnabled = True
+        self.anchorList.setMRMLScene(slicer.mrmlScene)
+        form.addRow("Markups del TC (un punto en línea media, apoyo y nivel de hombros):", self.anchorList)
+        self.tableInputs = []
+        for label in ("Desplazamiento lateral (+ izquierda)", "Altura del apoyo sobre el tablero",
+                      "Distancia desde cabecera hacia los pies al plano de hombros"):
+            field = qt.QLineEdit()
+            form.addRow(label + " [mm]", field)
+            self.tableInputs.append(field)
+        self.aligned = qt.QCheckBox("Confirmo el modelo supino, cabeza primero y alineado con el tablero")
+        form.addRow(self.aligned)
         self.exportButton = qt.QPushButton("Exportar STL y metadatos")
         self.exportButton.connect("clicked()", self.onExport)
         form.addRow(self.exportButton)
@@ -518,10 +533,35 @@ class DermaDoseSurfaceWidget(ScriptedLoadableModuleWidget):
                 self.acknowledge.checked = False
                 raise ValueError("La malla cambió desde la revisión. Pulse Revisar malla y compruebe la nueva vista previa.")
             with self.busy():
-                self.logic.export(Path(target))
+                registration = None
+                if self.exportAnchor.checked:
+                    node = self.anchorList.currentNode()
+                    if not self.aligned.checked:
+                        raise ValueError("Confirme la orientación alineada para utilizar este registro con un punto.")
+                    if node is None or node.GetNumberOfControlPoints() != 1 or node.GetNthControlPointPositionStatus(0) != node.PositionDefined:
+                        raise ValueError("Seleccione una lista Markups con un solo punto definido en el TC de la malla.")
+                    if node.GetParentTransformNode() or self.logic.volumeNode.GetParentTransformNode():
+                        raise ValueError("Use el volumen y la marca en el marco original del TC, sin transformaciones de escena.")
+                    ras = [0., 0., 0.]
+                    node.GetNthControlPointPositionWorld(0, ras)
+                    registration = make_anchor_registration(ras, [field.text for field in self.tableInputs])
+                self.logic.export(Path(target), registration=registration)
             slicer.util.infoDisplay(f"Exportados {target} y su archivo .json")
         except Exception as exc:
             slicer.util.errorDisplay(str(exc))
+
+
+def make_anchor_registration(ras, fields):
+    try:
+        lateral, height, distance = [float(str(value).strip().replace(",", ".")) for value in fields]
+    except ValueError as exc:
+        raise ValueError("Introduzca las tres medidas del tablero en mm, incluido el cero si corresponde.") from exc
+    if not np.isfinite([*ras, lateral, height, distance]).all() or min(height, distance) < 0:
+        raise ValueError("Compruebe las medidas: la altura y la distancia deben ser positivas o cero.")
+    return {"anchor_ct_lps_mm": [-ras[0], -ras[1], ras[2]],
+            "anchor_table_mm": [lateral, -height, -distance],
+            "rotation_table_from_ct": np.eye(3).tolist(),
+            "orientation_basis": "operator_confirmed_aligned_head_first_supine"}
 
 
 class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
@@ -707,11 +747,14 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
         from copy import deepcopy
         return deepcopy(result)
 
-    def export(self, path):
+    def export(self, path, registration=None):
         path = Path(path)
         if path.suffix.lower() != ".stl":
             raise ValueError("Seleccione un nombre terminado en .stl.")
         json_path = path.with_suffix(".json")
+        registration_path = path.parent / "registro_tc.json"
+        if registration is not None and (registration_path.exists() or registration_path == json_path):
+            raise FileExistsError("El registro necesita un registro_tc.json libre y un nombre distinto para la malla.")
         if path.exists() or json_path.exists():
             raise FileExistsError("Ya existe el STL o su JSON; elija un nombre nuevo (por ejemplo superficie_150k_v3.stl).")
         qa = self.inspect()
@@ -748,7 +791,7 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
                 "quality": qa, "stl_quality": disk_quality,
                 "rdsr_registration": "Not established; verify geometry separately before dose calculation",
             }
-            created_stl = created_json = False
+            created_stl = created_json = created_registration = False
             try:
                 with path.open("xb") as output:
                     created_stl = True
@@ -759,7 +802,13 @@ class DermaDoseSurfaceLogic(ScriptedLoadableModuleLogic):
                     created_json = True
                     json.dump(metadata, output, indent=2, ensure_ascii=False)
                     output.write("\n")
+                if registration is not None:
+                    with registration_path.open("x", encoding="utf-8") as output:
+                        created_registration = True
+                        json.dump({**registration, "mesh_sha256": metadata["mesh_sha256"]}, output, indent=2)
             except Exception:
+                if created_registration:
+                    registration_path.unlink(missing_ok=True)
                 if created_stl:
                     path.unlink(missing_ok=True)
                 if created_json:
