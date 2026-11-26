@@ -4,6 +4,7 @@ import argparse
 from copy import deepcopy
 from hashlib import sha256
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -43,7 +44,7 @@ def choose(paths, label, requested=None, interactive=False, input_fn=input):
 
 def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
                     interactive=False, input_fn=input,
-                    data_directory=None, table_calibration=None, ct_registration=None):
+                    data_directory=None, table_calibration=None, ct_registration=None, pad_mm=None):
     folder = Path(folder).resolve()
     if not folder.is_dir():
         raise ExampleError(f'No existe la carpeta: {folder}')
@@ -69,7 +70,18 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     data = deepcopy(read_json(config_path))
     dicom = choose([p for p in entries if p.suffix.lower()=='.dcm'], 'RDSR (.dcm)', local(rdsr), interactive, input_fn)
     candidates = [p for p in entries if p.suffix.lower()=='.stl']
-    selected = choose(candidates, 'malla STL del paciente', local(mesh) if mesh not in (None, 'patient') else None, interactive, input_fn)
+    if interactive and mesh is None:
+        answer = input_fn('Superficie: 1 = maniquí XCAT, 2 = malla propia de la carpeta: ').strip()
+        if answer not in ('1', '2'):
+            raise ExampleError('Seleccione 1 o 2.')
+        mesh = 'xcat' if answer == '1' else 'patient'
+    use_xcat = mesh == 'xcat'
+    if use_xcat:
+        if ct_registration is not None:
+            raise ExampleError('El registro TC pertenece a la malla propia.')
+        selected = resources/'xcat_wholebody_body.stl'
+    else:
+        selected = choose(candidates, 'malla STL del paciente', local(mesh) if mesh not in (None, 'patient') else None, interactive, input_fn)
     selected = selected.resolve()
     if not selected.is_file():
         raise ExampleError(f'No existe la malla: {selected}')
@@ -84,6 +96,9 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         (data['geometry'], 'table_calibration', table_calibration, 'mesa_azurion_hemodinamica_1.json'),
         (data['patient'], 'ct_registration', ct_registration, 'registro_tc.json'),
     ):
+        if use_xcat and key == 'ct_registration':
+            block.pop(key, None)
+            continue
         if explicit is not None:
             block[key] = str(Path(explicit).resolve())
         elif key not in block and (folder / filename).is_file():
@@ -111,6 +126,42 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
                  mesh_choice='patient_stl',
                  dataset_directory=sf.get('dataset_directory'),
                  registration_note='Seleccionar un STL no establece el registro paciente-equipo.')
+    if use_xcat:
+        from .reference_frames import configure_table, ROOM_FROM_I
+        import numpy as np
+        landmark = read_json(selected.with_suffix('.json'))
+        if landmark['mesh_sha256'] != digest:
+            raise ExampleError('El anclaje XCAT corresponde a otra versión del STL.')
+        g = data['geometry']
+        if 'table_calibration' in g:
+            configure_table(g, config_path.parent)
+        table = g.get('table_calibration', {})
+        if pad_mm is None and interactive:
+            pad_mm = input_fn('Espesor efectivo de la colchoneta en mm (0 sin colchoneta): ').strip().replace(',', '.')
+        if pad_mm is None or not math.isfinite(float(pad_mm)) or float(pad_mm) < 0:
+            raise ExampleError('Indique el espesor efectivo en mm mediante --espesor-colchoneta-mm.')
+        distance = float(table.get('radimetrics', {}).get('other_readings_mm', {}).get('shoulder_to_head', 400))
+        if not 0 < distance <= 2 * g['table_half_length_mm']:
+            raise ExampleError('Distancia cabecera-hombros fuera del tablero.')
+        anchor = np.array(landmark['posterior_shoulder_midline_mm'])
+        data['patient']['xcat_anchor_native_mm'] = anchor.tolist()
+        target = [0., -float(pad_mm), -distance]
+        patient = data['patient']
+        patient.update(phantom_name='XCAT50', mesh_unit='mm', tilt_x_deg=0, tilt_y_deg=0)
+        reference = table.get('reference') or {}
+        fixed = reference.get('marker_table_mm') is not None
+        if fixed:
+            patient['ct_registration'] = dict(mesh_sha256=digest, anchor_ct_lps_mm=anchor.tolist(),
+                anchor_table_mm=target, rotation_table_from_ct=np.eye(3).tolist())
+            patient['registration_shift_room_mm'] = [0., 0., 0.]
+        else:
+            # Legacy engine references the centre of the upper face of the tabletop.
+            patient.update(mesh_axes_matrix=ROOM_FROM_I.tolist(), mesh_origin_mm=(-ROOM_FROM_I @ anchor).tolist(),
+                origin_on_table_mm=[0., g['table_half_length_mm'] - distance, g['table_plane_z_mm'] + float(pad_mm)])
+        audit.update(mesh_choice='xcat', placement_source='xcat_shoulder_anchor',
+            registration_status='fixed_room_reference' if fixed else 'provisional_room_reference',
+            registration_note='XCAT supino, cabeza hacia la cabecera. Anclaje posterior al nivel de los hombros.',
+            anchor_xcat_mm=anchor.tolist(), anchor_table_mm=target, pad_mm=float(pad_mm))
     return data, audit
 
 
@@ -120,6 +171,7 @@ def main(argv=None):
     parser.add_argument('--examples-root', type=Path)
     for name in ('config','rdsr','mesh'):
         parser.add_argument('--'+name)
+    parser.add_argument('--espesor-colchoneta-mm', type=float, help='Espesor efectivo bajo los hombros del XCAT')
     parser.add_argument('--mesa', type=Path, help='Perfil JSON de la mesa de la sala')
     parser.add_argument('--registro-tc', type=Path, help='Registro JSON del TC de este caso en el tablero')
     for flag in ('interactive','prepare-only','open-viewer'):
@@ -136,7 +188,7 @@ def main(argv=None):
             folder = args.examples_root/('ejemplo'+number.zfill(2))
         data, audit = prepare_example(folder, config=args.config, rdsr=args.rdsr, mesh=args.mesh,
                                       interactive=args.interactive, table_calibration=args.mesa,
-                                      ct_registration=args.registro_tc)
+                                      ct_registration=args.registro_tc, pad_mm=args.espesor_colchoneta_mm)
         from .config import Equipment
         destination = folder.resolve()/'resultados'
         # Remove only the obsolete report generated by earlier launcher versions.
@@ -150,7 +202,7 @@ def main(argv=None):
         from .engine import normalize
         normalized = tuple(normalize(event, equipment) for event in prepared)
         if equipment.registered_frames is not None:
-            audit.update(placement_source='ct_table_isocenter', registration_status='explicit',
+            audit.update(placement_source='xcat_shoulder_anchor' if audit['mesh_choice'] == 'xcat' else 'ct_table_isocenter', registration_status='explicit',
                          registration_note='Registro rígido del caso y referencia fija de la sala.',
                          ct_placement=equipment.registered_frames.evidence)
         elif audit['mesh_choice'] == 'patient_stl':

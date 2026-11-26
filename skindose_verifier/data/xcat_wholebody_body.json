@@ -1,0 +1,12 @@
+{
+  "mesh_file": "xcat_wholebody_body.stl",
+  "mesh_sha256": "2edd0de03344a1081f2a6567bbcca87b965fbbadd822756e05830cd570cdcb3b",
+  "coordinate_system": "LPS",
+  "length_unit": "mm",
+  "posterior_shoulder_midline_mm": [
+    -13.5976244277,
+    114.64393821,
+    600
+  ],
+  "landmark_definition": "Sección transversal de hombros a z=600 mm en el STL distribuido. Punto medio entre los extremos laterales de la sección e intersección posterior con la piel (y máxima)."
+}

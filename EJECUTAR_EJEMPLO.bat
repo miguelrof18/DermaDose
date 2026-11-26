@@ -16,7 +16,7 @@ set /p "CASE=Carpeta: "
 set "CASE=%CASE:"=%"
 if not exist "%CASE%\." goto error
 echo.
-"%PY%" -m skindose_verifier.example_runner "%CASE%" --interactive --open-viewer || goto error
+powershell.exe -NoProfile -Command "& $env:PY -m skindose_verifier.example_runner $env:CASE --interactive --open-viewer; exit $LASTEXITCODE" || goto error
 echo.
 pause
 exit /b 0

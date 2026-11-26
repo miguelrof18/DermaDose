@@ -384,6 +384,11 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     if equipment.registered_frames is not None:
         summary["ct_registration"] = equipment.registered_frames.evidence
         summary["patient_coordinate_system"] = "CT_LPS_mm"
+    if "xcat_anchor_native_mm" in equipment.patient:
+        patient = equipment.patient
+        native = np.asarray(patient["xcat_anchor_native_mm"])
+        summary["xcat_anchor_surface_mm"] = (np.asarray(patient["mesh_axes_matrix"]) @ native
+                                              + patient["mesh_origin_mm"]).tolist()
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,
                               "projection_cache_hits": cache_hits, "rays_traced": total_rays,
                               "candidate_triangle_pairs": total_pairs if pairs_available else None,
