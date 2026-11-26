@@ -83,7 +83,8 @@ def estimate_placement(path, digest, metadata, dicom, events, equipment):
 
 def estimate_room_reference(path, metadata, dicom, events, equipment, *, interactive=False, input_fn=input):
     """Estimate only T -> room translation, keeping the manual C -> T registration."""
-    if equipment.registered_frames is not None or "ct_table_registration" not in equipment.patient:
+    xcat = "xcat_anchor_native_mm" in equipment.patient
+    if equipment.registered_frames is not None or (not xcat and "ct_table_registration" not in equipment.patient):
         raise ValueError("La estimación requiere un registro TC–tablero provisional.")
     if "table_room_offset_mm" in equipment.geometry:
         return {"method": "configured_room_translation", "offset_room_mm": equipment.geometry["table_room_offset_mm"]}
@@ -105,6 +106,8 @@ def estimate_room_reference(path, metadata, dicom, events, equipment, *, interac
         raise ValueError("La malla requiere un sistema RAS o LPS documentado.")
     ras_to_native = np.array([1., 1., 1.]) if axes == "RAS" else np.array([-1., -1., 1.])
     thoracic = {"thorax", "thoracic region", "heart", "cardiac", "lung", "lungs", "pulmonary", "chest"}
+    if xcat and region not in thoracic:
+        return {"method": "provisional_table_origin", "target_region": region}
     key = region if region in anchors else (
         "chest" if "chest" in anchors and (region is None or region in thoracic) else None)
     native = bounds.mean(axis=0)
@@ -120,6 +123,18 @@ def estimate_room_reference(path, metadata, dicom, events, equipment, *, interac
             if np.all(candidate_native >= bounds[0]) and np.all(candidate_native <= bounds[1]):
                 ras, native = candidate, candidate_native
                 source = "ct_anatomical_" + key
+    if xcat:
+        shoulder = np.asarray(equipment.patient["xcat_anchor_native_mm"])
+        level = shoulder[2] - 180.0
+        section = mesh.section(plane_origin=[0, 0, level], plane_normal=[0, 0, 1])
+        if section is None:
+            raise ValueError("No hay sección torácica en el XCAT.")
+        midline = section.vertices[np.abs(section.vertices[:, 0] - shoulder[0]) < 50]
+        if not len(midline):
+            raise ValueError("Sección torácica incompleta en el XCAT.")
+        native = np.array([shoulder[0], (midline[:, 1].min() + midline[:, 1].max()) / 2, level])
+        ras = native * ras_to_native
+        source = "xcat_mid_thorax_proxy_180mm_caudal_to_shoulders"
     patient = equipment.patient
     local = np.asarray(patient["mesh_axes_matrix"]) @ native + np.asarray(patient["mesh_origin_mm"])
     # Keep the table height and orientation fixed. Only a horizontal translation is inferred.
@@ -148,6 +163,7 @@ def estimate_room_reference(path, metadata, dicom, events, equipment, *, interac
                         target_before_room_mm=point.tolist(), target_after_room_mm=(point + offset).tolist(),
                         limitation=("Estimated from a coarse target proxy and beam; not measured room calibration. "
                                     "The geometric centre is not a verified organ or irradiation target."))
-        patient["ct_table_registration"]["room_reference_estimate"] = evidence
+        if not xcat:
+            patient["ct_table_registration"]["room_reference_estimate"] = evidence
         return evidence
     raise ValueError("No hay un haz de referencia adecuado para estimar la posición del tablero; mida la referencia de sala.")
