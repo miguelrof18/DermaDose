@@ -230,6 +230,14 @@ def main(argv=None):
             audit.update(placement_source='xcat_shoulder_anchor' if audit['mesh_choice'] == 'xcat' else 'ct_table_isocenter', registration_status='explicit',
                          registration_note='Registro rígido del caso y referencia fija de la sala.',
                          ct_placement=equipment.registered_frames.evidence)
+        elif audit['mesh_choice'] == 'xcat' and equipment.raw.get('azurion_profile', {}).get('reference_table_from_first_event'):
+            from .ct_placement import estimate_room_reference
+            mesh_path = Path(audit['mesh'])
+            estimate = estimate_room_reference(mesh_path, read_json(mesh_path.with_suffix('.json')),
+                                               Path(audit['rdsr']), normalized, equipment)
+            audit['room_reference_estimate'] = estimate
+            equipment.geometry['table_room_reference_estimate'] = estimate
+            print('Referencia de sala XCAT:', estimate['method'])
         elif 'ct_table_registration' in equipment.patient:
             if equipment.raw.get('azurion_profile', {}).get('reference_table_from_first_event'):
                 from .ct_placement import estimate_room_reference
