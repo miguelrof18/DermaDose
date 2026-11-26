@@ -163,7 +163,7 @@ def room_reference_missing(table):
         "readings_long_lat_height_mm", "marker_table_mm", "marker_isocenter_mm", "calibrated_views"))
 
 
-def validated_ct_to_table(table, patient, base_directory):
+def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
     """Validate the patient registration independently of the room calibration."""
     case = _settings(patient["ct_registration"], base_directory, "ct_registration")
     transform, evidence = ct_to_table(case)
@@ -181,8 +181,26 @@ def validated_ct_to_table(table, patient, base_directory):
     if not isinstance(ct, dict):
         raise InputError("Los metadatos del marco de referencia del TC son inválidos.")
     uid = ct.get("frame_of_reference_uid") or meta.get("frame_of_reference_uid")
-    if ct.get("mixed_frames"):
-        raise InputError("La malla procede de varios sistemas de referencia del TC.")
+    frame_uids = ct.get("frame_of_reference_uids")
+    if frame_uids is not None and (not isinstance(frame_uids, list) or
+                                   any(not isinstance(v, str) or not v.strip() for v in frame_uids)):
+        raise InputError("Lista de UID del marco de referencia inválida.")
+    known_multiple = frame_uids is not None and len(set(frame_uids)) > 1
+    if known_multiple or (ct.get("mixed_frames") and frame_uids is not None):
+        raise InputError("El TC contiene marcos DICOM distintos o inconsistentes; seleccione una serie coherente y vuelva a exportar.")
+    legacy_ambiguous = bool(ct.get("mixed_frames")) and frame_uids is None
+    if legacy_ambiguous:
+        # Older Slicer exports conflated a missing UID with a different UID.
+        # Never accept known mixed frames or bypass a calibrated registration.
+        if not (provisional and case.get("mesh_sha256") == digest and
+                patient.get("confirmed_legacy_frame_metadata_mesh_sha256") == digest):
+            raise InputError("Metadatos antiguos: mixed_frames no distingue UID ausentes de UID distintos. "
+                             "Compruebe la serie DICOM y vuelva a exportar; si ya verificó que hay un único "
+                             "marco coherente, puede confirmarlo en el lanzador provisional.")
+        evidence["legacy_frame_metadata_operator_confirmed"] = True
+        evidence["frame_of_reference_status"] = "operator_confirmed_not_independently_verified"
+    elif ct.get("missing_frame_of_reference_uids"):
+        evidence["frame_of_reference_status"] = "incomplete_dicom_uids"
     if not case.get("mesh_sha256") and not case.get("frame_of_reference_uid"):
         raise InputError("Asocie el registro al TC con mesh_sha256 o frame_of_reference_uid.")
     if "mesh_sha256" in case and case["mesh_sha256"] != digest:
@@ -206,7 +224,7 @@ def provisional_ct_to_table(geometry, patient, base_directory):
     table = geometry.get("table_calibration")
     if patient.get("type") != "mesh" or not isinstance(table, dict):
         raise InputError("El registro TC requiere una malla y geometry.table_calibration.")
-    transform, evidence = validated_ct_to_table(table, patient, base_directory)
+    transform, evidence = validated_ct_to_table(table, patient, base_directory, provisional=True)
     if not np.allclose(_array(patient.get("registration_shift_room_mm", [0, 0, 0]), (3,),
                               "desplazamiento adicional del registro"), 0):
         raise InputError("No se admite un desplazamiento adicional que rompa el anclaje TC–tablero.")

@@ -284,3 +284,44 @@ def test_launcher_preserves_registration_without_room_reference(tmp_path):
     effective = Equipment.load(tmp_path / "resultados" / "configuracion_efectiva.json")
     assert effective.patient["ct_table_registration"]["ct_to_table_status"] == "explicit"
     assert effective.registered_frames is None
+
+
+def test_legacy_ambiguous_frame_requires_confirmation_and_known_mixed_rejected(tmp_path):
+    data, _ = case(tmp_path)
+    data["geometry"]["table_calibration"]["reference"] = {}
+    patient = data["patient"]
+    meta_path = Path(patient["mesh_path"]).with_suffix(".json")
+    meta = read(meta_path)
+    ct = {"mixed_frames": True}
+    meta["patient_position_evidence"] = {"ct": ct}
+    write(meta_path, meta)
+    with pytest.raises(InputError, match="Metadatos antiguos"):
+        Equipment.from_dict(data)
+    patient["confirmed_legacy_frame_metadata_mesh_sha256"] = patient["ct_registration"]["mesh_sha256"]
+    eq = Equipment.from_dict(data)
+    assert eq.patient["ct_table_registration"]["legacy_frame_metadata_operator_confirmed"]
+    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["legacy_frame_metadata_operator_confirmed"]
+    ct["frame_of_reference_uids"] = ["2.25.101", "2.25.102"]
+    write(meta_path, meta)
+    with pytest.raises(InputError, match="marcos DICOM distintos"):
+        Equipment.from_dict(data)
+    ct.update(mixed_frames=False, frame_of_reference_uids=["2.25.101"], missing_frame_of_reference_uids=1)
+    write(meta_path, meta)
+    assert Equipment.from_dict(data).patient["ct_table_registration"]["frame_of_reference_status"] == "incomplete_dicom_uids"
+
+
+def test_slicer_frame_metadata_distinguishes_missing_from_distinct():
+    import importlib.util
+    from types import SimpleNamespace
+    spec = importlib.util.spec_from_file_location(
+        "slicer_patient_position", ROOT / "slicer/DermaDoseSurface/patient_position.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    h = SimpleNamespace(FrameOfReferenceUID="2.25.101")
+    missing = SimpleNamespace()
+    other = SimpleNamespace(FrameOfReferenceUID="2.25.102")
+    ct = module.ct_geometry(np.eye(4), [h, missing])
+    assert not ct["mixed_frames"]
+    assert ct["frame_of_reference_uids"] == ["2.25.101"]
+    assert ct["missing_frame_of_reference_uids"] == 1
+    assert module.ct_geometry(np.eye(4), [h, other])["mixed_frames"]

@@ -92,7 +92,9 @@ def ct_geometry(ijk_to_ras, headers=()):
     # Slicer has already applied DICOM image orientation. Do not rotate by HFS/HFP again.
     lps = np.diag([-1.,-1.,1.,1.]) @ matrix
     positions = {str(getattr(h,'PatientPosition','')) for h in headers}
-    frames = {str(getattr(h,'FrameOfReferenceUID','')) for h in headers}
+    frame_values = [str(getattr(h, 'FrameOfReferenceUID', '') or '').strip() for h in headers]
+    frames = {uid for uid in frame_values if uid}
+    missing_frame_uids = sum(not uid for uid in frame_values)
     position = next(iter(positions)) if len(positions)==1 and '' not in positions else None
     def vector(header, key):
         value = getattr(header,key,None)
@@ -100,7 +102,8 @@ def ct_geometry(ijk_to_ras, headers=()):
     return dict(ijk_to_ras_mm=matrix.tolist(), ijk_to_lps_mm=lps.tolist(),
                 patient_position=position, description=POSITIONS.get(position,'posición no determinada'),
                 source='DICOM' if headers else 'volume_geometry_only',
-                frame_of_reference_uid=next(iter(frames)) if len(frames)==1 and '' not in frames else None,
+                frame_of_reference_uid=next(iter(frames)) if len(frames)==1 and not missing_frame_uids else None,
+                frame_of_reference_uids=sorted(frames), missing_frame_of_reference_uids=missing_frame_uids,
                 mixed_frames=len(frames)>1,
                 dicom_image_geometry=[dict(image_orientation_patient=vector(h,'ImageOrientationPatient'),
                     image_position_patient_mm=vector(h,'ImagePositionPatient')) for h in headers],
@@ -143,7 +146,9 @@ def read_rdsr_file(path):
 def describe(ct, rdsr=None):
     lines=['TC: '+ct['description']]
     if ct.get('mixed_frames'):
-        lines.append('Aviso: hay varios marcos de referencia DICOM en los metadatos del TC.')
+        lines.append('Aviso: hay varios UID de marco de referencia DICOM distintos en el TC.')
+    if ct.get('missing_frame_of_reference_uids'):
+        lines.append('Aviso: faltan UID de marco de referencia en parte de los metadatos del TC.')
     if rdsr:
         position=rdsr['patient_position']
         lines.append('RDSR: '+POSITIONS.get(position,'posición variable o incompleta; revisar por evento'))

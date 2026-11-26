@@ -105,6 +105,23 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             block[key] = str(folder / filename)
     data.pop('phantom', None)  # legacy blocks must not replace the selected STL
     digest = sha256(selected.read_bytes()).hexdigest()
+    if not use_xcat and 'ct_registration' in data['patient'] and interactive:
+        from .reference_frames import configure_table, room_reference_missing
+        g = data['geometry']
+        if 'table_calibration' in g:
+            configure_table(g, config_path.parent)
+        meta_path = selected.with_suffix('.json')
+        if meta_path.is_file() and room_reference_missing(g.get('table_calibration')):
+            meta = read_json(meta_path)
+            position = meta.get('patient_position_evidence', {})
+            ct = position.get('ct', {}) if isinstance(position, dict) else {}
+            if (isinstance(ct, dict) and ct.get('mixed_frames') and
+                    ct.get('frame_of_reference_uids') is None):
+                print('Aviso: exportación antigua. mixed_frames puede indicar UID ausentes, no necesariamente marcos distintos.')
+                print('Compruebe los FrameOfReferenceUID de las imágenes de la serie original. No continúe si hay varios UID distintos.')
+                answer = input_fn('¿Ha verificado que el volumen TC pertenece a un único marco coherente? [s/N]: ').strip().casefold()
+                if answer in ('s', 'si', 'sí'):
+                    data['patient']['confirmed_legacy_frame_metadata_mesh_sha256'] = digest
     sf = data.get('surface_factors', {})
     dataset = sf.get('dataset_directory')
     if dataset:
