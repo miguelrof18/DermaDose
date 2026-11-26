@@ -136,16 +136,16 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         if 'table_calibration' in g:
             configure_table(g, config_path.parent)
         table = g.get('table_calibration', {})
-        # Azurion Hemodinámica 1: 65 mm unloaded, assumed 40% residual thickness.
+        # Azurion Hemodinámica 1: 65 mm unloaded, assumed 60% residual thickness.
         local_pad = table.get('id') == 'azurion_hemodinamica_1_2026-11'
         pad_source = 'explicit'
         if pad_mm is None and interactive:
-            hint = ' [Intro = 26 mm estimados]' if local_pad else ''
+            hint = ' [Intro = 39 mm estimados]' if local_pad else ''
             answer = input_fn(f'Espesor efectivo en mm (0 sin colchoneta){hint}: ').strip()
             pad_mm = answer.replace(',', '.') if answer else None
         if pad_mm is None and local_pad:
-            pad_mm = 65 * 0.40
-            pad_source = 'estimated_40_percent_of_unloaded_65_mm'
+            pad_mm = 65 * 0.60
+            pad_source = 'estimated_60_percent_of_unloaded_65_mm'
         if pad_mm is None or not math.isfinite(float(pad_mm)) or float(pad_mm) < 0:
             raise ExampleError('Indique el espesor efectivo en mm mediante --espesor-colchoneta-mm.')
         distance = float(table.get('radimetrics', {}).get('other_readings_mm', {}).get('shoulder_to_head', 400))
