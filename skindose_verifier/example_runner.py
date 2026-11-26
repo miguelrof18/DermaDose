@@ -136,8 +136,16 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         if 'table_calibration' in g:
             configure_table(g, config_path.parent)
         table = g.get('table_calibration', {})
+        # Azurion Hemodinámica 1: 65 mm unloaded, assumed 40% residual thickness.
+        local_pad = table.get('id') == 'azurion_hemodinamica_1_2026-11'
+        pad_source = 'explicit'
         if pad_mm is None and interactive:
-            pad_mm = input_fn('Espesor efectivo de la colchoneta en mm (0 sin colchoneta): ').strip().replace(',', '.')
+            hint = ' [Intro = 26 mm estimados]' if local_pad else ''
+            answer = input_fn(f'Espesor efectivo en mm (0 sin colchoneta){hint}: ').strip()
+            pad_mm = answer.replace(',', '.') if answer else None
+        if pad_mm is None and local_pad:
+            pad_mm = 65 * 0.40
+            pad_source = 'estimated_40_percent_of_unloaded_65_mm'
         if pad_mm is None or not math.isfinite(float(pad_mm)) or float(pad_mm) < 0:
             raise ExampleError('Indique el espesor efectivo en mm mediante --espesor-colchoneta-mm.')
         distance = float(table.get('radimetrics', {}).get('other_readings_mm', {}).get('shoulder_to_head', 400))
@@ -161,7 +169,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         audit.update(mesh_choice='xcat', placement_source='xcat_shoulder_anchor',
             registration_status='fixed_room_reference' if fixed else 'provisional_room_reference',
             registration_note='XCAT supino, cabeza hacia la cabecera. Anclaje posterior al nivel de los hombros.',
-            anchor_xcat_mm=anchor.tolist(), anchor_table_mm=target, pad_mm=float(pad_mm))
+            anchor_xcat_mm=anchor.tolist(), anchor_table_mm=target, pad_mm=float(pad_mm), pad_source=pad_source)
     return data, audit
 
 
