@@ -286,28 +286,60 @@ def test_launcher_preserves_registration_without_room_reference(tmp_path):
     assert effective.registered_frames is None
 
 
-def test_legacy_ambiguous_frame_requires_confirmation_and_known_mixed_rejected(tmp_path):
+def test_mixed_frame_uids_require_coherent_geometry(tmp_path):
     data, _ = case(tmp_path)
     data["geometry"]["table_calibration"]["reference"] = {}
-    patient = data["patient"]
-    meta_path = Path(patient["mesh_path"]).with_suffix(".json")
+    meta_path = Path(data["patient"]["mesh_path"]).with_suffix(".json")
     meta = read(meta_path)
-    ct = {"mixed_frames": True}
+    ct = {"mixed_frames": True, "frame_of_reference_uids": ["2.25.101", "2.25.102", "2.25.103"],
+          "patient_position": "FFS"}
     meta["patient_position_evidence"] = {"ct": ct}
     write(meta_path, meta)
-    with pytest.raises(InputError, match="Metadatos antiguos"):
+    with pytest.raises(InputError, match="tres cortes"):
         Equipment.from_dict(data)
-    patient["confirmed_legacy_frame_metadata_mesh_sha256"] = patient["ct_registration"]["mesh_sha256"]
+    ct["ijk_to_lps_mm"] = np.diag([0.8, 0.9, 2., 1.]).tolist()
+    ct["dicom_image_geometry"] = [
+        {"image_orientation_patient": [1, 0, 0, 0, 1, 0],
+         "image_position_patient_mm": [0, 0, 2 * z],
+         "pixel_spacing_mm": [0.9, 0.8], "rows": 20, "columns": 30} for z in range(3)]
+    ct["volume_dimensions_ijk"] = [30, 20, 3]
+    write(meta_path, meta)
     eq = Equipment.from_dict(data)
-    assert eq.patient["ct_table_registration"]["legacy_frame_metadata_operator_confirmed"]
-    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["legacy_frame_metadata_operator_confirmed"]
-    ct["frame_of_reference_uids"] = ["2.25.101", "2.25.102"]
+    audit = eq.patient["ct_table_registration"]
+    assert audit["frame_of_reference_status"] == "uid_ambiguous_slice_grid_consistent"
+    assert audit["ct_slice_geometry"]["slice_count"] == 3
+    assert audit["ct_acquisition_position"] == "FFS"
+    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["ct_slice_geometry"]["pixel_spacing_checked"]
+    ct.pop("volume_dimensions_ijk")
+    for entry in ct["dicom_image_geometry"]:
+        for key in ("pixel_spacing_mm", "rows", "columns"):
+            entry.pop(key)
     write(meta_path, meta)
-    with pytest.raises(InputError, match="marcos DICOM distintos"):
+    assert not Equipment.from_dict(data).patient["ct_table_registration"]["ct_slice_geometry"]["pixel_spacing_checked"]
+    ct["dicom_image_geometry"][1]["image_position_patient_mm"][0] = 5
+    write(meta_path, meta)
+    with pytest.raises(InputError, match="rejilla afín"):
         Equipment.from_dict(data)
-    ct.update(mixed_frames=False, frame_of_reference_uids=["2.25.101"], missing_frame_of_reference_uids=1)
-    write(meta_path, meta)
-    assert Equipment.from_dict(data).patient["ct_table_registration"]["frame_of_reference_status"] == "incomplete_dicom_uids"
+
+
+def test_pose_conflict_correction_preserves_manual_anchor(tmp_path):
+    from skindose_verifier.reference_frames import resolve_registration_pose, check_registration_pose
+    data, path = case(tmp_path)
+    registration = data["patient"]["ct_registration"]
+    registration["orientation_basis"] = "operator_confirmed_aligned_head_first_supine"
+    events = read_rdsr(path).events
+    events = [replace(e, original={**e.original, "intervention_patient_position": "FFS"}) for e in events]
+    with pytest.raises(InputError, match="contradice"):
+        resolve_registration_pose(registration, events)
+    resolved = resolve_registration_pose(registration, events, interactive=True, input_fn=lambda _: "s")
+    transform, _ = ct_to_table(resolved)
+    np.testing.assert_allclose(transform @ [*registration["anchor_ct_lps_mm"], 1],
+                               [*registration["anchor_table_mm"], 1])
+    np.testing.assert_allclose(transform[:3, :3], np.diag([-1, 1, -1]))
+    assert check_registration_pose(resolved, events)["status"] == "uniform"
+    mixed = [events[0], replace(events[-1], original={**events[-1].original, "intervention_patient_position": "HFS"})]
+    with pytest.raises(InputError, match="posiciones distintas"):
+        check_registration_pose(resolved, mixed)
 
 
 def test_slicer_frame_metadata_distinguishes_missing_from_distinct():

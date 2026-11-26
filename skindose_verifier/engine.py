@@ -222,6 +222,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         # Research table registration must not mutate the caller's configuration.
         equipment = replace(equipment, raw=deepcopy(equipment.raw))
         events = prepare_events(events, equipment)
+    registration_pose = None
+    if "ct_registration" in equipment.patient and "xcat_anchor_native_mm" not in equipment.patient:
+        from .reference_frames import check_registration_pose
+        registration_pose = check_registration_pose(equipment.patient["ct_registration"], events)
     # Validate and normalize before loading a potentially multi-million-face STL.
     events = tuple(normalize(event, equipment) for event in events)
     for event in events:
@@ -388,6 +392,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         summary["table_placement"] = "ct_table_explicit_room_provisional"
         summary["ct_table_registration"] = equipment.patient["ct_table_registration"]
         summary["assumptions"].append("Registro TC–tablero explícito; posición absoluta tablero–angiógrafo provisional.")
+    if registration_pose is not None:
+        summary["intervention_pose"] = registration_pose
     if "xcat_anchor_native_mm" in equipment.patient:
         patient = equipment.patient
         native = np.asarray(patient["xcat_anchor_native_mm"])

@@ -195,8 +195,31 @@ def textual(item: Dataset, field: str) -> str | None:
     raise InputError(f"{field}: tipo {vt} no reconocido.")
 
 
+def intervention_patient_position(item: Dataset):
+    """Read coded event posture and entrance, not free-text CodeMeaning."""
+    def decode(code, modern, legacy):
+        values = []
+        for node in nodes(item, code):
+            seq = getattr(node, "ConceptCodeSequence", [])
+            if len(seq) != 1:
+                return None
+            scheme, value = str(seq[0].CodingSchemeDesignator), str(seq[0].CodeValue)
+            values.append((modern if scheme == "SCT" else legacy if scheme in ("SRT", "SNM3") else {}).get(value))
+        return values[0] if values and None not in values and len(set(values)) == 1 else None
+    posture = decode("113744", {"40199007": "S", "1240000": "P", "102535000": "DR", "102536004": "DL"},
+                     {"F-10340": "S", "F-10310": "P", "F-10317": "DR", "F-10319": "DL"})
+    entrance = decode("113745", {"102540008": "HF", "102541007": "FF"},
+                      {"F-10470": "HF", "F-10480": "FF"})
+    recumbent = {("SCT", "102538003"), ("SRT", "F-10450"), ("SNM3", "F-10450")}
+    for node in nodes(item, "113743"):
+        seq = getattr(node, "ConceptCodeSequence", [])
+        if len(seq) != 1 or (str(seq[0].CodingSchemeDesignator), str(seq[0].CodeValue)) not in recumbent:
+            return None
+    return entrance + posture if entrance and posture else None
+
+
 def parse_event(item: Dataset) -> IrradiationEvent:
-    orig: dict[str, list[dict]] = {}
+    orig: dict = {"intervention_patient_position": intervention_patient_position(item)}
     quality: dict[str, str] = {}
     values = {}
     for field in CODE:

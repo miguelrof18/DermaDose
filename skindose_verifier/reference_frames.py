@@ -163,6 +163,119 @@ def room_reference_missing(table):
         "readings_long_lat_height_mm", "marker_table_mm", "marker_isocenter_mm", "calibrated_views"))
 
 
+def validate_slice_geometry(ct):
+    """Verify the entire DICOM stack against the voxel-to-LPS affine, independent of UID."""
+    slices = ct.get("dicom_image_geometry")
+    if not isinstance(slices, list) or len(slices) < 3 or not all(isinstance(v, dict) for v in slices):
+        raise InputError("Se requieren al menos tres cortes con geometría DICOM verificable.")
+    if ct.get("unavailable_dicom_instances", 0):
+        raise InputError("Faltan imágenes DICOM del volumen.")
+    n = len(slices)
+    a = _array(ct.get("ijk_to_lps_mm"), (4, 4), "matriz IJK a LPS")
+    if not np.allclose(a[3], [0, 0, 0, 1]) or abs(np.linalg.det(a[:3, :3])) < 1e-10:
+        raise InputError("Matriz IJK a LPS inválida.")
+    iop = _array([v.get("image_orientation_patient") for v in slices], (n, 6), "IOP de los cortes")
+    ipp = _array([v.get("image_position_patient_mm") for v in slices], (n, 3), "IPP de los cortes")
+    row, col = iop[:, :3], iop[:, 3:]
+    if (not np.allclose(np.linalg.norm(row, axis=1), 1., atol=1e-4, rtol=0)
+            or not np.allclose(np.linalg.norm(col, axis=1), 1., atol=1e-4, rtol=0)
+            or np.max(np.abs(np.sum(row * col, axis=1))) > 1e-4
+            or np.max(np.linalg.norm(row - row[0], axis=1)) > 1e-3
+            or np.max(np.linalg.norm(col - col[0], axis=1)) > 1e-3):
+        raise InputError("Orientación de los cortes no uniforme u ortogonal.")
+    i, j, k = a[:3, :3].T
+    si, sj = np.linalg.norm(i), np.linalg.norm(j)
+    if np.linalg.norm(i / si - row[0]) > 1e-3 or np.linalg.norm(j / sj - col[0]) > 1e-3:
+        raise InputError("La orientación DICOM no coincide con la matriz del volumen Slicer.")
+    normal = np.cross(row[0], col[0])
+    step = float(k @ normal)
+    if abs(step) < 1e-5:
+        raise InputError("Separación de cortes inválida.")
+    indices = (ipp - a[:3, 3]) @ normal / step
+    nearest = np.rint(indices).astype(int)
+    if not np.array_equal(np.sort(nearest), np.arange(n)):
+        raise InputError("Cortes duplicados, ausentes o fuera de la rejilla del volumen.")
+    error = np.linalg.norm(ipp - (a[:3, 3] + nearest[:, None] * k), axis=1)
+    tolerance = min(0.5, max(0.05, 0.1 * abs(step)))
+    if float(error.max()) > tolerance:
+        raise InputError("Posiciones de los cortes incompatibles con la rejilla afín del TC.")
+    spacings = [v.get("pixel_spacing_mm") for v in slices]
+    spacing_checked = any(v is not None for v in spacings)
+    if spacing_checked:
+        spacing = _array(spacings, (n, 2), "PixelSpacing de los cortes")
+        if np.any(spacing <= 0) or not np.allclose(spacing, [sj, si], atol=0.01, rtol=0.001):
+            raise InputError("PixelSpacing no uniforme o incompatible con Slicer.")
+    dims = ct.get("volume_dimensions_ijk")
+    if dims is not None:
+        dims = _array(dims, (3,), "dimensiones IJK")
+        if np.any(dims <= 0) or not np.array_equal(dims, np.rint(dims)) or dims[2] != n:
+            raise InputError("Número de cortes incompatible con el volumen.")
+    sizes_checked = any(v.get("rows") is not None or v.get("columns") is not None for v in slices)
+    if sizes_checked:
+        sizes = _array([[v.get("columns"), v.get("rows")] for v in slices], (n, 2), "dimensiones DICOM")
+        if np.any(sizes <= 0) or not np.array_equal(sizes, np.rint(sizes)) or not np.all(sizes == sizes[0]):
+            raise InputError("Dimensiones DICOM no uniformes.")
+        if dims is not None and not np.array_equal(sizes[0], dims[:2]):
+            raise InputError("Dimensiones DICOM incompatibles con Slicer.")
+    return dict(status="slice_grid_consistent", slice_count=n, slice_spacing_mm=abs(step),
+                max_position_residual_mm=float(error.max()), position_tolerance_mm=tolerance,
+                pixel_spacing_checked=spacing_checked, image_dimensions_checked=sizes_checked,
+                volume_dimensions_checked=dims is not None,
+                limitation="Coherencia geométrica; no acredita identidad del paciente ni anonimización.")
+
+
+POSE_ROTATIONS = {"HFS": np.eye(3), "FFS": np.diag([-1., 1., -1.]),
+                  "HFP": np.diag([-1., -1., 1.]), "FFP": np.diag([1., -1., -1.])}
+
+
+def intervention_pose(events):
+    values = [e.original.get("intervention_patient_position") for e in events]
+    known = {v for v in values if v is not None}
+    if len(known) > 1:
+        raise InputError("El RDSR contiene posiciones distintas; un único registro rígido no es válido.")
+    pose = next(iter(known)) if known else None
+    if pose and pose not in POSE_ROTATIONS:
+        raise InputError("Postura del RDSR no soportada por este registro.")
+    return dict(position=pose, event_count=len(values), known_event_count=sum(v is not None for v in values),
+                status="uniform" if pose and all(v == pose for v in values) else "partial" if pose else "missing")
+
+
+def check_registration_pose(registration, events):
+    pose = intervention_pose(events)
+    transform, _ = ct_to_table(registration)
+    r = transform[:3, :3]
+    if pose["position"]:
+        expected = POSE_ROTATIONS[pose["position"]]
+        if np.dot(r[:, 2], expected[:, 2]) <= 0 or np.dot(r[:, 1], expected[:, 1]) <= 0:
+            raise InputError("La orientación del registro TC–tablero contradice la postura del RDSR.")
+        pose["registration_comparison"] = "compatible_nominal_axes"
+    else:
+        pose["registration_comparison"] = "manual_rotation_retained_rdsr_missing"
+    return pose
+
+
+def resolve_registration_pose(registration, events, *, interactive=False, input_fn=input):
+    registration = dict(registration)
+    pose = intervention_pose(events)
+    try:
+        check_registration_pose(registration, events)
+    except InputError:
+        expected = POSE_ROTATIONS.get(pose["position"])
+        nominal = registration.get("orientation_basis") == "operator_confirmed_aligned_head_first_supine"
+        if not (interactive and pose["status"] == "uniform" and nominal
+                and "anchor_ct_lps_mm" in registration and "anchor_table_mm" in registration
+                and expected is not None and np.allclose(registration.get("rotation_table_from_ct"), np.eye(3))):
+            raise
+        print("Registro manual HFS; RDSR " + pose["position"] + ".")
+        answer = input_fn("¿Confirma la postura del intervencionismo del RDSR conservando ambas marcas? [s/N]: ").strip().casefold()
+        if answer not in ("s", "si", "sí"):
+            raise
+        registration["rotation_table_from_ct"] = expected.tolist()
+        registration["orientation_basis"] = "operator_confirmed_rdsr_nominal_pose"
+    registration["intervention_pose_audit"] = check_registration_pose(registration, events)
+    return registration
+
+
 def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
     """Validate the patient registration independently of the room calibration."""
     case = _settings(patient["ct_registration"], base_directory, "ct_registration")
@@ -186,19 +299,18 @@ def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
                                    any(not isinstance(v, str) or not v.strip() for v in frame_uids)):
         raise InputError("Lista de UID del marco de referencia inválida.")
     known_multiple = frame_uids is not None and len(set(frame_uids)) > 1
-    if known_multiple or (ct.get("mixed_frames") and frame_uids is not None):
-        raise InputError("El TC contiene marcos DICOM distintos o inconsistentes; seleccione una serie coherente y vuelva a exportar.")
-    legacy_ambiguous = bool(ct.get("mixed_frames")) and frame_uids is None
-    if legacy_ambiguous:
-        # Older Slicer exports conflated a missing UID with a different UID.
-        # Never accept known mixed frames or bypass a calibrated registration.
-        if not (provisional and case.get("mesh_sha256") == digest and
-                patient.get("confirmed_legacy_frame_metadata_mesh_sha256") == digest):
-            raise InputError("Metadatos antiguos: mixed_frames no distingue UID ausentes de UID distintos. "
-                             "Compruebe la serie DICOM y vuelva a exportar; si ya verificó que hay un único "
-                             "marco coherente, puede confirmarlo en el lanzador provisional.")
-        evidence["legacy_frame_metadata_operator_confirmed"] = True
-        evidence["frame_of_reference_status"] = "operator_confirmed_not_independently_verified"
+    if bool(ct.get("mixed_frames")) or known_multiple:
+        if case.get("mesh_sha256") != digest:
+            raise InputError("Los UID ambiguos requieren vincular el registro al SHA-256 de la malla.")
+        if case.get("frame_of_reference_uid"):
+            raise InputError("No se puede asociar un UID único a una serie con UID ambiguos.")
+        evidence["ct_slice_geometry"] = validate_slice_geometry(ct)
+        evidence["frame_of_reference_status"] = "uid_ambiguous_slice_grid_consistent"
+        evidence["distinct_frame_uid_count"] = len(set(frame_uids)) if frame_uids is not None else None
+    elif ct.get("dicom_image_geometry"):
+        evidence["ct_slice_geometry"] = validate_slice_geometry(ct)
+        evidence["frame_of_reference_status"] = ("incomplete_dicom_uids" if ct.get("missing_frame_of_reference_uids")
+                                                 else "slice_grid_consistent")
     elif ct.get("missing_frame_of_reference_uids"):
         evidence["frame_of_reference_status"] = "incomplete_dicom_uids"
     if not case.get("mesh_sha256") and not case.get("frame_of_reference_uid"):
@@ -215,7 +327,9 @@ def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
     patient.update(ct_registration=case, mesh_unit="mm", mesh_origin_mm=[0., 0., 0.],
                    mesh_axes_matrix=(RAS_TO_LPS if axes == "RAS" else np.eye(3)).tolist())
     evidence.update(mesh_input_axes=axes, surface_frame="CT_LPS_mm", mesh_sha256=digest,
-                    frame_of_reference_uid=uid, table_calibration_id=table["id"])
+                    frame_of_reference_uid=uid, table_calibration_id=table["id"],
+                    ct_acquisition_position=ct.get("patient_position"),
+                    intervention_pose=case.get("intervention_pose_audit"))
     return transform, evidence
 
 

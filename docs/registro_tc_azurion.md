@@ -68,6 +68,8 @@ El lanzador de Windows también detecta `mesa_azurion_hemodinamica_1.json` y `re
 
 Si toda la referencia de sala está ausente, un registro TC–tablero válido se conserva y se aplica también en el modo provisional. La geometría heredada (origen, matriz y altura de mesa) sitúa el tablero respecto al angiógrafo; no se centra el TC en el primer haz. El ajuste anatómico no se modifica. Los resultados identifican este modo como `ct_table_explicit_room_provisional` y guardan `M_T_from_C`. Una referencia de sala parcialmente cumplimentada o un registro de paciente inválido siguen produciendo un error. No es una calibración clínica.
 
+Los UID de marco distintos (por ejemplo, tras anonimización) requieren verificar todos los IOP e IPP contra la matriz IJK→LPS, continuidad y ausencia de duplicados, además de PixelSpacing y dimensiones cuando se exportan. Los metadatos antiguos se aceptan si conservan la geometría suficiente; las comprobaciones no disponibles se documentan. La coherencia de la rejilla no acredita la identidad del paciente ni el origen de los UID. Se exige vincular el registro a la malla mediante SHA-256. La postura del intervencionismo se contrasta con el RDSR, sin volver a aplicar PatientPosition del TC. Si difiere del HFS manual, el lanzador permite confirmar una rotación nominal conservando las dos marcas; las posiciones variables se rechazan. La calibración de sala sigue siendo independiente.
+
 Este es un ejemplo **ficticio** de `registro_tc.json` con anclaje y rotación. Sustituye el identificador y todos los datos geométricos por los del caso. La identidad representa aquí una orientación alineada.
 
 ```json

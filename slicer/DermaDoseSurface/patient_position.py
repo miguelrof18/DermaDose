@@ -106,7 +106,10 @@ def ct_geometry(ijk_to_ras, headers=()):
                 frame_of_reference_uids=sorted(frames), missing_frame_of_reference_uids=missing_frame_uids,
                 mixed_frames=len(frames)>1,
                 dicom_image_geometry=[dict(image_orientation_patient=vector(h,'ImageOrientationPatient'),
-                    image_position_patient_mm=vector(h,'ImagePositionPatient')) for h in headers],
+                    image_position_patient_mm=vector(h,'ImagePositionPatient'),
+                    pixel_spacing_mm=vector(h,'PixelSpacing'),
+                    rows=int(h.Rows) if getattr(h,'Rows',None) is not None else None,
+                    columns=int(h.Columns) if getattr(h,'Columns',None) is not None else None) for h in headers],
                 registration_established=False)
 
 
@@ -126,9 +129,11 @@ def read_ct_volume(volume):
             missing+=1
             continue
         headers.append(pydicom.dcmread(path,stop_before_pixels=True,specific_tags=[
-            'PatientPosition','FrameOfReferenceUID','ImageOrientationPatient','ImagePositionPatient']))
+            'PatientPosition','FrameOfReferenceUID','ImageOrientationPatient','ImagePositionPatient',
+            'PixelSpacing','Rows','Columns']))
     result=ct_geometry([[matrix.GetElement(i,j) for j in range(4)] for i in range(4)],headers)
     result['unavailable_dicom_instances']=missing
+    result['volume_dimensions_ijk'] = list(volume.GetImageData().GetDimensions())
     if missing:
         result['patient_position']=None
         result['description']='metadatos DICOM incompletos'
@@ -146,7 +151,7 @@ def read_rdsr_file(path):
 def describe(ct, rdsr=None):
     lines=['TC: '+ct['description']]
     if ct.get('mixed_frames'):
-        lines.append('Aviso: hay varios UID de marco de referencia DICOM distintos en el TC.')
+        lines.append('Aviso: UID de marco distintos; DermaDose verificará la rejilla geométrica antes del registro.')
     if ct.get('missing_frame_of_reference_uids'):
         lines.append('Aviso: faltan UID de marco de referencia en parte de los metadatos del TC.')
     if rdsr:

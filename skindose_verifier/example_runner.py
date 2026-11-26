@@ -105,23 +105,6 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             block[key] = str(folder / filename)
     data.pop('phantom', None)  # legacy blocks must not replace the selected STL
     digest = sha256(selected.read_bytes()).hexdigest()
-    if not use_xcat and 'ct_registration' in data['patient'] and interactive:
-        from .reference_frames import configure_table, room_reference_missing
-        g = data['geometry']
-        if 'table_calibration' in g:
-            configure_table(g, config_path.parent)
-        meta_path = selected.with_suffix('.json')
-        if meta_path.is_file() and room_reference_missing(g.get('table_calibration')):
-            meta = read_json(meta_path)
-            position = meta.get('patient_position_evidence', {})
-            ct = position.get('ct', {}) if isinstance(position, dict) else {}
-            if (isinstance(ct, dict) and ct.get('mixed_frames') and
-                    ct.get('frame_of_reference_uids') is None):
-                print('Aviso: exportación antigua. mixed_frames puede indicar UID ausentes, no necesariamente marcos distintos.')
-                print('Compruebe los FrameOfReferenceUID de las imágenes de la serie original. No continúe si hay varios UID distintos.')
-                answer = input_fn('¿Ha verificado que el volumen TC pertenece a un único marco coherente? [s/N]: ').strip().casefold()
-                if answer in ('s', 'si', 'sí'):
-                    data['patient']['confirmed_legacy_frame_metadata_mesh_sha256'] = digest
     sf = data.get('surface_factors', {})
     dataset = sf.get('dataset_directory')
     if dataset:
@@ -221,8 +204,25 @@ def main(argv=None):
         # Preflight before loading a potentially large mesh or starting ray tracing.
         from .rdsr import read_rdsr
         from .azurion import prepare_events
-        equipment = Equipment.from_dict(data, base_directory=Path(audit['source_config']).parent)
         events = read_rdsr(Path(audit['rdsr'])).events
+        base = Path(audit['source_config']).parent
+        if audit['mesh_choice'] == 'patient_stl' and 'ct_registration' in data['patient']:
+            from .reference_frames import _settings, resolve_registration_pose
+            registration = _settings(data['patient']['ct_registration'], base, 'ct_registration')
+            data['patient']['ct_registration'] = resolve_registration_pose(registration, events, interactive=args.interactive)
+        equipment = Equipment.from_dict(data, base_directory=base)
+        if audit['mesh_choice'] == 'patient_stl' and 'ct_registration' in equipment.patient:
+            evidence = (equipment.registered_frames.evidence if equipment.registered_frames is not None
+                        else equipment.patient['ct_table_registration'])
+            geometry_check = evidence.get('ct_slice_geometry')
+            if geometry_check:
+                print(f"Geometría TC verificada: {geometry_check['slice_count']} cortes, residual máximo "
+                      f"{geometry_check['max_position_residual_mm']:.3f} mm.")
+            if evidence.get('frame_of_reference_status') == 'uid_ambiguous_slice_grid_consistent':
+                print('Aviso: UID DICOM distintos; rejilla geométrica coherente. Identidad del paciente no verificada.')
+            pose = evidence.get('intervention_pose') or {}
+            print(f"Posición TC: {evidence.get('ct_acquisition_position') or 'no determinada'}; "
+                  f"posición RDSR: {pose.get('position') or 'no determinada'} ({pose.get('status', 'sin datos')}).")
         prepared = prepare_events(events, equipment)
         from .engine import normalize
         normalized = tuple(normalize(event, equipment) for event in prepared)
