@@ -237,12 +237,14 @@ def main(argv=None):
                 print('Estimando únicamente la posición tablero–angiógrafo; las marcas TC–tablero no se modifican.')
                 room_estimate = estimate_room_reference(
                     mesh_path, read_json(mesh_path.with_suffix('.json')), Path(audit['rdsr']),
-                    normalized, equipment, interactive=args.interactive)
+                    normalized, equipment)
                 equipment.geometry['table_room_reference_estimate'] = room_estimate
                 equipment.patient['ct_table_registration']['room_reference_estimate'] = room_estimate
                 audit['room_reference_estimate'] = room_estimate
-                print('Referencia provisional: ' + room_estimate['method'] +
-                      '; desplazamiento de mesa (mm): ' + str(room_estimate['offset_room_mm']))
+                print('Colocación provisional automática: ' + room_estimate['method'])
+                if room_estimate.get('target_source') == 'mesh_bounds_center_geometric_only':
+                    print('AVISO: se utiliza el centro geométrico de la malla, no un órgano identificado.')
+                print('Resultado orientativo de investigación; falta calibrar la posición absoluta de mesa.')
             audit.update(placement_source='ct_table_anatomical_anchor',
                          registration_status='ct_table_explicit_room_provisional',
                          registration_note='Registro TC–tablero aplicado. Solo la referencia tablero–angiógrafo es provisional.',

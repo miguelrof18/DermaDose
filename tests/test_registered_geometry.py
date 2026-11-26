@@ -393,3 +393,25 @@ def test_first_event_zero_uses_configured_reading_system(tmp_path):
     event = normalize(prepare_events([ev], eq)[0], eq)
     np.testing.assert_allclose(eq.geometry["table_origin_mm"], [M0[1], M0[0], M0[2]])
     np.testing.assert_allclose(table_shift(event, eq), [0., 0., 0.])
+
+
+def test_automatic_room_estimate_without_additional_marker(tmp_path):
+    from skindose_verifier.ct_placement import estimate_room_reference
+    from skindose_verifier.geometry import geometry_preflight
+    data, path = case(tmp_path)
+    data["geometry"]["table_calibration"]["reference"] = {}
+    eq = Equipment.from_dict(data)
+    mesh_path = Path(eq.patient["mesh_path"])
+    metadata = read(mesh_path.with_suffix(".json"))
+    before = eq.patient["ct_table_registration"]["M_T_from_C"]
+    events = [normalize(e, eq) for e in read_rdsr(path).events]
+    def unexpected_prompt(message):
+        pytest.fail(message)
+    result = estimate_room_reference(mesh_path, metadata, path, events, eq,
+                                     interactive=True, input_fn=unexpected_prompt)
+    assert result["target_source"] == "mesh_bounds_center_geometric_only"
+    assert eq.patient["ct_table_registration"]["M_T_from_C"] == before
+    assert result["offset_room_mm"][2] == 0
+    skin = sample_patient(eq.patient)
+    assert geometry_preflight(events, eq, skin.mesh.bounds)["possible_overlap_events"] > 0
+    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["M_T_from_C"] == before

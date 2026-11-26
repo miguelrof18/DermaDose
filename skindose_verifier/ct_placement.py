@@ -93,44 +93,43 @@ def estimate_room_reference(path, metadata, dicom, events, equipment, *, interac
     if not isinstance(anchors, dict):
         anchors = {}
     region = next(iter(regions)) if len(regions) == 1 else None
-    # Chest is a coarse reference, not a heart/lesion localization.
-    key = region if region in anchors else "chest" if region in (
-        "thorax", "thoracic region", "heart", "cardiac", "lung", "lungs", "pulmonary", "chest") and "chest" in anchors else None
+    # Use the existing anatomical reference if available; otherwise a clearly
+    # labelled geometric proxy. Never invent absolute RAS coordinates or ask
+    # for a second manual marker in the ordinary provisional workflow.
     mesh = load_mesh(path, process=False)
     bounds = mesh.bounds
     if bounds is None or bounds.shape != (2, 3) or not np.isfinite(bounds).all():
         raise ValueError("Límites STL inválidos.")
+    axes = metadata.get("coordinate_system")
+    if axes not in ("RAS", "LPS"):
+        raise ValueError("La malla requiere un sistema RAS o LPS documentado.")
+    ras_to_native = np.array([1., 1., 1.]) if axes == "RAS" else np.array([-1., -1., 1.])
+    thoracic = {"thorax", "thoracic region", "heart", "cardiac", "lung", "lungs", "pulmonary", "chest"}
+    key = region if region in anchors else (
+        "chest" if "chest" in anchors and (region is None or region in thoracic) else None)
+    native = bounds.mean(axis=0)
+    ras = native * ras_to_native
+    source = "mesh_bounds_center_geometric_only"
     if key is not None:
-        ras = np.asarray(anchors[key], dtype=float)
-        native = ras if metadata.get("coordinate_system") == "RAS" else ras * [-1, -1, 1]
-        source = "ct_anatomical_" + key
-    elif interactive:
-        print("No hay una región anatómica inequívoca del RDSR con anclaje en el TC.")
-        print("Indique un punto diana conocido del procedimiento en coordenadas RAS del TC (x y z, mm).")
-        print("Puede obtenerlo de una marca en Slicer. Intro conserva la geometría provisional sin ajustar.")
-        answer = input_fn("Punto diana RAS: ").strip()
-        if not answer:
-            return {"method": "no_target_reference", "offset_room_mm": [0., 0., 0.]}
         try:
-            ras = np.asarray([float(v.replace(",", ".")) for v in answer.split()], dtype=float)
-        except ValueError as exc:
-            raise ValueError("Introduzca tres coordenadas numéricas RAS separadas por espacios.") from exc
-        if ras.shape != (3,):
-            raise ValueError("Introduzca tres coordenadas RAS.")
-        native = ras if metadata.get("coordinate_system") == "RAS" else ras * [-1, -1, 1]
-        source = "operator_confirmed_target_ras"
-    else:
-        return {"method": "no_target_reference", "offset_room_mm": [0., 0., 0.]}
-    if native.shape != (3,) or not np.isfinite(native).all() or np.any(native < bounds[0]) or np.any(native > bounds[1]):
-        raise ValueError("Punto diana fuera de los límites de la malla.")
+            candidate = np.asarray(anchors[key], dtype=float)
+        except (TypeError, ValueError):
+            candidate = np.empty(0)
+        if candidate.shape == (3,) and np.isfinite(candidate).all():
+            candidate_native = candidate * ras_to_native
+            if np.all(candidate_native >= bounds[0]) and np.all(candidate_native <= bounds[1]):
+                ras, native = candidate, candidate_native
+                source = "ct_anatomical_" + key
     patient = equipment.patient
     local = np.asarray(patient["mesh_axes_matrix"]) @ native + np.asarray(patient["mesh_origin_mm"])
     # Keep the table height and orientation fixed. Only a horizontal translation is inferred.
+    # Prefer a transverse reference, but permit oblique views if the central
+    # ray crosses the estimated target height between source and detector.
     for index, event in enumerate(events, 1):
         if event.ka_r_gy is None or event.ka_r_gy <= 0:
             continue
         beam = beam_from_event(event, equipment)
-        if abs(beam.direction[2]) < 0.5:
+        if abs(beam.direction[2]) < 0.1:
             continue
         shift = table_shift(event, equipment)
         rotation, translation = patient_pose(equipment, shift)
@@ -147,7 +146,8 @@ def estimate_room_reference(path, metadata, dicom, events, equipment, *, interac
                         target_region=region, target_ras_mm=ras.tolist(), reference_event_index=index,
                         reference_event_uid=event.uid, offset_room_mm=offset.tolist(),
                         target_before_room_mm=point.tolist(), target_after_room_mm=(point + offset).tolist(),
-                        limitation="Estimated from target and beam; not measured room calibration or independent dose validation.")
+                        limitation=("Estimated from a coarse target proxy and beam; not measured room calibration. "
+                                    "The geometric centre is not a verified organ or irradiation target."))
         patient["ct_table_registration"]["room_reference_estimate"] = evidence
         return evidence
     raise ValueError("No hay un haz de referencia adecuado para estimar la posición del tablero; mida la referencia de sala.")
