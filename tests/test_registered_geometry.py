@@ -357,3 +357,39 @@ def test_slicer_frame_metadata_distinguishes_missing_from_distinct():
     assert ct["frame_of_reference_uids"] == ["2.25.101"]
     assert ct["missing_frame_of_reference_uids"] == 1
     assert module.ct_geometry(np.eye(4), [h, other])["mixed_frames"]
+
+
+def test_room_translation_moves_board_and_patient_together(tmp_path):
+    from skindose_verifier.geometry import geometry_preflight
+    data, path = case(tmp_path)
+    data["geometry"]["table_calibration"]["reference"] = {}
+    eq = Equipment.from_dict(data)
+    ev = normalize(read_rdsr(path).events[0], eq)
+    base_shift = table_shift(ev, eq)
+    _, base_patient = patient_pose(eq, base_shift)
+    offset = np.array([125., -950., 0.])
+    data["geometry"]["table_room_offset_mm"] = offset.tolist()
+    moved = Equipment.from_dict(data)
+    new_shift = table_shift(ev, moved)
+    _, new_patient = patient_pose(moved, new_shift)
+    np.testing.assert_allclose(new_shift - base_shift, offset)
+    np.testing.assert_allclose(new_patient - base_patient, offset)
+    assert moved.patient["ct_table_registration"]["M_T_from_C"] == eq.patient["ct_table_registration"]["M_T_from_C"]
+    skin = sample_patient(moved.patient)
+    data["geometry"]["table_room_offset_mm"] = [100000, 0, 0]
+    far = Equipment.from_dict(data)
+    result = geometry_preflight([ev], far, skin.mesh.bounds)
+    assert result["possible_overlap_events"] == 0
+
+
+def test_first_event_zero_uses_configured_reading_system(tmp_path):
+    data, path = case(tmp_path)
+    data["geometry"]["table_calibration"]["reference"] = {}
+    data["azurion_profile"] = {"name": "philips_azurion", "allow_research_assumptions": True,
+                               "reference_table_from_first_event": True}
+    eq = Equipment.from_dict(data)
+    ev = read_rdsr(path).events[0]
+    assert ev.table_system == "isocenter"
+    event = normalize(prepare_events([ev], eq)[0], eq)
+    np.testing.assert_allclose(eq.geometry["table_origin_mm"], [M0[1], M0[0], M0[2]])
+    np.testing.assert_allclose(table_shift(event, eq), [0., 0., 0.])

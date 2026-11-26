@@ -88,7 +88,10 @@ def table_shift(ev: IrradiationEvent, equipment: Equipment) -> np.ndarray:
     zero = np.asarray(g["table_origin_mm"], dtype=float)
     if raw.shape != (3,) or not np.all(np.isfinite(raw)):
         raise InputError("Posición de mesa ausente/inválida.")
-    return np.asarray(g["table_matrix"], dtype=float) @ (raw - zero)
+    offset = np.asarray(g.get("table_room_offset_mm", [0., 0., 0.]), dtype=float)
+    if offset.shape != (3,) or not np.all(np.isfinite(offset)):
+        raise InputError("Desplazamiento provisional tablero–sala inválido.")
+    return np.asarray(g["table_matrix"], dtype=float) @ (raw - zero) + offset
 
 
 def patient_pose(equipment, table_position):
@@ -146,6 +149,38 @@ def beam_view(ev: IrradiationEvent, equipment: Equipment) -> dict:
                     direction_ct_lps=(rotation.T @ b.direction).tolist(),
                     irp_ct_lps_mm=to_patient(b.source_mm + b.direction * b.irp_distance_mm))
     return view
+
+
+def geometry_preflight(events, equipment, bounds):
+    """Conservative frustum/AABB test, no ray tracing; a possible hit is not a skin hit."""
+    bounds = np.asarray(bounds, dtype=float)
+    if bounds.shape != (2, 3) or not np.isfinite(bounds).all() or np.any(bounds[0] > bounds[1]):
+        raise InputError("Límites de la superficie inválidos.")
+    corners = np.array([[bounds[i, 0], bounds[j, 1], bounds[k, 2]]
+                        for i in (0, 1) for j in (0, 1) for k in (0, 1)])
+    rows = []
+    for index, event in enumerate(events, 1):
+        pieces = []
+        for ev in event_slices(event, equipment):
+            b = beam_from_event(ev, equipment)
+            shift = table_shift(ev, equipment)
+            rotation, translation = patient_pose(equipment, shift)
+            delta = corners @ rotation.T + translation - b.source_mm
+            depth = delta @ b.direction
+            x, y = delta @ b.transverse_x, delta @ b.transverse_y
+            hx = float(ev.field_width_mm) * depth / (2 * b.reference_distance_mm)
+            hy = float(ev.field_height_mm) * depth / (2 * b.reference_distance_mm)
+            halfspaces = np.vstack([depth, float(ev.sid_mm) - depth, hx - x, hx + x, hy - y, hy + y])
+            outside = np.flatnonzero(np.max(halfspaces, axis=1) < -1e-7).tolist()
+            pieces.append(dict(possible_overlap=not outside, separating_planes=outside,
+                               table_shift_room_mm=shift.tolist(), patient_translation_room_mm=translation.tolist(),
+                               isocenter_patient_mm=beam_view(ev, equipment)["isocenter_patient_mm"]))
+        rows.append(dict(event_index=index, event_uid=event.uid,
+                         possible_overlap=any(p["possible_overlap"] for p in pieces), samples=pieces))
+    return dict(surface_bounds_mm=bounds.tolist(), event_count=len(rows),
+                possible_overlap_events=sum(r["possible_overlap"] for r in rows),
+                plane_names=["before_source", "beyond_detector", "field_right", "field_left", "field_top", "field_bottom"],
+                events=rows, limitation="Conservative bounding-box test; does not certify skin intersection or anatomical accuracy.")
 
 
 def project(ev: IrradiationEvent, equipment: Equipment, skin: SkinSurface) -> Projection:

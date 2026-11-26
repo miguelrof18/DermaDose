@@ -231,6 +231,18 @@ def main(argv=None):
                          registration_note='Registro rígido del caso y referencia fija de la sala.',
                          ct_placement=equipment.registered_frames.evidence)
         elif 'ct_table_registration' in equipment.patient:
+            if equipment.raw.get('azurion_profile', {}).get('reference_table_from_first_event'):
+                from .ct_placement import estimate_room_reference
+                mesh_path = Path(audit['mesh'])
+                print('Estimando únicamente la posición tablero–angiógrafo; las marcas TC–tablero no se modifican.')
+                room_estimate = estimate_room_reference(
+                    mesh_path, read_json(mesh_path.with_suffix('.json')), Path(audit['rdsr']),
+                    normalized, equipment, interactive=args.interactive)
+                equipment.geometry['table_room_reference_estimate'] = room_estimate
+                equipment.patient['ct_table_registration']['room_reference_estimate'] = room_estimate
+                audit['room_reference_estimate'] = room_estimate
+                print('Referencia provisional: ' + room_estimate['method'] +
+                      '; desplazamiento de mesa (mm): ' + str(room_estimate['offset_room_mm']))
             audit.update(placement_source='ct_table_anatomical_anchor',
                          registration_status='ct_table_explicit_room_provisional',
                          registration_note='Registro TC–tablero aplicado. Solo la referencia tablero–angiógrafo es provisional.',

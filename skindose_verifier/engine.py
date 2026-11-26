@@ -12,7 +12,7 @@ import numpy as np
 
 from .config import Equipment
 from .domain import InputError, IrradiationEvent
-from .geometry import event_slices, project, beam_view, Projection
+from .geometry import event_slices, project, beam_view, geometry_preflight, Projection
 from .irp import verify_irp
 from .patient import SkinSurface, sample_patient
 from .metrics import neighbourhood_psd, dose_area_summary, surface_metrics
@@ -203,7 +203,7 @@ def uncertainty(equipment: Equipment, stage: str, events: Sequence[IrradiationEv
 
 def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: str = "free_air", *,
               surface: SkinSurface | None = None, detailed: bool = True,
-              cache_geometry: bool = True, progress_callback=None) -> Calculation:
+              cache_geometry: bool = True, progress_callback=None, diagnostic_callback=None) -> Calculation:
     """Evaluate a fixed surface. Reuse `surface` only for unchanged local anatomy.
 
     Bounded, call-local cache cannot leak geometry between configurations.
@@ -238,6 +238,17 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         # The surface keeps its centroids, normals and areas independently.
         surface.mesh._cache.clear()
     progress(f"Superficie preparada: {len(surface.points_mm)} puntos de cálculo.")
+    preflight = None
+    if surface.mesh is not None:
+        progress("Comprobando intersección geométrica preliminar de los haces...")
+        preflight = geometry_preflight(events, equipment, surface.mesh.bounds)
+        preflight["room_reference_estimate"] = equipment.geometry.get("table_room_reference_estimate")
+        if diagnostic_callback is not None:
+            diagnostic_callback(preflight)
+        progress(f"Haces con posible intersección: {preflight['possible_overlap_events']}/{len(events)}.")
+        if not preflight["possible_overlap_events"]:
+            raise InputError("Ningún rayo puede incidir en la superficie: los campos quedan fuera de sus límites. "
+                             "Revise la referencia tablero–angiógrafo; consulte diagnostico_geometria.json si usa el lanzador.")
     surface_seconds = time.perf_counter()-started
     cache: OrderedDict[tuple, Projection] = OrderedDict()
     cache_hits = 0
@@ -315,7 +326,12 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     for event_map in maps:
         total += event_map
     if not np.any(total > 0):
-        raise InputError("Ningún rayo incide en la superficie de piel modelada; revisar campo, geometría y paciente.")
+        if preflight is not None and diagnostic_callback is not None:
+            preflight["actual_irradiated_cells_per_event"] = [r["irradiated_cells"] for r in reports]
+            preflight["status"] = "no_positive_dose"
+            diagnostic_callback(preflight)
+        raise InputError("Ningún rayo incide en la superficie de piel modelada; revisar campo, geometría y paciente. "
+                         "Consulte diagnostico_geometria.json si usa el lanzador.")
     peak_index = int(np.argmax(total))
     peak_event_contributions = []
     for report, event_map in zip(reports, maps):
@@ -382,6 +398,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                               "Malla suministrada: procedencia anatómica y registro no verificados; resolución desigual de caras")]
                             if surface.kind == "mesh" else []),
     }
+    if preflight is not None:
+        summary["geometry_preflight"] = {k: v for k, v in preflight.items() if k != "events"}
     if "table_calibration" in equipment.geometry:
         summary["table_calibration"] = equipment.geometry["table_calibration"]
         summary["table_placement"] = "marker_reference" if equipment.registered_frames else "legacy_placement"

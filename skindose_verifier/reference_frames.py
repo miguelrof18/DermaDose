@@ -357,6 +357,11 @@ def provisional_ct_to_table(geometry, patient, base_directory):
                     M_T_from_C=transform.tolist(), head_edge_from_legacy_origin_room_mm=head_edge.tolist(),
                     ct_to_table_status="explicit", table_to_isocenter_status="provisional_legacy_geometry",
                     table_origin_mm=geometry["table_origin_mm"], table_matrix=geometry["table_matrix"])
+    if "table_room_reference_estimate" in geometry:
+        evidence["room_reference_estimate"] = geometry["table_room_reference_estimate"]
+    if "table_room_offset_mm" in geometry:
+        evidence["table_room_offset_mm"] = _array(geometry["table_room_offset_mm"], (3,),
+                                                 "traslación provisional tablero–sala").tolist()
     patient["ct_table_registration"] = evidence
     return evidence
 

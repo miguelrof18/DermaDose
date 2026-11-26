@@ -38,8 +38,13 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
     device_match = equipment.matches_device(report.manufacturer, report.model)
     factor_source = "configured"
     fallback_reason = None
+    destination.mkdir(parents=True, exist_ok=True)
+    def save_geometry_diagnostic(diagnostic):
+        (destination / "diagnostico_geometria.json").write_text(
+            json.dumps(diagnostic, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     try:
-        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True))
+        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True),
+                                diagnostic_callback=save_geometry_diagnostic)
     except InputError as exc:
         if equipment.raw.get("azurion_profile") or equipment.raw.get("allow_historical_factor_fallback") is not True:
             raise
@@ -55,7 +60,8 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
         replacement["factors"]["bsf"] = synthetic["bsf"]
         replacement["factors"]["f_skin"] = synthetic["f_skin"]
         equipment = Equipment.from_dict(replacement)
-        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True))
+        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True),
+                                diagnostic_callback=save_geometry_diagnostic)
         factor_source = "historical_synthetic_whole_run"
         fallback_reason = str(exc)
         calculation.summary["status"] = "research_synthetic_factors_out_of_domain_no_clinical_use"

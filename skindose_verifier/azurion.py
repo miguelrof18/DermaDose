@@ -113,13 +113,30 @@ def prepare_events(events, equipment):
         raise InputError('Azurion: faltan caracterización de filtración fija, geometría o calibración. Consulte python -m skindose_verifier.azurion.')
     events = tuple(events)
     result = []
-    first_table = next((e.table_mm for e in events if e.table_mm is not None), None)
     registered = getattr(equipment, 'registered_frames', None) is not None
     reference_from_first = profile.get('reference_table_from_first_event') and not registered
     if reference_from_first:
-        if not research or first_table is None:
+        if not research:
             raise InputError('Referencia de mesa desde primer evento solo permitida como hipótesis de investigación explícita.')
-        equipment.geometry['table_origin_mm'] = list(first_table)
+        system = equipment.geometry["table_coordinates"]
+        keys = ("table_lat", "table_long", "table_height") if system == "legacy" else ("table_x_iso", "table_y_iso", "table_z_iso")
+        first = next((e for e in events if e.table_mm is not None), None)
+        if first is None:
+            raise InputError("No hay posición de mesa para establecer la referencia provisional.")
+        if first.table_system == system:
+            first_table = first.table_mm
+        elif all(key in first.original for key in keys):
+            first_table = tuple(first.original[key][0]["value"] for key in keys)
+        elif first.table_system == "isocenter" and system == "legacy":
+            # Isocenter-relative positions are not absolute legacy readings.
+            # normalize() converts them without subtracting a second origin.
+            first_table = None
+        else:
+            raise InputError("Sistema de lecturas de mesa incompatible con la referencia provisional.")
+        if first_table is not None:
+            equipment.geometry['table_origin_mm'] = list(first_table)
+        if "ct_table_registration" in equipment.patient:
+            equipment.patient["ct_table_registration"]["table_origin_mm"] = list(equipment.geometry["table_origin_mm"])
     for index, event in enumerate(events, 1):
         updates = {}
         quality = dict(event.quality)

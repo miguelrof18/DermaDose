@@ -3,7 +3,7 @@ import numpy as np
 from pydicom import dcmread
 from trimesh import load_mesh
 
-from .geometry import beam_from_event, table_shift
+from .geometry import beam_from_event, table_shift, patient_pose, geometry_preflight
 
 
 def _coded_values(root, concept):
@@ -79,3 +79,75 @@ def estimate_placement(path, digest, metadata, dicom, events, equipment):
                      ("anclaje anatómico en el eje central del evento de referencia" if has_anchor else
                       "centro geométrico del volumen delimitador en el eje central del evento de referencia"),
                      "paciente fijo respecto a la mesa"])
+
+
+def estimate_room_reference(path, metadata, dicom, events, equipment, *, interactive=False, input_fn=input):
+    """Estimate only T -> room translation, keeping the manual C -> T registration."""
+    if equipment.registered_frames is not None or "ct_table_registration" not in equipment.patient:
+        raise ValueError("La estimación requiere un registro TC–tablero provisional.")
+    if "table_room_offset_mm" in equipment.geometry:
+        return {"method": "configured_room_translation", "offset_room_mm": equipment.geometry["table_room_offset_mm"]}
+    sr = dcmread(dicom, stop_before_pixels=True)
+    regions = _coded_values(sr, "target region")
+    anchors = metadata.get("anatomical_anchors_ras_mm", {})
+    if not isinstance(anchors, dict):
+        anchors = {}
+    region = next(iter(regions)) if len(regions) == 1 else None
+    # Chest is a coarse reference, not a heart/lesion localization.
+    key = region if region in anchors else "chest" if region in (
+        "thorax", "thoracic region", "heart", "cardiac", "lung", "lungs", "pulmonary", "chest") and "chest" in anchors else None
+    mesh = load_mesh(path, process=False)
+    bounds = mesh.bounds
+    if bounds is None or bounds.shape != (2, 3) or not np.isfinite(bounds).all():
+        raise ValueError("Límites STL inválidos.")
+    if key is not None:
+        ras = np.asarray(anchors[key], dtype=float)
+        native = ras if metadata.get("coordinate_system") == "RAS" else ras * [-1, -1, 1]
+        source = "ct_anatomical_" + key
+    elif interactive:
+        print("No hay una región anatómica inequívoca del RDSR con anclaje en el TC.")
+        print("Indique un punto diana conocido del procedimiento en coordenadas RAS del TC (x y z, mm).")
+        print("Puede obtenerlo de una marca en Slicer. Intro conserva la geometría provisional sin ajustar.")
+        answer = input_fn("Punto diana RAS: ").strip()
+        if not answer:
+            return {"method": "no_target_reference", "offset_room_mm": [0., 0., 0.]}
+        try:
+            ras = np.asarray([float(v.replace(",", ".")) for v in answer.split()], dtype=float)
+        except ValueError as exc:
+            raise ValueError("Introduzca tres coordenadas numéricas RAS separadas por espacios.") from exc
+        if ras.shape != (3,):
+            raise ValueError("Introduzca tres coordenadas RAS.")
+        native = ras if metadata.get("coordinate_system") == "RAS" else ras * [-1, -1, 1]
+        source = "operator_confirmed_target_ras"
+    else:
+        return {"method": "no_target_reference", "offset_room_mm": [0., 0., 0.]}
+    if native.shape != (3,) or not np.isfinite(native).all() or np.any(native < bounds[0]) or np.any(native > bounds[1]):
+        raise ValueError("Punto diana fuera de los límites de la malla.")
+    patient = equipment.patient
+    local = np.asarray(patient["mesh_axes_matrix"]) @ native + np.asarray(patient["mesh_origin_mm"])
+    # Keep the table height and orientation fixed. Only a horizontal translation is inferred.
+    for index, event in enumerate(events, 1):
+        if event.ka_r_gy is None or event.ka_r_gy <= 0:
+            continue
+        beam = beam_from_event(event, equipment)
+        if abs(beam.direction[2]) < 0.5:
+            continue
+        shift = table_shift(event, equipment)
+        rotation, translation = patient_pose(equipment, shift)
+        point = rotation @ local + translation
+        depth = (point[2] - beam.source_mm[2]) / beam.direction[2]
+        if not 0 < depth < event.sid_mm:
+            continue
+        central = beam.source_mm + depth * beam.direction
+        offset = central - point
+        offset[2] = 0.
+        equipment.geometry["table_room_offset_mm"] = offset.tolist()
+        # The same offset moves the board, its marker and the registered patient.
+        evidence = dict(method="target_region_first_suitable_beam", target_source=source,
+                        target_region=region, target_ras_mm=ras.tolist(), reference_event_index=index,
+                        reference_event_uid=event.uid, offset_room_mm=offset.tolist(),
+                        target_before_room_mm=point.tolist(), target_after_room_mm=(point + offset).tolist(),
+                        limitation="Estimated from target and beam; not measured room calibration or independent dose validation.")
+        patient["ct_table_registration"]["room_reference_estimate"] = evidence
+        return evidence
+    raise ValueError("No hay un haz de referencia adecuado para estimar la posición del tablero; mida la referencia de sala.")
