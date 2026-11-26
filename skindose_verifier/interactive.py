@@ -98,6 +98,12 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         fig.add_trace(go.Scatter3d(x=[], y=[], z=[], mode=mode, name=name,
                                   marker=dict(size=4, color=color), line=dict(width=3, color=color),
                                   textposition="top center", hoverinfo="skip", visible=False))
+    anchor = calculation.summary.get("xcat_anchor_surface_mm")
+    if anchor is not None:
+        fig.add_trace(go.Scatter3d(x=[anchor[0]], y=[anchor[1]], z=[anchor[2]], mode="markers",
+                                   marker=dict(size=6, color="#00d5ff", symbol="diamond"),
+                                   hovertemplate="Anclaje posterior de hombros XCAT<extra></extra>",
+                                   name="Anclaje de hombros"))
     ct_lps = calculation.summary.get("patient_coordinate_system") == "CT_LPS_mm"
     camera = (dict(eye=dict(x=.35, y=2.25, z=.20), up=dict(x=0, y=0, z=1)) if ct_lps else
               dict(eye=dict(x=.35, y=.20, z=-2.25), up=dict(x=0, y=1, z=0)))
