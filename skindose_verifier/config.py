@@ -12,7 +12,8 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 from .domain import InputError, IrradiationEvent
-from .reference_frames import RegisteredFrames, configure_table
+from .reference_frames import (RegisteredFrames, configure_table, room_reference_missing,
+                               provisional_ct_to_table)
 
 
 ALLOWED_AXES = {"kvp", "filtration_mm_cu", "field_area_cm2", "table_angle_deg", "patient_thickness_mm",
@@ -124,8 +125,10 @@ class Equipment:
         g = data["geometry"]
         if "table_calibration" in g:
             configure_table(g, base_directory)
-        registered = "ct_registration" in data["patient"]
-        if registered:
+        has_registration = "ct_registration" in data["patient"]
+        provisional = has_registration and room_reference_missing(g.get("table_calibration"))
+        registered = has_registration and not provisional
+        if has_registration:
             g.setdefault("table_coordinates", "legacy")
         required = ("source_to_isocenter_mm", "source_to_detector_mm", "source_to_irp_mm",
                     "field_reference", "primary_sign", "secondary_sign", "rotation_order",
@@ -164,6 +167,8 @@ class Equipment:
         frames = None
         if registered:
             frames = RegisteredFrames.from_inputs(g, data["patient"], base_directory)
+        elif provisional:
+            provisional_ct_to_table(g, data["patient"], base_directory)
         factors = {k: Factor.from_dict(k, v) for k, v in data["factors"].items()}
         if "table_total" in factors and ("table_normal" in factors or "table_angular" in factors):
             raise InputError("TAF total excluye TAF normal/angular: doble conteo.")

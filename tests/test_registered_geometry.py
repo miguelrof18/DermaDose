@@ -14,10 +14,10 @@ from skindose_verifier.config import Equipment
 from skindose_verifier.domain import InputError
 from skindose_verifier.engine import calculate, normalize
 from skindose_verifier.example_runner import main as launch
-from skindose_verifier.geometry import beam_from_event, beam_view, intersects_tabletop, project
+from skindose_verifier.geometry import beam_from_event, beam_view, intersects_tabletop, project, patient_pose, table_shift
 from skindose_verifier.patient import sample_patient
 from skindose_verifier.rdsr import nodes, read_rdsr
-from skindose_verifier.reference_frames import ct_to_table, marker_in_isocenter, motion_matrix
+from skindose_verifier.reference_frames import ct_to_table, marker_in_isocenter, motion_matrix, ROOM_FROM_I, RAS_TO_LPS
 from skindose_verifier.synthetic import item, make_synthetic_rdsr
 
 
@@ -155,8 +155,9 @@ def test_measured_board_and_missing_references(tmp_path):
     assert eq.geometry["table_calibration"]["radimetrics"]["offsets_mm"] == {
         "lateral": 508, "longitudinal": -70.5, "height": -732}
     data["patient"]["ct_registration"] = registration
-    with pytest.raises(InputError, match="m0"):
-        Equipment.from_dict(data)
+    provisional = Equipment.from_dict(data)
+    assert provisional.registered_frames is None
+    assert provisional.patient["ct_table_registration"]["ct_to_table_status"] == "explicit"
     table = read(TABLE)
     table["reference"] = {"readings_long_lat_height_mm": M0, "marker_table_mm": [0, 0, 0],
                           "marker_isocenter_mm": [0, 0, 0]}
@@ -238,3 +239,48 @@ def test_launcher_exports_registered_lps_map(tmp_path):
         assert surface["dose_gy"][i] > 0
     assert Equipment.load(results / "configuracion_efectiva.json").registered_frames is not None
     assert (results / "mapa_3d_interactivo.html").is_file()
+
+
+@pytest.mark.parametrize("axes", ["RAS", "LPS"])
+def test_provisional_room_preserves_ct_table_anchor(tmp_path, axes):
+    data, path = case(tmp_path, axes=axes)
+    data["geometry"]["table_calibration"]["reference"] = {
+        "readings_long_lat_height_mm": None, "marker_table_mm": None, "marker_isocenter_mm": None}
+    registration = data["patient"]["ct_registration"]
+    eq = Equipment.from_dict(data)
+    assert eq.registered_frames is None
+    patient = eq.patient
+    assert patient["ct_registration"] == registration
+    evidence = patient["ct_table_registration"]
+    assert evidence["table_to_isocenter_status"] == "provisional_legacy_geometry"
+    ct = np.asarray(registration["anchor_ct_lps_mm"])
+    native = RAS_TO_LPS @ ct if axes == "RAS" else ct
+    surface_point = np.asarray(patient["mesh_axes_matrix"]) @ native + patient["mesh_origin_mm"]
+    expected_t = np.asarray(registration["anchor_table_mm"])
+    for event in read_rdsr(path).events:
+        ev = normalize(event, eq)
+        shift = table_shift(ev, eq)
+        rotation, translation = patient_pose(eq, shift)
+        head_edge = shift + [0, eq.geometry["table_half_length_mm"], eq.geometry["table_plane_z_mm"]]
+        np.testing.assert_allclose(rotation @ surface_point + translation,
+                                   head_edge + ROOM_FROM_I @ expected_t)
+    # Reloading the resolved config must not apply the registration twice.
+    reloaded = Equipment.from_dict(eq.raw)
+    np.testing.assert_allclose(reloaded.patient["mesh_axes_matrix"], patient["mesh_axes_matrix"])
+    np.testing.assert_allclose(reloaded.patient["mesh_origin_mm"], patient["mesh_origin_mm"])
+    data["patient"]["ct_registration"]["mesh_sha256"] = "invalid"
+    with pytest.raises(InputError, match="otra malla"):
+        Equipment.from_dict(data)
+
+
+def test_launcher_preserves_registration_without_room_reference(tmp_path):
+    data, _ = case(tmp_path)
+    data["geometry"]["table_calibration"]["reference"] = {}
+    write(tmp_path / "registro_tc.json", data["patient"].pop("ct_registration"))
+    write(tmp_path / "equipo.json", data)
+    assert launch([str(tmp_path), "--prepare-only"]) == 0
+    audit = read(tmp_path / "resultados" / "seleccion_entrada.json")
+    assert audit["registration_status"] == "ct_table_explicit_room_provisional"
+    effective = Equipment.load(tmp_path / "resultados" / "configuracion_efectiva.json")
+    assert effective.patient["ct_table_registration"]["ct_to_table_status"] == "explicit"
+    assert effective.registered_frames is None

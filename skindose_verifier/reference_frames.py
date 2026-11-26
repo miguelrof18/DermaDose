@@ -152,6 +152,83 @@ def marker_in_isocenter(reference):
     return q, {"marker_views": len(views), "marker_reprojection_rms_px": float(np.sqrt(np.mean(squared_errors)))}
 
 
+def room_reference_missing(table):
+    """Only an entirely absent room reference enables the provisional path."""
+    if not isinstance(table, dict):
+        return False
+    reference = table.get("reference")
+    if reference is None:
+        return True
+    return isinstance(reference, dict) and all(reference.get(key) is None for key in (
+        "readings_long_lat_height_mm", "marker_table_mm", "marker_isocenter_mm", "calibrated_views"))
+
+
+def validated_ct_to_table(table, patient, base_directory):
+    """Validate the patient registration independently of the room calibration."""
+    case = _settings(patient["ct_registration"], base_directory, "ct_registration")
+    transform, evidence = ct_to_table(case)
+    mesh = Path(patient["mesh_path"])
+    meta = _settings(str(mesh.with_suffix(".json")), base_directory, "metadatos de la malla TC")
+    mesh_hash = sha256()
+    with mesh.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            mesh_hash.update(chunk)
+    digest = mesh_hash.hexdigest()
+    if meta.get("mesh_file") != mesh.name or meta.get("mesh_sha256") != digest:
+        raise InputError("Los metadatos de la malla TC no corresponden al STL seleccionado.")
+    position_evidence = meta.get("patient_position_evidence", {})
+    ct = position_evidence.get("ct", {}) if isinstance(position_evidence, dict) else None
+    if not isinstance(ct, dict):
+        raise InputError("Los metadatos del marco de referencia del TC son inválidos.")
+    uid = ct.get("frame_of_reference_uid") or meta.get("frame_of_reference_uid")
+    if ct.get("mixed_frames"):
+        raise InputError("La malla procede de varios sistemas de referencia del TC.")
+    if not case.get("mesh_sha256") and not case.get("frame_of_reference_uid"):
+        raise InputError("Asocie el registro al TC con mesh_sha256 o frame_of_reference_uid.")
+    if "mesh_sha256" in case and case["mesh_sha256"] != digest:
+        raise InputError("El registro corresponde a otra malla.")
+    if "frame_of_reference_uid" in case and case["frame_of_reference_uid"] != uid:
+        raise InputError("El Frame of Reference UID del registro y el de la malla no coinciden.")
+    axes = meta.get("coordinate_system")
+    if axes not in ("LPS", "RAS") or meta.get("length_unit") != "mm":
+        raise InputError("La malla TC requiere coordenadas RAS o LPS documentadas en mm.")
+    if any(patient.get(k, 0) for k in ("tilt_x_deg", "tilt_y_deg")):
+        raise InputError("Declare la orientación completa en el registro TC–tablero.")
+    patient.update(ct_registration=case, mesh_unit="mm", mesh_origin_mm=[0., 0., 0.],
+                   mesh_axes_matrix=(RAS_TO_LPS if axes == "RAS" else np.eye(3)).tolist())
+    evidence.update(mesh_input_axes=axes, surface_frame="CT_LPS_mm", mesh_sha256=digest,
+                    frame_of_reference_uid=uid, table_calibration_id=table["id"])
+    return transform, evidence
+
+
+def provisional_ct_to_table(geometry, patient, base_directory):
+    """Keep C -> T exact; use only the configured legacy pose for T -> room."""
+    table = geometry.get("table_calibration")
+    if patient.get("type") != "mesh" or not isinstance(table, dict):
+        raise InputError("El registro TC requiere una malla y geometry.table_calibration.")
+    transform, evidence = validated_ct_to_table(table, patient, base_directory)
+    if not np.allclose(_array(patient.get("registration_shift_room_mm", [0, 0, 0]), (3,),
+                              "desplazamiento adicional del registro"), 0):
+        raise InputError("No se admite un desplazamiento adicional que rompa el anclaje TC–tablero.")
+    # T is (left, down, head), with its origin on the top head edge.
+    # The legacy room model translates the centre of the board instead.
+    head_edge = np.array([0., float(geometry["table_half_length_mm"]),
+                          float(geometry["table_plane_z_mm"])])
+    for plane in (geometry.get("planes") or {}).values():
+        if not np.isclose(float(plane.get("table_plane_z_mm", head_edge[2])), head_edge[2]):
+            raise InputError("El registro provisional requiere la misma altura del tablero en todos los planos.")
+    native_to_lps = np.asarray(patient["mesh_axes_matrix"])
+    patient.update(mesh_axes_matrix=(ROOM_FROM_I @ transform[:3, :3] @ native_to_lps).tolist(),
+                   mesh_origin_mm=(ROOM_FROM_I @ transform[:3, 3]).tolist(),
+                   origin_on_table_mm=head_edge.tolist(), tilt_x_deg=0, tilt_y_deg=0)
+    evidence.update(surface_frame="table_head_edge_room_axes_mm",
+                    M_T_from_C=transform.tolist(), head_edge_from_legacy_origin_room_mm=head_edge.tolist(),
+                    ct_to_table_status="explicit", table_to_isocenter_status="provisional_legacy_geometry",
+                    table_origin_mm=geometry["table_origin_mm"], table_matrix=geometry["table_matrix"])
+    patient["ct_table_registration"] = evidence
+    return evidence
+
+
 @dataclass(frozen=True)
 class RegisteredFrames:
     table_from_ct: np.ndarray
@@ -175,40 +252,8 @@ class RegisteredFrames:
         q_i, marker_evidence = marker_in_isocenter(ref)
         s = motion_matrix(table)
 
-        case = _settings(patient["ct_registration"], base_directory, "ct_registration")
-        transform, evidence = ct_to_table(case)
-        mesh = Path(patient["mesh_path"])
-        meta = _settings(str(mesh.with_suffix(".json")), base_directory, "metadatos de la malla TC")
-        mesh_hash = sha256()
-        with mesh.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1 << 20), b""):
-                mesh_hash.update(chunk)
-        digest = mesh_hash.hexdigest()
-        if meta.get("mesh_file") != mesh.name or meta.get("mesh_sha256") != digest:
-            raise InputError("Los metadatos de la malla TC no corresponden al STL seleccionado.")
-        position_evidence = meta.get("patient_position_evidence", {})
-        ct = position_evidence.get("ct", {}) if isinstance(position_evidence, dict) else None
-        if not isinstance(ct, dict):
-            raise InputError("Los metadatos del marco de referencia del TC son inválidos.")
-        uid = ct.get("frame_of_reference_uid") or meta.get("frame_of_reference_uid")
-        if ct.get("mixed_frames"):
-            raise InputError("La malla procede de varios sistemas de referencia del TC.")
-        if not case.get("mesh_sha256") and not case.get("frame_of_reference_uid"):
-            raise InputError("Asocie el registro al TC con mesh_sha256 o frame_of_reference_uid.")
-        if "mesh_sha256" in case and case["mesh_sha256"] != digest:
-            raise InputError("El registro corresponde a otra malla.")
-        if "frame_of_reference_uid" in case and case["frame_of_reference_uid"] != uid:
-            raise InputError("El Frame of Reference UID del registro y el de la malla no coinciden.")
-        axes = meta.get("coordinate_system")
-        if axes not in ("LPS", "RAS") or meta.get("length_unit") != "mm":
-            raise InputError("La malla TC requiere coordenadas RAS o LPS documentadas en mm.")
-        if any(patient.get(k, 0) for k in ("tilt_x_deg", "tilt_y_deg")):
-            raise InputError("Declare la orientación completa en el registro TC–tablero.")
-        patient.update(ct_registration=case, mesh_unit="mm", mesh_origin_mm=[0., 0., 0.],
-                       mesh_axes_matrix=(RAS_TO_LPS if axes == "RAS" else np.eye(3)).tolist())
-        evidence.update(mesh_input_axes=axes, surface_frame="CT_LPS_mm", mesh_sha256=digest,
-                        frame_of_reference_uid=uid, table_calibration_id=table["id"],
-                        origin_reference_i_mm=(q_i - q_t).tolist(), readings_reference_mm=m0.tolist(),
+        transform, evidence = validated_ct_to_table(table, patient, base_directory)
+        evidence.update(origin_reference_i_mm=(q_i - q_t).tolist(), readings_reference_mm=m0.tolist(),
                         motion_matrix_i_per_mm=s.tolist(), **marker_evidence)
         return cls(transform, m0, q_i - q_t, s, evidence)
 

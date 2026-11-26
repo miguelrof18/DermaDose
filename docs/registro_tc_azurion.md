@@ -66,6 +66,8 @@ python -m skindose_verifier.example_runner ejemplos/caso --mesa sala/mesa_medida
 
 El lanzador de Windows también detecta `mesa_azurion_hemodinamica_1.json` y `registro_tc.json` junto al caso. En un JSON de equipo se pueden definir `geometry.table_calibration` y `patient.ct_registration` como objetos o rutas relativas a ese JSON. El STL y su archivo homónimo deben documentar el sistema RAS o LPS, los milímetros, el nombre del fichero y su SHA-256.
 
+Si toda la referencia de sala está ausente, un registro TC–tablero válido se conserva y se aplica también en el modo provisional. La geometría heredada (origen, matriz y altura de mesa) sitúa el tablero respecto al angiógrafo; no se centra el TC en el primer haz. El ajuste anatómico no se modifica. Los resultados identifican este modo como `ct_table_explicit_room_provisional` y guardan `M_T_from_C`. Una referencia de sala parcialmente cumplimentada o un registro de paciente inválido siguen produciendo un error. No es una calibración clínica.
+
 Este es un ejemplo **ficticio** de `registro_tc.json` con anclaje y rotación. Sustituye el identificador y todos los datos geométricos por los del caso. La identidad representa aquí una orientación alineada.
 
 ```json

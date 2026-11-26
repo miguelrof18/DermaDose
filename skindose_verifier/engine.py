@@ -384,6 +384,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     if equipment.registered_frames is not None:
         summary["ct_registration"] = equipment.registered_frames.evidence
         summary["patient_coordinate_system"] = "CT_LPS_mm"
+    if equipment.registered_frames is None and "ct_table_registration" in equipment.patient:
+        summary["table_placement"] = "ct_table_explicit_room_provisional"
+        summary["ct_table_registration"] = equipment.patient["ct_table_registration"]
+        summary["assumptions"].append("Registro TC–tablero explícito; posición absoluta tablero–angiógrafo provisional.")
     if "xcat_anchor_native_mm" in equipment.patient:
         patient = equipment.patient
         native = np.asarray(patient["xcat_anchor_native_mm"])
