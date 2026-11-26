@@ -99,7 +99,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             directory = config_path.parent/directory
         if not (directory/'metadata.json').is_file():
             parts = str(dataset).replace('\\','/').split('/')
-            known = {'derived_mrc200_nominal','derived_azurion_spekpy','derived_azurion_qc_conditional'}
+            known = {'derived_mrc200_nominal','derived_azurion_hvl','derived_azurion_spekpy','derived_azurion_qc_conditional'}
             if not absolute and len(parts)>=3 and parts[-3:-1]==['skindose_verifier','data'] and parts[-1] in known:
                 directory = resources/parts[-1]
             if not (directory/'metadata.json').is_file():

@@ -21,7 +21,7 @@ dermadose = "skindose_verifier.cli:main"
 include = ["skindose_verifier*"]
 
 [tool.setuptools.package-data]
-skindose_verifier = ["data/*.json", "data/*.stl", "data/*.txt", "data/visor_3d_template.html", "data/benmakhlouf_2011/*.csv", "data/benmakhlouf_2011/*.json", "data/benmakhlouf_2011/*.txt", "data/derived_mrc200_nominal/*.csv", "data/derived_mrc200_nominal/*.json", "data/derived_azurion_spekpy/*.csv", "data/derived_azurion_spekpy/*.json", "data/derived_azurion_qc_conditional/*.csv", "data/derived_azurion_qc_conditional/*.json"]
+skindose_verifier = ["data/*.json", "data/*.stl", "data/*.txt", "data/visor_3d_template.html", "data/benmakhlouf_2011/*.csv", "data/benmakhlouf_2011/*.json", "data/benmakhlouf_2011/*.txt", "data/derived_azurion_hvl/*.csv", "data/derived_azurion_hvl/*.json", "data/derived_mrc200_nominal/*.csv", "data/derived_mrc200_nominal/*.json", "data/derived_azurion_spekpy/*.csv", "data/derived_azurion_spekpy/*.json", "data/derived_azurion_qc_conditional/*.csv", "data/derived_azurion_qc_conditional/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

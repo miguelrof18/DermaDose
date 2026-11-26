@@ -8,7 +8,7 @@ Los perfiles reutilizables están en [`config/`](../config). Copia **un solo JSO
 |---|---|---|
 | [`factores_sinteticos.json`](../config/factores_sinteticos.json) | Geometría simulada y factores constantes de la demo original. BSF 1,25, conversión a piel 1,05, corrección de kerma 1 y transmisión normal de mesa 0,8. | Comprobar el flujo y comparar con una referencia ficticia. |
 | [`benmakhlouf_tabulado.json`](../config/benmakhlouf_tabulado.json) | Tablas publicadas de Benmakhlouf para estimar dosis de entrada en agua. El perfil parte de tungsteno y 3,1 mm Al efectivos asumidos y exige campos cuadrados. Conserva geometría y correcciones de equipo simuladas. | Comparar los factores publicados con el modelo sintético o espectral. |
-| [`azurion_benmakhlouf_spekpy.json`](../config/azurion_benmakhlouf_spekpy.json) | Perfil específico de investigación del Philips Azurion MRC 200 0407. Usa factores monoenergéticos de Benmakhlouf integrados con espectros de SpekPy según la ecuación 13. Parte de 2,5 mm Al equivalentes de filtración fija nominal y 11° de ánodo. | Modelo más específico disponible para ese Azurion. La geometría y los factores de la instalación siguen siendo nominales o provisionales. |
+| [`azurion_benmakhlouf_spekpy.json`](../config/azurion_benmakhlouf_spekpy.json) | Perfil específico de investigación del Philips Azurion MRC 200 0407. Usa factores monoenergéticos de Benmakhlouf integrados con espectros de SpekPy según la ecuación 13. Usa 4,270081 mm Al equivalentes ajustados a 11° de ánodo. | Modelo más específico disponible para ese Azurion. La geometría y los factores de la instalación siguen siendo nominales o provisionales. |
 
 Los dos primeros perfiles conservan una geometría de equipo ficticia. Una comparación que busque aislar el efecto del modelo dosimétrico requiere mantener la geometría y la colocación constantes. El tercer perfil consulta tablas precalculadas por evento, por lo que no necesita ejecutar SpekPy. El lanzador puede localizar las tablas incluidas en el paquete cuando se copia este perfil a una carpeta externa.
 
@@ -52,9 +52,9 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 
 | Campo | Significado |
 |---|---|
-| `surface_factors.provider` | Selecciona tablas publicadas o derivadas. El [metadato del Azurion](../skindose_verifier/data/derived_mrc200_nominal/metadata.json) documenta su derivación con SpekPy y la ecuación 13 de Benmakhlouf. |
+| `surface_factors.provider` | Selecciona tablas publicadas o derivadas. El [metadato del Azurion](../skindose_verifier/data/derived_azurion_hvl/metadata.json) documenta su derivación con SpekPy y la ecuación 13 de Benmakhlouf. |
 | `surface_factors.dataset_directory` | Carpeta de la tabla derivada y su metadato. La ruta relativa se interpreta desde el JSON de equipo. |
-| `surface_factors.inherent_al_mm`, `target` | Filtración fija efectiva en mm Al equivalentes y material del blanco. En el perfil Azurion, el valor representa el conjunto nominal. |
+| `surface_factors.inherent_al_mm`, `target` | Filtración fija efectiva en mm Al equivalentes y material del blanco. En el perfil Azurion, el valor representa la filtración efectiva ajustada a la HVL medida. |
 | `surface_factors.aluminium_policy` | Regla para combinar el aluminio fijo con el aluminio registrado por evento. |
 | `surface_factors.expected_anode_angle_deg` | Ángulo de ánodo exigido para la tabla seleccionada. |
 | `surface_factors.field_shape_policy`, `out_of_domain` | Regla para representar la forma del campo y comportamiento si los parámetros quedan fuera del dominio tabulado. `equal_area` usa un cuadrado de área equivalente. |
@@ -67,3 +67,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `tube_characterization.model`, `fixed_effective_al_mm`, `filtration_basis` | Identidad del tubo, aluminio fijo efectivo y base de ese valor. Deben ser coherentes con la tabla espectral seleccionada. |
 
 Mantén los parámetros de sala en el perfil de equipo y la transformación específica del paciente en los datos del caso. Antes de interpretar la colocación como representativa de una intervención, comprueba con un fantoma la lateralidad, los signos angulares y los desplazamientos de mesa.
+
+### Ajuste de la calidad del haz del Azurion
+
+En «Calibración Radimetrics» de Caracterizacion_Azurion, la serie None a 40, 60, 80, 100 y 120 kV dio 1,71, 2,83, 3,76, 4,70 y 5,45 mm Al. Con SpekPy 2.5.4, blanco W, ánodo de 11°, coeficientes NIST e intervalos de 0,5 keV, se minimizó la media del cuadrado del error relativo de la primera HVL sobre esos cinco puntos. El RDSR aporta los espesores adicionales de Al y Cu de cada evento. Las series con 1 mm Al y 0,1, 0,4 o 0,9 mm Cu se reservaron para comprobación. La lectura de 1,62 mm Al a 40 kV con 0,4 mm Cu queda pendiente de verificar. La validación experimental de la PSD sigue pendiente.
