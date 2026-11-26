@@ -144,6 +144,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         if not 0 < distance <= 2 * g['table_half_length_mm']:
             raise ExampleError('Distancia cabecera-hombros fuera del tablero.')
         anchor = np.array(landmark['posterior_shoulder_midline_mm'])
+        data['patient']['xcat_anchor_native_mm'] = anchor.tolist()
         target = [0., -float(pad_mm), -distance]
         patient = data['patient']
         patient.update(phantom_name='XCAT50', mesh_unit='mm', tilt_x_deg=0, tilt_y_deg=0)
