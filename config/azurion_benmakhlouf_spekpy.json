@@ -1,5 +1,5 @@
 {
-  "version": "MRC2000407-NOMINAL-RESEARCH-v1",
+  "version": "MRC2000407-HVL-RESEARCH-v1",
   "manufacturer": "Philips",
   "model": "Azurion",
   "validation_status": "research_assumptions_not_installation_characterization",
@@ -77,16 +77,16 @@
   "allow_uniform_sweep": false,
   "surface_factors": {
     "provider": "tabulated_water",
-    "inherent_al_mm": 2.5,
+    "inherent_al_mm": 4.270081,
     "target": "W",
     "field_shape_policy": "equal_area",
     "out_of_domain": "error",
     "incident_kerma_basis": "free_in_air_without_backscatter",
     "quality_basis": "event_kvp_filtration_proxy_at_surface",
-    "provenance": "MRC2000407 11 deg; nominal minimum assembly 2.5 mm Al-equivalent; optional collimator 0.1 mm Al-equivalent. Homogeneous Al spectral approximation, not measured filtration; no clinical validation.",
+    "provenance": "HVL fit to five unfiltered Azurion measurements at 11 degrees. Independent Al/Cu checks; research water-dose model.",
     "allow_water_phantom_approximation": true,
     "aluminium_policy": "fixed_plus_event",
-    "dataset_directory": "../skindose_verifier/data/derived_mrc200_nominal",
+    "dataset_directory": "../skindose_verifier/data/derived_azurion_hvl",
     "expected_anode_angle_deg": 11
   },
   "azurion_profile": {
@@ -110,8 +110,8 @@
       0.7
     ],
     "assembly_max_kvp": 125,
-    "fixed_effective_al_mm": 2.5,
-    "filtration_basis": "nominal_assembly_scenario",
+    "fixed_effective_al_mm": 4.270081,
+    "filtration_basis": "measured_effective_model",
     "assembly_minimum_total_al_equivalent_mm": 2.5,
     "included_plate_al_mm": 1.7,
     "inherent_al_equivalent_mm": 0.8,
