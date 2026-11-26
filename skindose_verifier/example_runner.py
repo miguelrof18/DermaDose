@@ -92,6 +92,7 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
     data['patient'] = {**defaults, **data.get('patient', {})}
     placement_source = 'equipment_patient_assumed' if 'patient' in read_json(config_path) else 'provisional_defaults_assumed'
     data['patient'].update(type='mesh', mesh_path=str(selected), phantom_name=selected.stem)
+    deferred_registration = None
     for block, key, explicit, filename in (
         (data['geometry'], 'table_calibration', table_calibration, 'mesa_azurion_hemodinamica_1.json'),
         (data['patient'], 'ct_registration', ct_registration, 'registro_tc.json'),
@@ -102,6 +103,17 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
         if explicit is not None:
             block[key] = str(Path(explicit).resolve())
         elif key not in block and (folder / filename).is_file():
+            if key == 'ct_registration':
+                from .reference_frames import configure_table
+                g = data['geometry']
+                if 'table_calibration' in g:
+                    configure_table(g, config_path.parent)
+                reference = g.get('table_calibration', {}).get('reference') or {}
+                if all(reference.get(field) is None for field in ('readings_long_lat_height_mm',
+                           'marker_table_mm', 'marker_isocenter_mm', 'calibrated_views')):
+                    deferred_registration = str(folder / filename)
+                    print('Referencia de sala sin medir. Se omite el registro TC detectado y se estima la colocación con el STL y el RDSR.')
+                    continue
             block[key] = str(folder / filename)
     data.pop('phantom', None)  # legacy blocks must not replace the selected STL
     digest = sha256(selected.read_bytes()).hexdigest()
@@ -170,6 +182,8 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             registration_status='fixed_room_reference' if fixed else 'provisional_room_reference',
             registration_note='XCAT supino, cabeza hacia la cabecera. Anclaje posterior al nivel de los hombros.',
             anchor_xcat_mm=anchor.tolist(), anchor_table_mm=target, pad_mm=float(pad_mm), pad_source=pad_source)
+    if deferred_registration:
+        audit['registration_deferred_missing_room_reference'] = deferred_registration
     return data, audit
 
 
