@@ -44,10 +44,18 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
     is_mesh = surface.mesh is not None
     coords = np.asarray(surface.mesh.vertices if is_mesh else surface.points_mm, dtype=float)
     faces = np.asarray(surface.mesh.faces, dtype=int) if is_mesh else None
-    modes = [np.asarray(calculation.total_gy).ravel()] + [
-        np.asarray(x).ravel() for x in calculation.event_maps_gy]
-    maximum = float(np.max(modes[0]))
-    if maximum <= 0 or not np.all(np.isfinite(coords)) or not all(np.all(np.isfinite(x)) for x in modes):
+    total = np.asarray(calculation.total_gy, dtype=float).ravel()
+    maximum = float(np.max(total))
+    # Event maps are processed one at a time: peak and sparse encoding only,
+    # so no events-by-surface matrix is held in memory for the viewer.
+    sparse_modes, peaks = [_sparse(total)], [surface.points_mm[int(np.argmax(total))].tolist()]
+    finite = bool(np.all(np.isfinite(total)))
+    for event_map in calculation.event_maps_gy:
+        event_map = np.asarray(event_map, dtype=float).ravel()
+        finite &= bool(np.all(np.isfinite(event_map)))
+        sparse_modes.append(_sparse(event_map))
+        peaks.append(surface.points_mm[int(np.argmax(event_map))].tolist())
+    if maximum <= 0 or not np.all(np.isfinite(coords)) or not finite:
         raise ValueError("Visor 3D: coordenadas o dosis no finitas.")
     # Dose-zero remains gray. Low positive dose starts in green, then moves
     # through yellow/orange/red to make small-but-real dose easier to see.
@@ -81,8 +89,7 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         return [palette[int(level)] if value > 0 else no_dose
                 for level, value in zip(levels, dose)]
 
-    peaks = [surface.points_mm[int(np.argmax(m))].tolist() for m in modes]
-    first_color = colors(modes[0])
+    first_color = colors(total)
     if is_mesh:
         fig = go.Figure(go.Mesh3d(
             x=coords[:, 0], y=coords[:, 1], z=coords[:, 2],
@@ -163,7 +170,7 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         "faces": faces.tolist() if is_mesh else None,
         # Sparse per-mode encoding (non-zero faces only); the viewer expands it
         # to dense arrays on load. Values and rounding are unchanged.
-        "sparse_doses": [_sparse(m) for m in modes],
+        "sparse_doses": sparse_modes,
         "modes": ["Acumulada"] + [f"Evento {i + 1} ({r['plane']})"
                                   for i, r in enumerate(calculation.summary["events"])],
         "peaks": peaks, "peak_total_gy": maximum,

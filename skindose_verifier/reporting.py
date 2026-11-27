@@ -55,7 +55,7 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     json_path.write_text(json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)+"\n", encoding="utf-8")
     raw_path = directory/"mapa_dosis.npz"
     np.savez_compressed(raw_path, dose_gy=calculation.total_gy.reshape(calculation.surface.shape),
-                        event_dose_gy=np.stack(calculation.event_maps_gy).reshape(
+                        event_dose_gy=np.asarray(calculation.event_maps_gy, dtype=float).reshape(
                             (len(calculation.event_maps_gy),) + calculation.surface.shape),
                         event_uid=np.asarray([ev["event_uid"] for ev in calculation.summary["events"]]),
                         patient_points_mm=calculation.surface.points_mm,

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from copy import deepcopy
-from typing import Sequence
+from collections.abc import Sequence
 import math
 import time
 from collections import OrderedDict
@@ -19,12 +19,81 @@ from .metrics import neighbourhood_psd, dose_area_summary, surface_metrics
 from .mesh_processing import mesh_quality
 
 
+class EventMaps(Sequence):
+    """Per-event maps stored sparsely; each item is returned as a dense array.
+
+    Memory grows with the irradiated faces of each event, not with
+    events x surface samples. Values are stored exactly (float64).
+    """
+
+    def __init__(self, size: int):
+        self.size = int(size)
+        self._indices: list[np.ndarray] = []
+        self._values: list[np.ndarray] = []
+
+    def append(self, dense: np.ndarray) -> None:
+        dense = np.asarray(dense, dtype=float)
+        if dense.shape != (self.size,):
+            raise ValueError("Mapa de evento con tamaño incompatible.")
+        index = np.flatnonzero(dense)
+        dtype = np.int32 if self.size < 2**31 else np.int64
+        self._indices.append(index.astype(dtype))
+        self._values.append(dense[index].copy())
+
+    def __len__(self) -> int:
+        return len(self._indices)
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            return [self[i] for i in range(*item.indices(len(self)))]
+        dense = np.zeros(self.size)
+        dense[self._indices[item]] = self._values[item]
+        return dense
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    def __array__(self, dtype=None, copy=None):
+        stacked = np.zeros((len(self), self.size))
+        for i, (index, values) in enumerate(zip(self._indices, self._values)):
+            stacked[i, index] = values
+        return stacked if dtype is None else stacked.astype(dtype)
+
+    def value_at(self, item: int, sample: int) -> float:
+        """Dose of one event at one surface sample, without densifying."""
+        index = self._indices[item]
+        position = np.searchsorted(index, sample)
+        return float(self._values[item][position]) if position < len(index) and index[position] == sample else 0.
+
+    def nonzero(self, item: int) -> tuple[np.ndarray, np.ndarray]:
+        return self._indices[item], self._values[item]
+
+
 @dataclass
 class Calculation:
     surface: SkinSurface
     total_gy: np.ndarray
-    event_maps_gy: list[np.ndarray]
+    event_maps_gy: EventMaps
     summary: dict
+
+
+# Upper bound for cached projections of repeated beam geometries. Each entry
+# holds per-sample arrays (~74 bytes per surface sample).
+GEOMETRY_CACHE_BYTES = 256 * 2**20
+
+
+def _projection_bytes(geo: Projection) -> int:
+    return int(sum(getattr(geo, name).nbytes for name in (
+        "visible_mask", "distance_mm", "table_intersection_mask", "table_angle_deg", "field_area_cm2",
+        "room_points_mm", "skin_angle_deg", "field_fraction_xy")))
+
+
+def _maximum_names(stage: str) -> dict:
+    """Explicit physical names for the legacy psd_point_gy (memoria, sección 2.4.1)."""
+    if stage == "skin_dose":
+        return {"max_modeled_surface_dose_gy": None}
+    return {"max_air_kerma_gy": None}
 
 
 def _factor_metadata(equipment: Equipment) -> dict:
@@ -234,6 +303,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     events = tuple(normalize(event, equipment) for event in events)
     for event in events:
         equipment.validate_event(event, stage)
+    for warning in equipment.warnings:
+        progress("AVISO: " + warning)
     progress("Cargando y comprobando la superficie...")
     newly_loaded_surface = surface is None
     surface = sample_patient(equipment.patient) if surface is None else surface
@@ -255,12 +326,15 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                              "Revise la referencia tablero–angiógrafo; consulte diagnostico_geometria.json si usa el lanzador.")
     surface_seconds = time.perf_counter()-started
     cache: OrderedDict[tuple, Projection] = OrderedDict()
+    cache_bytes = 0
     cache_hits = 0
+    projection_seconds = dosimetry_seconds = 0.
     total_rays = total_pairs = 0
     backends = set()
     backend_versions = {}
     pairs_available = True
-    maps = []
+    maps = EventMaps(len(surface.points_mm))
+    total = np.zeros(len(surface.points_mm))
     reports = []
     for event_index, raw in enumerate(events, 1):
         progress(f"Calculando evento {event_index}/{len(events)}...")
@@ -277,7 +351,9 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                    piece.field_reference)
             geo = cache.get(key) if cache_geometry else None
             if geo is None:
+                phase = time.perf_counter()
                 geo = project(piece, equipment, surface)
+                projection_seconds += time.perf_counter()-phase
                 backends.add(geo.statistics['backend'])
                 if geo.statistics.get('backend_version'):
                     backend_versions[geo.statistics['backend']] = geo.statistics['backend_version']
@@ -287,12 +363,16 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                 event_pairs += geo.statistics["candidate_triangle_pairs"]
                 if cache_geometry:
                     cache[key] = geo
-                    if len(cache) > 2:
-                        cache.popitem(last=False)
+                    cache_bytes += _projection_bytes(geo)
+                    # Memory-bounded LRU; the newest projection is always kept.
+                    while cache_bytes > GEOMETRY_CACHE_BYTES and len(cache) > 1:
+                        cache_bytes -= _projection_bytes(cache.popitem(last=False)[1])
             else:
                 cache_hits += 1
                 cache.move_to_end(key)
+            phase = time.perf_counter()
             piece_map, sub = _dose(piece, equipment, surface, stage, geo)
+            dosimetry_seconds += time.perf_counter()-phase
             event_map += piece_map
             subreports.append(sub)
         idx = int(np.argmax(event_map))
@@ -324,11 +404,12 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                         if stage != "free_air" else {},
                         "surface_factor_audit_per_sample": [x.get("surface_factor_audit") for x in subreports],
                         "factor_ranges_per_sample": [x.get("component_ranges", {}) for x in subreports]})
-        maps.append(event_map)
-    # Preserve event order without allocating a second events-by-surface matrix.
-    total = np.zeros_like(maps[0])
-    for event_map in maps:
+        # Accumulate in event order (same summation order as before) and keep
+        # each event map sparsely: no events-by-surface matrix is allocated.
         total += event_map
+        maps.append(event_map)
+        progress(f"Evento {event_index}/{len(events)} completado en {time.perf_counter()-event_started:.2f} s "
+                 f"({reports[-1]['irradiated_cells']} puntos irradiados).")
     if not np.any(total > 0):
         if preflight is not None and diagnostic_callback is not None:
             preflight["actual_irradiated_cells_per_event"] = [r["irradiated_cells"] for r in reports]
@@ -338,8 +419,8 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
                          "Consulte diagnostico_geometria.json si usa el lanzador.")
     peak_index = int(np.argmax(total))
     peak_event_contributions = []
-    for report, event_map in zip(reports, maps):
-        value = float(event_map[peak_index])
+    for item, report in enumerate(reports):
+        value = maps.value_at(item, peak_index)
         peak_event_contributions.append({
             "event_uid": report["event_uid"],
             "dose_at_global_psd_point_gy": value,
@@ -351,11 +432,13 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         item["rank"] = rank
     # The native locator is no longer needed. Release it before constructing
     # adjacency/area reports for very large meshes on memory-limited machines.
+    cache_entries = len(cache)
     cache.clear()
     if detailed and 'vtk_static_cell_locator' in backends:
         from .vtk_ray_backend import close_worker
         close_worker()
     progress("Calculando PSD y métricas de superficie...")
+    metrics_started = time.perf_counter()
     neighbourhood_limit = equipment.raw.get('max_neighbourhood_faces', 200_000)
     if isinstance(neighbourhood_limit, bool) or not isinstance(neighbourhood_limit, int) or neighbourhood_limit < 0:
         raise InputError('max_neighbourhood_faces debe ser un entero >= 0 (0 permite el cálculo sin límite).')
@@ -376,6 +459,12 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "stage": stage, "events": reports, "event_count": len(reports),
         "total_rdsr_ka_r_gy": float(sum(ev.ka_r_gy for ev in events)),
         "psd_point_gy": float(total[peak_index]),
+        **{name: float(total[peak_index]) for name in _maximum_names(stage)},
+        "psd_point_definition": {
+            "free_air": "máximo de kerma en aire trasladado (sin correcciones de equipo ni superficie)",
+            "calibrated_air": "máximo de kerma incidente corregido (CF, perfil y mesa)",
+            "skin_dose": f"máximo de dosis superficial modelada en {equipment.raw.get('dose_medium')}; sin profundidad cutánea asignada"}[stage],
+        "dose_medium": equipment.raw.get("dose_medium") if stage == "skin_dose" else None,
         "psd_point_patient_mm": surface.points_mm[peak_index].tolist(),
         "global_psd_event_contributions": peak_event_contributions,
         "psd_neighbourhood_1cm2": neighbourhood_psd(surface, total) if compute_neighbourhood else None,
@@ -393,6 +482,7 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "surface_factor_dataset": equipment.surface_factor_provider.dataset.metadata
             if equipment.surface_factor_provider is not None and stage == "skin_dose" else None,
         "configuration_version": equipment.version,
+        "configuration_warnings": list(equipment.warnings),
         "assumptions": ["Colimación rectangular; perfil uniforme salvo beam_profile calibrado",
                         ("Paciente rígido registrado en el tablero. Mesa nivelada, sin giro y quieta durante cada evento."
                          if equipment.registered_frames else "Paciente rígido y centrado según configuración"),
@@ -422,6 +512,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         summary["xcat_anchor_surface_mm"] = (np.asarray(patient["mesh_axes_matrix"]) @ native
                                               + patient["mesh_origin_mm"]).tolist()
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,
+                              "projection_seconds": projection_seconds, "dosimetry_seconds": dosimetry_seconds,
+                              "metrics_seconds": time.perf_counter()-metrics_started,
+                              "geometry_cache_entries": cache_entries, "geometry_cache_limit_bytes": GEOMETRY_CACHE_BYTES,
+                              "event_maps_stored_values": int(sum(len(maps.nonzero(i)[0]) for i in range(len(maps)))),
                               "projection_cache_hits": cache_hits, "rays_traced": total_rays,
                               "candidate_triangle_pairs": total_pairs if pairs_available else None,
                               "candidate_triangle_pairs_available": pairs_available,
