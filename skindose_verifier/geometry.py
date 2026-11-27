@@ -80,6 +80,11 @@ def beam_from_event(ev: IrradiationEvent, equipment: Equipment) -> Beam:
 
 
 def table_shift(ev: IrradiationEvent, equipment: Equipment) -> np.ndarray:
+    """Engine-frame position of the table reference for one event.
+
+    Registered chain: O_T = isocentre + ROOM_FROM_I t_k (docs/sistemas_de_referencia.md).
+    Legacy synthetic model (no CT registration): table_matrix (raw - table_origin).
+    """
     g = equipment.geometry_for(ev.plane)
     if equipment.registered_frames is not None:
         iso = np.asarray(g.get("isocenter_mm", [0., 0., 0.]))
@@ -88,10 +93,7 @@ def table_shift(ev: IrradiationEvent, equipment: Equipment) -> np.ndarray:
     zero = np.asarray(g["table_origin_mm"], dtype=float)
     if raw.shape != (3,) or not np.all(np.isfinite(raw)):
         raise InputError("Posición de mesa ausente/inválida.")
-    offset = np.asarray(g.get("table_room_offset_mm", [0., 0., 0.]), dtype=float)
-    if offset.shape != (3,) or not np.all(np.isfinite(offset)):
-        raise InputError("Desplazamiento provisional tablero–sala inválido.")
-    return np.asarray(g["table_matrix"], dtype=float) @ (raw - zero) + offset
+    return np.asarray(g["table_matrix"], dtype=float) @ (raw - zero)
 
 
 def patient_pose(equipment, table_position):

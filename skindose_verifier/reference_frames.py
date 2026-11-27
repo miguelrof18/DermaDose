@@ -1,4 +1,18 @@
-"""Rigid CT (C, LPS) → tabletop (T, head edge) → isocentre (I), in mm."""
+"""Rigid CT (C, LPS) → tabletop (T, head edge) → isocentre (I), in mm.
+
+Frames (docs/sistemas_de_referencia.md):
+  C  physical DICOM coordinates of the CT, LPS: x left, y posterior, z head.
+  T  tabletop: origin at the centre of the head edge on the upper face;
+     x left of the board, y down, z towards the head edge.
+  I  isocentre of the C-arm; axes parallel to T with a level, unrotated board.
+
+  p_T = R_T<-C p_C + t_T<-C            (patient placement, per case)
+  t_k = t_0 + S (m_k - m_0)            (O_T in I for event k)
+  p_I(k) = p_T + t_k                   (R_I<-T = Id: level, unrotated board)
+
+Every link carries its evidence: explicit/measured or estimated. Estimates are
+never silent: they are stored in the configuration with method and hypothesis.
+"""
 from dataclasses import dataclass
 from hashlib import sha256
 import json
@@ -62,11 +76,43 @@ def configure_table(geometry, base_directory):
     geometry.update(table_calibration=table, table_half_length_mm=length / 2, table_half_width_mm=width / 2)
 
 
+READING_NAMES = ("longitudinal (DCM 113751)", "lateral (DCM 113752)", "altura (DCM 113753)")
+
+
+def _matrix_with_unknown(value, name):
+    """3x3 matrix where JSON null marks a component not yet characterized (NaN)."""
+    if not isinstance(value, (list, tuple)) or len(value) != 3 or any(
+            not isinstance(row, (list, tuple)) or len(row) != 3 for row in value):
+        raise InputError(f"Falta completar {name} como matriz 3 × 3.")
+    try:
+        matrix = np.array([[np.nan if v is None else float(v) for v in row] for row in value])
+    except (TypeError, ValueError) as exc:
+        raise InputError(f"{name}: se requieren valores numéricos o null.") from exc
+    if np.any(np.isinf(matrix)):
+        raise InputError(f"{name}: valores no finitos.")
+    return matrix
+
+
+def unknown_motion_columns(matrix):
+    """Readings whose physical direction in I is not characterized."""
+    return [j for j in range(3) if not np.all(np.isfinite(matrix[:, j]))]
+
+
 def motion_matrix(table):
-    """Columns correspond to DCM 113751, 113752 and 113753 respectively."""
+    """Columns correspond to DCM 113751, 113752 and 113753 respectively.
+
+    A column containing null is an uncharacterized reading. It is accepted here
+    and rejected later only if that reading changes with respect to m_0.
+    """
     trials = table.get("axis_trials")
     if trials is None:
-        matrix = _array(table.get("motion_matrix_i_per_mm"), (3, 3), "S (motion_matrix_i_per_mm)")
+        matrix = _matrix_with_unknown(table.get("motion_matrix_i_per_mm"), "S (motion_matrix_i_per_mm)")
+        known = [j for j in range(3) if j not in unknown_motion_columns(matrix)]
+        if not known:
+            raise InputError("S no caracteriza ninguna lectura de mesa.")
+        if np.linalg.matrix_rank(matrix[:, known]) != len(known):
+            raise InputError("S debe caracterizar desplazamientos independientes.")
+        return matrix
     else:
         if not isinstance(trials, list) or len(trials) != 3:
             raise InputError("S requiere tres movimientos independientes, uno por lectura.")
@@ -152,15 +198,35 @@ def marker_in_isocenter(reference):
     return q, {"marker_views": len(views), "marker_reprojection_rms_px": float(np.sqrt(np.mean(squared_errors)))}
 
 
-def room_reference_missing(table):
-    """Only an entirely absent room reference enables the provisional path."""
+REFERENCE_KEYS = ("readings_long_lat_height_mm", "marker_table_mm", "marker_isocenter_mm",
+                  "calibrated_views", "origin_isocenter_mm")
+
+
+def room_reference_state(table):
+    """'missing', 'measured' (marker in T and I) or 'estimated' (O_T in I given directly)."""
     if not isinstance(table, dict):
-        return False
+        return "missing"
     reference = table.get("reference")
-    if reference is None:
-        return True
-    return isinstance(reference, dict) and all(reference.get(key) is None for key in (
-        "readings_long_lat_height_mm", "marker_table_mm", "marker_isocenter_mm", "calibrated_views"))
+    if reference is None or (isinstance(reference, dict) and all(reference.get(k) is None for k in REFERENCE_KEYS)):
+        return "missing"
+    if not isinstance(reference, dict):
+        raise InputError("table_calibration.reference debe ser un objeto JSON.")
+    if reference.get("origin_isocenter_mm") is not None:
+        if any(reference.get(k) is not None for k in ("marker_table_mm", "marker_isocenter_mm", "calibrated_views")):
+            raise InputError("La referencia de sala es medida (marcador) o estimada (origin_isocenter_mm), no ambas.")
+        if not str(reference.get("status", "")).startswith("estimated"):
+            raise InputError("origin_isocenter_mm requiere status 'estimated_…' y su método en 'estimate'.")
+        return "estimated"
+    return "measured"
+
+
+def table_readings(event):
+    """(longitudinal, lateral, height) in mm from an event in the legacy reading system."""
+    if event.table_system != "legacy":
+        raise InputError(f"Evento {event.uid}: faltan las lecturas DCM 113751–113753 de la mesa calibrada.")
+    # IrradiationEvent retains the historical (lateral, longitudinal, height) order.
+    lateral, longitudinal, height = _array(event.table_mm, (3,), "posición de mesa del evento")
+    return np.array([longitudinal, lateral, height])
 
 
 def validate_slice_geometry(ct):
@@ -276,7 +342,7 @@ def resolve_registration_pose(registration, events, *, interactive=False, input_
     return registration
 
 
-def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
+def validated_ct_to_table(table, patient, base_directory):
     """Validate the patient registration independently of the room calibration."""
     case = _settings(patient["ct_registration"], base_directory, "ct_registration")
     transform, evidence = ct_to_table(case)
@@ -326,6 +392,11 @@ def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
         raise InputError("Declare la orientación completa en el registro TC–tablero.")
     patient.update(ct_registration=case, mesh_unit="mm", mesh_origin_mm=[0., 0., 0.],
                    mesh_axes_matrix=(RAS_TO_LPS if axes == "RAS" else np.eye(3)).tolist())
+    status = str(case.get("status", "explicit"))
+    if status != "explicit" and not status.startswith("estimated"):
+        raise InputError("ct_registration.status debe ser 'explicit' o 'estimated_…'.")
+    evidence.update(ct_to_table_status=status, ct_to_table_estimate=case.get("estimate"),
+                    M_T_from_C=transform.tolist())
     evidence.update(mesh_input_axes=axes, surface_frame="CT_LPS_mm", mesh_sha256=digest,
                     frame_of_reference_uid=uid, table_calibration_id=table["id"],
                     ct_acquisition_position=ct.get("patient_position"),
@@ -333,45 +404,12 @@ def validated_ct_to_table(table, patient, base_directory, *, provisional=False):
     return transform, evidence
 
 
-def provisional_ct_to_table(geometry, patient, base_directory):
-    """Keep C -> T exact; use only the configured legacy pose for T -> room."""
-    table = geometry.get("table_calibration")
-    if patient.get("type") != "mesh" or not isinstance(table, dict):
-        raise InputError("El registro TC requiere una malla y geometry.table_calibration.")
-    transform, evidence = validated_ct_to_table(table, patient, base_directory, provisional=True)
-    if not np.allclose(_array(patient.get("registration_shift_room_mm", [0, 0, 0]), (3,),
-                              "desplazamiento adicional del registro"), 0):
-        raise InputError("No se admite un desplazamiento adicional que rompa el anclaje TC–tablero.")
-    # T is (left, down, head), with its origin on the top head edge.
-    # The legacy room model translates the centre of the board instead.
-    head_edge = np.array([0., float(geometry["table_half_length_mm"]),
-                          float(geometry["table_plane_z_mm"])])
-    for plane in (geometry.get("planes") or {}).values():
-        if not np.isclose(float(plane.get("table_plane_z_mm", head_edge[2])), head_edge[2]):
-            raise InputError("El registro provisional requiere la misma altura del tablero en todos los planos.")
-    native_to_lps = np.asarray(patient["mesh_axes_matrix"])
-    patient.update(mesh_axes_matrix=(ROOM_FROM_I @ transform[:3, :3] @ native_to_lps).tolist(),
-                   mesh_origin_mm=(ROOM_FROM_I @ transform[:3, 3]).tolist(),
-                   origin_on_table_mm=head_edge.tolist(), tilt_x_deg=0, tilt_y_deg=0)
-    evidence.update(surface_frame="table_head_edge_room_axes_mm",
-                    M_T_from_C=transform.tolist(), head_edge_from_legacy_origin_room_mm=head_edge.tolist(),
-                    ct_to_table_status="explicit", table_to_isocenter_status="provisional_legacy_geometry",
-                    table_origin_mm=geometry["table_origin_mm"], table_matrix=geometry["table_matrix"])
-    if "table_room_reference_estimate" in geometry:
-        evidence["room_reference_estimate"] = geometry["table_room_reference_estimate"]
-    if "table_room_offset_mm" in geometry:
-        evidence["table_room_offset_mm"] = _array(geometry["table_room_offset_mm"], (3,),
-                                                 "traslación provisional tablero–sala").tolist()
-    patient["ct_table_registration"] = evidence
-    return evidence
-
-
 @dataclass(frozen=True)
 class RegisteredFrames:
-    table_from_ct: np.ndarray
-    reference_readings: np.ndarray
-    reference_origin_i: np.ndarray
-    displacement_matrix: np.ndarray
+    table_from_ct: np.ndarray        # M_T<-C (4 x 4)
+    reference_readings: np.ndarray   # m_0, (long, lat, height) mm
+    reference_origin_i: np.ndarray   # t_0, O_T in I at m_0, mm
+    displacement_matrix: np.ndarray  # S, mm in I per mm of reading; NaN = unknown
     evidence: dict
 
     @classmethod
@@ -381,23 +419,42 @@ class RegisteredFrames:
             raise InputError("El registro TC requiere una malla y geometry.table_calibration.")
         if geometry.get("table_coordinates") != "legacy":
             raise InputError("Esta calibración usa las lecturas DCM 113751–113753 (table_coordinates=legacy).")
-        ref = table.get("reference")
-        if not isinstance(ref, dict):
-            raise InputError("Falta la posición de referencia de la mesa en el isocentro.")
+        state = room_reference_state(table)
+        if state == "missing":
+            raise InputError(
+                "Falta la referencia tablero–isocentro (t0, m0). Mídala con un marcador "
+                "(table_calibration.reference) o deje que el lanzador la estime: "
+                "python -m skindose_verifier.example_runner CASO.")
+        ref = table["reference"]
         m0 = _array(ref.get("readings_long_lat_height_mm"), (3,), "m0 longitudinal/lateral/altura (mm)")
-        q_t = _array(ref.get("marker_table_mm"), (3,), "marcador en T (mm)")
-        q_i, marker_evidence = marker_in_isocenter(ref)
         s = motion_matrix(table)
-
+        if state == "measured":
+            q_t = _array(ref.get("marker_table_mm"), (3,), "marcador en T (mm)")
+            q_i, reference_evidence = marker_in_isocenter(ref)
+            origin = q_i - q_t
+            reference_evidence.update(room_reference_status="measured_marker",
+                                      marker_table_mm=q_t.tolist(), marker_isocenter_mm=q_i.tolist())
+        else:
+            origin = _array(ref.get("origin_isocenter_mm"), (3,), "origen del tablero en I (mm)")
+            reference_evidence = dict(room_reference_status=str(ref["status"]),
+                                      room_reference_estimate=ref.get("estimate"))
         transform, evidence = validated_ct_to_table(table, patient, base_directory)
-        evidence.update(origin_reference_i_mm=(q_i - q_t).tolist(), readings_reference_mm=m0.tolist(),
-                        motion_matrix_i_per_mm=s.tolist(), **marker_evidence)
-        return cls(transform, m0, q_i - q_t, s, evidence)
+        status = table.get("motion_matrix_status")
+        evidence.update(origin_reference_i_mm=origin.tolist(), readings_reference_mm=m0.tolist(),
+                        motion_matrix_i_per_mm=[[None if not np.isfinite(v) else float(v) for v in row] for row in s],
+                        motion_matrix_unknown_readings=[READING_NAMES[j] for j in unknown_motion_columns(s)],
+                        motion_matrix_status=status, **reference_evidence)
+        return cls(transform, m0, origin, s, evidence)
 
     def table_origin_i(self, event):
-        if event.table_system != "legacy":
-            raise InputError(f"Evento {event.uid}: faltan las lecturas DCM 113751–113753 de la mesa calibrada.")
-        # IrradiationEvent retains the historical (lateral, longitudinal, height) order.
-        lateral, longitudinal, height = _array(event.table_mm, (3,), "posición de mesa del evento")
-        readings = np.array([longitudinal, lateral, height])
-        return self.reference_origin_i + self.displacement_matrix @ (readings - self.reference_readings)
+        """t_k = t_0 + S (m_k - m_0): position of O_T in I during event k."""
+        delta = table_readings(event) - self.reference_readings
+        for j in unknown_motion_columns(self.displacement_matrix):
+            if abs(delta[j]) > 1e-6:
+                raise InputError(
+                    f"Evento {event.uid}: la lectura {READING_NAMES[j]} cambia {delta[j]:+.1f} mm respecto a la "
+                    "referencia, pero su sentido en el angiógrafo no está caracterizado (columna null de "
+                    "motion_matrix_i_per_mm). Obtenga S con las tomas 4–6 de «Calibración geométrica» "
+                    "(python -m skindose_verifier.table_calibration) o declare el sentido comprobado.")
+        known = np.where(np.isfinite(self.displacement_matrix), self.displacement_matrix, 0.)
+        return self.reference_origin_i + known @ delta

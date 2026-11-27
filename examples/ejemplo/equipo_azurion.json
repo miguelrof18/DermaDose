@@ -18,31 +18,6 @@
       0
     ],
     "table_coordinates": "legacy",
-    "table_origin_mm": [
-      0,
-      0,
-      0
-    ],
-    "table_matrix": [
-      [
-        1,
-        0,
-        0
-      ],
-      [
-        0,
-        -1,
-        0
-      ],
-      [
-        0,
-        0,
-        1
-      ]
-    ],
-    "table_plane_z_mm": -125,
-    "table_half_width_mm": 300,
-    "table_half_length_mm": 600,
     "table_calibration": {
       "id": "azurion_hemodinamica_1_2026-11",
       "name": "Azurion Hemodinamica 1",
@@ -95,11 +70,16 @@
           0
         ]
       ],
-      "motion_note": "Columnas DCM longitudinal, lateral, altura. D59 indica izquierda y D61 arriba. D58 indica el eje craneal/caudal sin elegir sentido. Ganancia unitaria nominal en mm/mm. Verificar con movimientos aislados.",
+      "motion_note": "Columnas: lecturas longitudinal, lateral y altura (DCM 113751–113753). Filas: desplazamiento en I (x izquierda, y abajo, z cabecera) por mm de lectura. Valores nominales de la configuración Radimetrics (D58, D59, D61) con ganancia unitaria; el signo lateral (cabecera/pies) está sin caracterizar (null). Obtener S con python -m skindose_verifier.table_calibration y las tomas 4–6 de «Calibración geométrica».",
       "reference": {
         "readings_long_lat_height_mm": null,
         "marker_table_mm": null,
         "marker_isocenter_mm": null
+      },
+      "motion_matrix_status": {
+        "longitudinal (DCM 113751)": "nominal_radimetrics_D59_left_unit_gain",
+        "lateral (DCM 113752)": "unknown_sign_D58_cranial_caudal_axis_only",
+        "altura (DCM 113753)": "nominal_radimetrics_D61_up_unit_gain"
       }
     }
   },
@@ -155,8 +135,7 @@
     "geometry_characterized": false,
     "calibration_characterized": false,
     "invalid_distance_policy": "error",
-    "reference_table_from_first_event": true,
-    "notes": "Research profile: first event sets the provisional table origin.",
+    "notes": "Research profile. Patient placement follows C -> T -> I (docs/sistemas_de_referencia.md); unmeasured links are estimated by the launcher and recorded in the effective configuration.",
     "tube_model": "MRC 200 0407"
   },
   "tube_characterization": {

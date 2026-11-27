@@ -135,15 +135,15 @@ def prepare_events(events, equipment):
             raise InputError("Sistema de lecturas de mesa incompatible con la referencia provisional.")
         if first_table is not None:
             equipment.geometry['table_origin_mm'] = list(first_table)
-        if "ct_table_registration" in equipment.patient:
-            equipment.patient["ct_table_registration"]["table_origin_mm"] = list(equipment.geometry["table_origin_mm"])
     for index, event in enumerate(events, 1):
         updates = {}
         quality = dict(event.quality)
         if reference_from_first:
             quality['table_reference'] = 'research_reference_first_event_not_clinical_registration'
         elif registered:
-            quality['table_reference'] = 'fixed_tabletop_marker_reference'
+            room = equipment.registered_frames.evidence.get('room_reference_status', '')
+            quality['table_reference'] = ('fixed_tabletop_marker_reference' if room == 'measured_marker'
+                                          else 'estimated_room_reference_' + room.removeprefix('estimated_'))
         if (research and profile.get('recover_missing_sid', True) is True
                 and (event.sid_mm is None or not math.isfinite(event.sid_mm) or event.sid_mm <= 0)
                 and all(v is not None and math.isfinite(v) and v > 0
