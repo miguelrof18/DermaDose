@@ -179,10 +179,14 @@ def uncertainty(equipment: Equipment, stage: str, events: Sequence[IrradiationEv
     names = [] if stage == "free_air" else ["cf"] + sorted({
         name for ev in events for name in equipment.factors_for(ev)
         if name in ("table_total", "table_normal", "table_angular", "beam_profile")})
-    if stage == "skin_dose":
-        names += ["bsf", "f_skin"]
     known: dict[str, float] = {}
     missing = ["posición real del paciente", "geometría real del campo", "incertidumbre de discretización"]
+    if stage == "skin_dose":
+        if equipment.surface_factor_provider is not None:
+            # bsf/f_skin do not exist with the tabulated provider; name the real component.
+            missing.append("incertidumbre de factores superficiales tabulados (k_BS·k_f) y de su interpolación")
+        else:
+            names += ["bsf", "f_skin"]
     for name in names:
         uncertainties = [equipment.factors_for(ev)[name].relative_standard_uncertainty
                          for ev in events if name in equipment.factors_for(ev)]
@@ -382,7 +386,7 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         "spatial_resolution_target_mm": equipment.patient["resolution_mm"] if surface.kind != "mesh" else None,
         "surface_metrics": surface_metrics(surface, total, equipment.raw.get("dose_area_thresholds_gy")) if detailed else None,
         "mesh_geometry": mesh_quality(surface.mesh) if surface.mesh is not None and detailed else None,
-        "uncertainty": uncertainty(equipment, stage, [normalize(ev, equipment) for ev in events]),
+        "uncertainty": uncertainty(equipment, stage, events),
         "events_outside_model": [r["event_uid"] for r in reports if r["no_skin_intersection_warning"]],
         "calibration_versions": {k: f.identifier for k, f in equipment.factors.items()},
         "factor_metadata": _factor_metadata(equipment),

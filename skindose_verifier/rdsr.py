@@ -34,12 +34,13 @@ CODE = {
     "field_area_m2": "113790",
 }
 UNITS = {
-    "ka_r_gy": {"Gy": 1., "mGy": 1e-3, "uGy": 1e-6},
-    "kap_gy_m2": {"Gy.m2": 1., "Gym2": 1., "Gy.cm2": 1e-4, "cGy.cm2": 1e-6, "uGy.m2": 1e-6},
+    "ka_r_gy": {"Gy": 1., "dGy": 1e-1, "cGy": 1e-2, "mGy": 1e-3, "uGy": 1e-6},
+    "kap_gy_m2": {"Gy.m2": 1., "Gym2": 1., "mGy.m2": 1e-3, "uGy.m2": 1e-6, "Gy.cm2": 1e-4,
+                  "dGy.cm2": 1e-5, "cGy.cm2": 1e-6, "mGy.cm2": 1e-7, "uGy.cm2": 1e-10},
     "kvp": {"kV": 1.}, "exposure_mas": {"uA.s": 1e-3, "uAs": 1e-3, "mA.s": 1., "mAs": 1.},
     "exposure_time": {"ms": 1., "s": 1000.}, "current_ma": {"mA": 1.},
-    "filter_thickness_mm": {"mm": 1.}, "field_area_m2": {"m2": 1., "cm2": 1e-4},
-    **{name: {"mm": 1., "cm": 10.} for name in (
+    "filter_thickness_mm": {"mm": 1.}, "field_area_m2": {"m2": 1., "cm2": 1e-4, "mm2": 1e-6},
+    **{name: {"mm": 1., "cm": 10., "m": 1000.} for name in (
         "table_x_iso", "table_y_iso", "table_z_iso", "table_long", "table_lat",
         "table_height", "sid_mm", "sod_mm", "srp_mm", "field_width_mm", "field_height_mm")},
     **{name: {"deg": 1.} for name in (

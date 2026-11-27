@@ -4,6 +4,7 @@ from pydicom import dcmread
 from trimesh import load_mesh
 
 from .geometry import beam_from_event, table_shift, patient_pose, geometry_preflight
+from .reference_frames import intervention_pose
 
 
 def _coded_values(root, concept):
@@ -22,9 +23,16 @@ def estimate_placement(path, digest, metadata, dicom, events, equipment):
         raise ValueError("El JSON de Slicer no corresponde al STL seleccionado.")
     if metadata.get("coordinate_system") != "RAS" or metadata.get("length_unit") != "mm":
         raise ValueError("La colocación automática requiere un STL documentado en RAS y mm.")
-    sr = dcmread(dicom)
-    direction = _coded_values(sr, "patient table relationship")
-    posture = _coded_values(sr, "patient orientation modifier")
+    sr = dcmread(dicom, stop_before_pixels=True)
+    # Prefer the coded posture already decoded per event (DCM 113743-113745,
+    # SCT/SRT codes); free-text CodeMeaning is only a fallback for old exports.
+    pose = intervention_pose(events)["position"] if events else None
+    if pose in ("HFS", "HFP", "FFS", "FFP"):
+        direction = {"headfirst" if pose.startswith("HF") else "feetfirst"}
+        posture = {"supine" if pose.endswith("S") else "prone"}
+    else:
+        direction = _coded_values(sr, "patient table relationship")
+        posture = _coded_values(sr, "patient orientation modifier")
     if direction not in ({"headfirst"}, {"feetfirst"}) or posture not in ({"supine"}, {"prone"}):
         raise ValueError("El RDSR no identifica una postura supina o prona uniforme y el sentido de entrada.")
     regions = _coded_values(sr, "target region")

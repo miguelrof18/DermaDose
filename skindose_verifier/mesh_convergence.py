@@ -25,9 +25,11 @@ def compare(rdsr, config, low, high, stage="skin_dose"):
         data = deepcopy(raw)
         data["patient"]["mesh_path"] = str(path)
         equipment = Equipment.from_dict(data, base_directory=config.parent)
-        equipment.require_matching_device(report.manufacturer, report.model)
+        # Informational, as in ``cli.run``: the selected configuration applies.
+        device_match = equipment.matches_device(report.manufacturer, report.model)
         calculation = calculate(report.events, equipment, stage, detailed=False)
         output[label] = dict(psd_point_gy=calculation.summary["psd_point_gy"],
+            configuration_device_match=device_match,
             peak_patient_mm=calculation.summary["psd_point_patient_mm"],
             mesh_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
     a, b = output["150k"], output["300k"]

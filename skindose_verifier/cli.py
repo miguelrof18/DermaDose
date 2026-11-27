@@ -59,7 +59,7 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
         replacement.pop("surface_factors", None)
         replacement["factors"]["bsf"] = synthetic["bsf"]
         replacement["factors"]["f_skin"] = synthetic["f_skin"]
-        equipment = Equipment.from_dict(replacement)
+        equipment = Equipment.from_dict(replacement, base_directory=Path(config).resolve().parent)
         calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True),
                                 diagnostic_callback=save_geometry_diagnostic)
         factor_source = "historical_synthetic_whole_run"
