@@ -8,3 +8,4 @@
 *.stl binary
 # Byte-exact scientific datasets: never convert line endings (SHA-256).
 skindose_verifier/data/benmakhlouf_2011/** -text
+skindose_verifier/data/derived_*/*.csv -text
