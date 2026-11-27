@@ -28,6 +28,10 @@ Los resultados se guardan en la subcarpeta `resultados` del caso. Consulta [el e
 
 En Slicer, añade `slicer/DermaDoseSurface` a las rutas de módulos adicionales en **Edit → Application Settings → Modules** y reinicia. Abre **DermaDose → DermaDose Surface**, selecciona el volumen de TC, extrae y revisa el contorno y exporta el STL con su JSON. Conserva ambos juntos. La superficie exportada describe el contorno externo del TC.
 
+## Colocación del paciente
+
+La malla se sitúa con una sola cadena: TC (LPS) → tablero (origen en el borde de cabecera) → isocentro, con las lecturas de mesa de cada evento. Los eslabones que no se han medido (registro del TC en el tablero, referencia tablero–isocentro) los estima el lanzador con hipótesis explícitas que quedan en los resultados. Consulta [Sistemas de referencia](docs/sistemas_de_referencia.md) y la herramienta `python -m skindose_verifier.table_calibration` para caracterizar los movimientos de la mesa.
+
 ## Cómo calcula
 
 El lector obtiene del RDSR el kerma de referencia, la geometría, la colimación y la calidad del haz por evento. El motor sitúa los haces y la superficie en un sistema común, busca la primera intersección con la piel, aplica las correcciones dosimétricas configuradas y acumula los eventos. El visor muestra el mapa acumulado y la ubicación del máximo. La colocación estimada mediante TC y RDSR depende de las hipótesis de anclaje y mesa.

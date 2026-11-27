@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.7.0 · noviembre de 2026
+
+### Colocación del paciente: una sola cadena TC → tablero → isocentro
+
+- La malla se coloca siempre con `p_I(k) = R_T←C p_C + t_T←C + t_0 + S (m_k − m_0)` ([Sistemas de referencia](docs/sistemas_de_referencia.md)). Desaparecen la ruta provisional heredada (`provisional_ct_to_table`, `table_room_offset_mm`) y las colocaciones específicas del XCAT y del TC sin registro (`ct_placement.py`).
+- Cada eslabón es medido o estimado, con su hipótesis guardada en `configuracion_efectiva.json` y en `placement_chain`:
+  - `M_T←C` estimado: postura codificada del RDSR, punto diana del TC, espalda sobre la colchoneta, distancia a la cabecera.
+  - `t_0, m_0` estimados: punto diana en el isocentro en el evento de referencia (`--evento-referencia`).
+- `S` admite lecturas sin caracterizar (`null`). Si esa lectura cambia, el cálculo se detiene en lugar de suponer un sentido. Nueva herramienta `table_calibration` que obtiene `S` de movimientos de un solo eje (tomas 4–6 de «Calibración geométrica»).
+- Perfiles Azurion: se retira la geometría heredada (`table_matrix`, origen y altura de mesa), que asignaba las lecturas longitudinal/lateral al revés que la configuración Radimetrics de la sala.
+- DermaDose Surface registra `anchor_definition` en `registro_tc.json`.
+
 ## 0.6.0 · noviembre de 2026
 
 La física del modelo no cambia: mismas ecuaciones, convenciones angulares, tablas y factores. En los casos de regresión comparados, los mapas, las métricas y la media de 1 cm² son idénticos a los de 0.5.3.
