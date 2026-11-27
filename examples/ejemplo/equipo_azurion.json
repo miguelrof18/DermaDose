@@ -66,20 +66,20 @@
         ],
         [
           0,
-          null,
+          1,
           0
         ]
       ],
-      "motion_note": "Columnas: lecturas longitudinal, lateral y altura (DCM 113751–113753). Filas: desplazamiento en I (x izquierda, y abajo, z cabecera) por mm de lectura. Valores nominales de la configuración Radimetrics (D58, D59, D61) con ganancia unitaria; el signo lateral (cabecera/pies) está sin caracterizar (null). Obtener S con python -m skindose_verifier.table_calibration y las tomas 4–6 de «Calibración geométrica».",
+      "motion_note": "Columnas: lecturas longitudinal, lateral y altura (DCM 113751–113753). Filas: desplazamiento en I (x izquierda, y abajo, z cabecera) por mm de lectura. Longitudinal y altura: valores nominales de Radimetrics (D59, D61). Lateral: +1 hacia la cabecera, verificado con el conjunto RFM 2024 (casos 13–19: desplazamientos de mesa para centrar la cámara en haces angulados; ganancia unitaria dentro de ±1 cm). Las tres columnas coinciden con la definición DICOM salvo la altura, que en el Azurion crece hacia arriba (casos 24–27). Confirmar la ganancia con python -m skindose_verifier.table_calibration y las tomas 4–6 de «Calibración geométrica».",
       "reference": {
         "readings_long_lat_height_mm": null,
         "marker_table_mm": null,
         "marker_isocenter_mm": null
       },
       "motion_matrix_status": {
-        "longitudinal (DCM 113751)": "nominal_radimetrics_D59_left_unit_gain",
-        "lateral (DCM 113752)": "unknown_sign_D58_cranial_caudal_axis_only",
-        "altura (DCM 113753)": "nominal_radimetrics_D61_up_unit_gain"
+        "longitudinal (DCM 113751)": "nominal_radimetrics_D59_left_unit_gain_sign_verified_rfm2024_cases_13_19",
+        "lateral (DCM 113752)": "sign_verified_rfm2024_cases_16_17_cranial_unit_gain_within_1cm",
+        "altura (DCM 113753)": "nominal_radimetrics_D61_up_unit_gain_sign_verified_rfm2024_cases_24_27"
       }
     }
   },

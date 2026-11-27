@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.8.0 · noviembre de 2026
+
+### Verificación con el conjunto RFM 2024
+
+- Nuevo `verification_rfm2024.py`, que reproduce la metodología de Gañán Mora et al. (Rev Fis Med 2024;25(2):25–34) sobre sus 27 RDSR y escribe CSV y JSON con el veredicto de cada caso ([informe y modelo](docs/verificacion_rfm2024.md)). Todos los casos quedan dentro de ±13 %: media +2,9 %, desviación típica 3,4 % y tres casos fuera de ±6,5 %.
+- `surface_factors.aluminium_interpolation = linear_between_families`: interpolación lineal auditada entre familias de Al adyacentes, sin extrapolación. Antes, un Al total no tabulado detenía el cálculo (caso 6 del Canon, 1,8 mm Al).
+- `geometry.collimated_area_reference_mm`: el área colimada (DCM 113790) puede referirse a una distancia fija. El Canon la refiere a 1000 mm y no al detector (casos 9–10, SID 910 mm).
+- Nuevo `table_transmission.py`, que genera factores de mesa tabulados con el ajuste genérico de DeLorenzo et al. (2018). Es el mismo ajuste que usa SkinDose2D, con el término angular continuo más allá de 80°.
+- Perfiles Azurion: la columna lateral de `S` pasa de `null` a +1 (hacia la cabecera). Lo establecen los desplazamientos de mesa de los casos 16–17. Los casos 13–15, 18–19 y 24–27 confirman los signos longitudinal y de altura con ganancia unitaria (±1 cm).
+
 ## 0.7.0 · noviembre de 2026
 
 ### Colocación del paciente: una sola cadena TC → tablero → isocentro

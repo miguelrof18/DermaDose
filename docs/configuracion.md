@@ -24,6 +24,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `dose_medium` | Medio de la dosis calculada, `water` o `skin` según el modelo. |
 | `geometry.source_to_isocenter_mm`, `source_to_detector_mm`, `source_to_irp_mm` | Distancias de referencia desde el foco al isocentro, detector y punto de referencia intervencionista, respectivamente. La geometría efectiva por evento se obtiene del RDSR según las reglas del perfil. |
 | `geometry.field_reference` | Plano de referencia de las dimensiones del campo, detector o isocentro. |
+| `geometry.collimated_area_reference_mm` | Opcional. Distancia desde el foco a la que el equipo refiere el área colimada (DCM 113790) cuando el RDSR no da anchura ni altura. Si se omite, el área se refiere al detector. El Canon Infinix del conjunto RFM 2024 la refiere a 1000 mm (casos 9–10, SID 910 mm). |
 | `geometry.primary_sign`, `secondary_sign` | Signos de los ángulos del arco en la convención interna. |
 | `geometry.rotation_order` | Orden de aplicación de los giros primario y secundario. |
 | `geometry.isocenter_mm` | Coordenadas internas del isocentro. Si se omite, se toma el origen. |
@@ -41,7 +42,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `patient.thickness_mm`, `resolution_mm` | Espesor del modelo y resolución nominal del muestreo. |
 | `patient.origin_on_table_mm` | Desplazamiento de la superficie respecto a la mesa. La malla puede tener además su propia transformación. |
 | `factors.cf` | Factor de corrección del kerma registrado. |
-| `factors.table_normal`, `table_angular` | Transmisión normal de mesa y corrección angular configurada, aplicables a rayos que atraviesan el tablero. |
+| `factors.table_normal`, `table_angular` | Transmisión normal de mesa y corrección angular configurada, aplicables a rayos que atraviesan el tablero. `python -m skindose_verifier.table_transmission --salida factores_mesa.json` genera bloques tabulados con el ajuste genérico de DeLorenzo et al. (2018), el mismo que usa SkinDose2D. Sustitúyalos por la transmisión medida de la mesa y la colchoneta cuando se disponga de ella. |
 | `factors.bsf`, `f_skin` | Retrodispersión y conversión a piel explícitas en la demo sintética. |
 | `value`, `provenance`, `identifier`, `relative_standard_uncertainty` | Valor del factor, procedencia, identificador e incertidumbre estándar relativa. `null` indica que no se ha declarado la incertidumbre. |
 | `tube_output.reference_distance_mm`, `yield_gy_per_mas` | Distancia y rendimiento de referencia, en Gy/mAs, para la estimación alternativa de kerma por rendimiento. |
@@ -56,6 +57,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `surface_factors.dataset_directory` | Carpeta de la tabla derivada y su metadato. La ruta relativa se interpreta desde el JSON de equipo. |
 | `surface_factors.inherent_al_mm`, `target` | Filtración fija efectiva en mm Al equivalentes y material del blanco. En el perfil Azurion, el valor representa la filtración efectiva ajustada a la HVL medida. |
 | `surface_factors.aluminium_policy` | Regla para combinar el aluminio fijo con el aluminio registrado por evento. |
+| `surface_factors.aluminium_interpolation` | `none` (por defecto) o `linear_between_families`. Con la segunda, un aluminio total entre dos familias tabuladas se interpola linealmente; fuera del intervalo tabulado se sigue deteniendo el cálculo. La auditoría registra las familias y los pesos. |
 | `surface_factors.expected_anode_angle_deg` | Ángulo de ánodo exigido para la tabla seleccionada. |
 | `surface_factors.field_shape_policy`, `out_of_domain` | Regla para representar la forma del campo y comportamiento si los parámetros quedan fuera del dominio tabulado. `equal_area` usa un cuadrado de área equivalente. |
 | `surface_factors.incident_kerma_basis`, `quality_basis` | Definición del kerma incidente y aproximación de calidad de haz usada para consultar la tabla. |

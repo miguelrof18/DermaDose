@@ -47,19 +47,19 @@ El lanzador (`python -m skindose_verifier.example_runner CASO`) aplica esta tabl
 
 Opciones del lanzador relacionadas: `--espesor-colchoneta-mm`, `--distancia-hombros-mm`, `--evento-referencia first|max_kerma|N`, `--registro-tc` y `--mesa`.
 
-## Lecturas de mesa del Azurion: qué falta caracterizar
+## Lecturas de mesa del Azurion
 
-La declaración de conformidad DICOM del Azurion lista las tres lecturas en mm, sin convenio de signo, origen ni eje. La configuración de Radimetrics de la sala (hoja «Calibración Radimetrics», D57–D61) indica lo siguiente:
+La declaración de conformidad DICOM del Azurion lista las tres lecturas en mm, sin convenio de signo, origen ni eje. La configuración de Radimetrics de la sala (hoja «Calibración Radimetrics», D57–D61) da los ejes. Los RDSR del conjunto de verificación RFM 2024 (Gañán Mora et al., Rev Fis Med 2024;25(2):25–34; ver [verificacion_rfm2024.md](verificacion_rfm2024.md)) fijan los signos:
 
-| Lectura | Movimiento físico según Radimetrics | Columna de `S` en el perfil |
-|---|---|---|
-| Longitudinal (113751) | Izquierda | (1, 0, 0), nominal |
-| Lateral (113752) | Eje cabeza–pies, **sin signo** | (0, 0, null) |
-| Altura (113753) | Arriba | (0, −1, 0), nominal (DICOM define el sentido hacia el suelo: comprobar) |
+| Lectura | Movimiento físico | Columna de `S` en el perfil | Evidencia |
+|---|---|---|---|
+| Longitudinal (113751) | Izquierda | (1, 0, 0) | Radimetrics D59. En los casos 13–15 y 18–19, la mesa se desplaza hacia el lado del tubo para centrar la cámara (−79 mm a 30°, −152 mm a 45°, +44 mm a −15°, +94 mm a −30°). |
+| Lateral (113752) | Cabecera | (0, 0, 1) | Casos 16–17: con 15° y 30° craneales la lectura baja 41 y 90 mm, y el centro del campo se mueve 42 y 90 mm hacia los pies. |
+| Altura (113753) | Arriba | (0, −1, 0) | Radimetrics D61. En los casos 24–27, la mesa subida 11 cm lee 111 mm más. DICOM define el sentido contrario (hacia el suelo). |
 
 En Philips, la lectura «longitudinal» mueve izquierda–derecha y la «lateral» cabeza–pies, al contrario que sus nombres. La geometría heredada anterior aplicaba el convenio contrario y se ha retirado de los perfiles Azurion.
 
-Mientras el signo lateral sea `null`, un caso en el que la mesa se desplace hacia la cabeza o los pies se detiene con un mensaje que lo explica. Para caracterizarlo:
+Las ganancias coinciden con 1 mm/mm dentro de la tolerancia de centrado de la cámara (±1 cm). Una columna `null` sigue siendo posible en otros perfiles: un caso en el que esa lectura cambie se detiene con un mensaje. Para medir los signos y ganancias de otra mesa:
 
 1. Haz las tomas 4–6 de «Calibración geométrica»: desde la frontal, mueve solo un eje cada vez y anota hacia dónde va el tablero visto desde el paciente supino (y el recorrido, si lo mides con una marca de sala).
 2. Ejecuta:
