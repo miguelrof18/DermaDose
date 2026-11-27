@@ -28,7 +28,7 @@ En los 27 casos la diferencia queda dentro de ±13 %. La media es de +2,9 %, con
 
 - **Sesgo positivo, mayor con el kVp.** Al subir de 66 a 96 kV, la diferencia en el Azurion pasa del 0 al +7 %. La transmisión implícita en las medidas no crece con el kVp, mientras que el ajuste genérico de DeLorenzo crece un 3 %. Esto es compatible con la dependencia energética de la cámara (±5 %) y con la diferencia entre una mesa concreta y el ajuste genérico (10 %). La corrección consiste en medir la transmisión de la mesa y la colchoneta de la sala e introducirla como factor tabulado.
 - **Casos 9 y 10 (campos del Canon con SID 910 mm).** Respecto del caso 1, la dosis medida por unidad de Ka,r varía un −11 % y un +18 %, mientras que k_BS y la transmisión de mesa predicen −7 % y +3,5 %. SkinDose2D presenta la misma discrepancia (+7 % y −9 %). Ninguna interpretación del área colimada la explica, ya que el efecto es inferior al 2 %. La causa más probable está en el Ka,r del RDSR con SID 910 mm o en las propias medidas.
-- **Ángulos.** La dependencia angular (casos 13–19) se reproduce dentro del ±2 % respecto del caso base.
+- **Ángulos.** Los casos angulados 13–17 quedan entre 1,2 y 2,8 puntos por debajo del caso base del Azurion. La dependencia angular se reproduce dentro de la incertidumbre de la medida.
 
 ## Cambios motivados por el estudio
 
