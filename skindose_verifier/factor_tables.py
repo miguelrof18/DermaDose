@@ -7,12 +7,26 @@ import numpy as np
 
 from .domain import InputError
 
+# Queries with more distinct values than this are summarised in the audit
+# (count, minimum, maximum). A mesh event can query tens of thousands of local
+# field sides; listing all of them made each report grow by megabytes without
+# adding traceability, because the source nodes are listed separately.
+QUERY_AXIS_LISTING_LIMIT = 32
+
 
 @dataclass(frozen=True)
 class FactorPair:
     k_bs: np.ndarray
     k_f: np.ndarray
     audit: dict
+
+
+def _query_axis_summary(values: np.ndarray):
+    unique = np.unique(values)
+    if len(unique) <= QUERY_AXIS_LISTING_LIMIT:
+        return unique.tolist()
+    return {"count": int(len(unique)), "minimum": float(unique[0]), "maximum": float(unique[-1]),
+            "listing": "summarised_more_than_%d_values" % QUERY_AXIS_LISTING_LIMIT}
 
 
 class RectilinearFactorTable:
@@ -36,6 +50,18 @@ class RectilinearFactorTable:
             self.rows[key] = dict(row)
         if len(self.rows) != math.prod(len(v) for v in self.nodes.values()):
             raise InputError('Malla incompleta: no se inventan nodos ausentes.')
+        # Dense node arrays allow a vectorised evaluation. They are built once
+        # from the same rows and are only an index of the stored values.
+        shape = tuple(len(self.nodes[a]) for a in self.axes)
+        position = {a: {float(x): i for i, x in enumerate(self.nodes[a])} for a in self.axes}
+        self._bs = np.empty(shape)
+        self._f = np.empty(shape)
+        self._keys = np.empty(shape, dtype=object)
+        for key, row in self.rows.items():
+            index = tuple(position[a][x] for a, x in zip(self.axes, key))
+            self._bs[index] = float(row['k_bs'])
+            self._f[index] = float(row['k_f'])
+            self._keys[index] = key
 
     def evaluate(self, **coordinates):
         if set(coordinates) != set(self.axes):
@@ -45,43 +71,56 @@ class RectilinearFactorTable:
         except (ValueError, TypeError) as exc:
             raise InputError('Coordenadas inválidas en tabla de factores.') from exc
         shape = values[0].shape
-        if values[0].size == 0:
+        size = values[0].size
+        if size == 0:
             raise InputError('Consulta de factores vacía.')
         brackets = []
         for axis, v in zip(self.axes, values):
             nodes = self.nodes[axis]
             if not np.all(np.isfinite(v)) or np.any(v < nodes[0]) or np.any(v > nodes[-1]):
                 raise InputError(f'{axis}: fuera del dominio [{nodes[0]}, {nodes[-1]}]; no se extrapola.')
-            upper = np.searchsorted(nodes, v.ravel(), side='left')
+            flat = v.ravel()
+            upper = np.searchsorted(nodes, flat, side='left')
             lower = np.maximum(upper-1, 0)
-            exact = nodes[upper] == v.ravel()
+            exact = nodes[upper] == flat
             lower = np.where(exact, upper, lower)
             span = nodes[upper]-nodes[lower]
-            weight = np.divide(v.ravel()-nodes[lower], span, out=np.zeros_like(span), where=span != 0)
-            brackets.append((nodes[lower], nodes[upper], weight))
-        bs, f = np.zeros(values[0].size), np.zeros(values[0].size)
-        combined = np.zeros(values[0].size)
-        used = {}; interpolated = np.zeros(values[0].size, dtype=bool)
+            weight = np.divide(flat-nodes[lower], span, out=np.zeros_like(span), where=span != 0)
+            brackets.append((lower, upper, weight))
+        # Same corner order and the same floating-point operation order as the
+        # former per-point loop: results are bitwise identical, only faster.
+        bs, f = np.zeros(size), np.zeros(size)
+        combined = np.zeros(size)
+        interpolated = np.zeros(size, dtype=bool)
+        used_corners = []
         for sides in product((0, 1), repeat=len(self.axes)):
-            weights = np.ones(values[0].size)
-            coords = []
+            weights = np.ones(size)
+            index = []
             for side, (lo, hi, w) in zip(sides, brackets):
                 weights *= w if side else 1-w
-                coords.append(hi if side else lo)
-            for i in np.flatnonzero(weights):
-                row = self.rows[tuple(c[i] for c in coords)]
-                bs[i] += weights[i]*float(row['k_bs'])
-                f[i] += weights[i]*float(row['k_f'])
-                combined[i] += weights[i]*float(row['k_bs'])*float(row['k_f'])
-                used[row['row_id']] = row
-                interpolated[i] |= weights[i] != 1
+                index.append(hi if side else lo)
+            index = tuple(index)
+            active = weights != 0
+            if not np.any(active):
+                continue
+            corner_bs, corner_f = self._bs[index], self._f[index]
+            bs = np.where(active, bs + weights*corner_bs, bs)
+            f = np.where(active, f + weights*corner_f, f)
+            combined = np.where(active, combined + weights*corner_bs*corner_f, combined)
+            interpolated |= active & (weights != 1)
+            used_corners.append(np.ravel_multi_index(tuple(i[active] for i in index), self._bs.shape))
+        flat_used = np.unique(np.concatenate(used_corners))
+        used = {}
+        for flat_index in flat_used:
+            row = self.rows[self._keys.flat[int(flat_index)]]
+            used[row['row_id']] = row
         if self.interpolate_combined:
             f = combined/bs
         return FactorPair(bs.reshape(shape), f.reshape(shape), {
             'interpolation_quantity':'combined_C' if self.interpolate_combined else 'separate_factors',
             'method':'piecewise_multilinear', 'status':'interpolated' if np.any(interpolated) else 'tabulated',
             'extrapolated':False, 'out_of_domain_policy':'error',
-            'query_axes':{a: np.unique(v).tolist() for a,v in zip(self.axes, values)},
+            'query_axes':{a: _query_axis_summary(v) for a,v in zip(self.axes, values)},
             'source_nodes':[used[k] for k in sorted(used)],
             'weight_rule':'product over axes of (x1-x)/(x1-x0) or (x-x0)/(x1-x0); exact axes weight 1',
         })

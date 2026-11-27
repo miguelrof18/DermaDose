@@ -554,9 +554,16 @@ def test_mesh_demo_packages_3d_faces_and_mesh_hash(case, tmp_path):
     parser.feed(html)
     viewer = json.loads(parser.payload)
     assert len(viewer["faces"]) == 12148
-    assert len(viewer["doses"]) == 3
+    assert len(viewer["sparse_doses"]) == 3
     assert len(viewer["modes"]) == 3
-    assert max(viewer["doses"][0]) == pytest.approx(result["psd_point_gy"], abs=1e-11)
+    total = np.zeros(len(viewer["faces"]))
+    total[viewer["sparse_doses"][0]["index"]] = viewer["sparse_doses"][0]["value"]
+    assert total.max() == pytest.approx(result["psd_point_gy"], abs=1e-11)
+    # The viewer expands sparse maps before use; sparse event maps add to the total.
+    events = np.zeros_like(total)
+    for mode in viewer["sparse_doses"][1:]:
+        np.add.at(events, mode["index"], mode["value"])
+    np.testing.assert_allclose(events, total, atol=1e-10)
     equipment = Equipment.load(directory/"equipo_sintetico.json")
     surface = sample_patient(equipment.patient)
     projection = project(case[3].events[0], equipment, surface)

@@ -16,6 +16,19 @@ from .reference_frames import (RegisteredFrames, configure_table, room_reference
                                provisional_ct_to_table)
 
 
+KNOWN_TOP_LEVEL_KEYS = {
+    "version", "manufacturer", "model", "geometry", "patient", "factors", "factors_by_mode", "dose_medium",
+    "surface_factors", "tube_output", "tube_characterization", "rdsr_relative_standard_uncertainty",
+    "allow_uniform_sweep", "sweep_samples", "allow_synthetic_device_override", "allow_historical_factor_fallback",
+    "dose_area_thresholds_gy", "validation_status", "azurion_profile", "phantom", "max_neighbourhood_faces",
+    "description", "notes", "comment"}
+
+
+def unknown_configuration_keys(data: dict) -> list[str]:
+    """Top-level keys the program does not read (keys starting with '_' are comments)."""
+    return sorted(k for k in data if k not in KNOWN_TOP_LEVEL_KEYS and not str(k).startswith("_"))
+
+
 ALLOWED_AXES = {"kvp", "filtration_mm_cu", "field_area_cm2", "table_angle_deg", "patient_thickness_mm",
                 "skin_angle_deg", "field_fraction_x", "field_fraction_y"}
 
@@ -91,6 +104,7 @@ class Equipment:
     factors_by_mode: dict[str, dict[str, Factor]]
     surface_factor_provider: Any = None
     registered_frames: RegisteredFrames | None = None
+    warnings: tuple[str, ...] = ()
 
     @classmethod
     def load(cls, path: str | Path) -> "Equipment":
@@ -187,7 +201,10 @@ class Equipment:
                 if {"bsf", "f_skin"} & block.keys():
                     raise InputError("surface_factors excluye bsf/f_skin heredados: doble conteo o sustitución ambigua.")
             provider = make_event_provider(data["surface_factors"], base_directory=base_directory)
-        return cls(data, factors, str(data["version"]), modes, provider, frames)
+        warnings = tuple(f"Clave de configuración desconocida, no utilizada: {key!r}. "
+                         "Compruebe la ortografía; si es un comentario, empiece el nombre por '_'."
+                         for key in unknown_configuration_keys(data))
+        return cls(data, factors, str(data["version"]), modes, provider, frames, warnings)
 
     def factors_for(self, ev: IrradiationEvent) -> dict[str, Factor]:
         if not self.factors_by_mode:

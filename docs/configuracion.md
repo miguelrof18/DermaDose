@@ -71,3 +71,7 @@ Mantén los parámetros de sala en el perfil de equipo y la transformación espe
 ### Ajuste de la calidad del haz del Azurion
 
 En «Calibración Radimetrics» de Caracterizacion_Azurion, la serie None a 40, 60, 80, 100 y 120 kV dio 1,71, 2,83, 3,76, 4,70 y 5,45 mm Al. Con SpekPy 2.5.4, blanco W, ánodo de 11°, coeficientes NIST e intervalos de 0,5 keV, se minimizó la media del cuadrado del error relativo de la primera HVL sobre esos cinco puntos. El RDSR aporta los espesores adicionales de Al y Cu de cada evento. Las series con 1 mm Al y 0,1, 0,4 o 0,9 mm Cu se reservaron para comprobación. La lectura de 1,62 mm Al a 40 kV con 0,4 mm Cu queda pendiente de verificar. La validación experimental de la PSD sigue pendiente.
+
+### Trazado de la primera entrada
+
+Por defecto, la primera entrada sobre mallas se calcula con una proyección central desde el foco, vectorizada en NumPy (`numpy_central_projection_cpu` en `resultados.json`). Exige una superficie cerrada y orientada hacia fuera, que el cargador de mallas ya comprueba. Si alguna cara orientada al foco alcanza el plano del foco, el cálculo pasa automáticamente al trazador de referencia de Trimesh (o VTK con mallas de 200 000 caras o más si hay PythonSlicer). Para forzar el trazador de referencia, define la variable de entorno `DERMADOSE_RAY_BACKEND=trimesh` antes de ejecutar.

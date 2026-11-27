@@ -44,8 +44,15 @@ class WaterSurfaceDataset:
             if spec.get('axes') != expected_axes or spec.get('groups') != expected_groups:
                 raise InputError(f'Dataset: esquema de ejes incompatible en {name}.')
             content = directory.joinpath(spec['file']).read_bytes()
-            if hashlib.sha256(content).hexdigest() != m['files_sha256'].get(spec['file']):
-                raise InputError(f'Dataset alterado: SHA-256 incorrecto en {spec["file"]}.')
+            expected = m['files_sha256'].get(spec['file'])
+            if hashlib.sha256(content).hexdigest() != expected:
+                # Stay strict, but name the most frequent cause: a checkout that
+                # converted the line endings of byte-exact data (see .gitattributes).
+                alternatives = (content.replace(b'\r\n', b'\n'), content.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+                hint = (' Los bytes coinciden salvo los finales de línea: restaure el archivo sin conversión '
+                        '(atributo -text en .gitattributes).'
+                        if any(hashlib.sha256(x).hexdigest() == expected for x in alternatives) else '')
+                raise InputError(f'Dataset alterado: SHA-256 incorrecto en {spec["file"]}.{hint}')
             rows = list(csv.DictReader(io.StringIO(content.decode('utf-8'))))
             if len(rows) != spec['rows']:
                 raise InputError('Dataset: número de filas incoherente.')

@@ -12,7 +12,7 @@ import numpy as np
 from .domain import InputError, IrradiationEvent
 from .config import Equipment
 from .patient import SkinSurface
-from .raytrace import first_hits
+from .raytrace import first_hits, visible_faces, _projective_enabled
 from .reference_frames import ROOM_FROM_I, rigid
 
 
@@ -214,8 +214,15 @@ def project(ev: IrradiationEvent, equipment: Equipment, skin: SkinSurface) -> Pr
         if np.all(source_local > skin.mesh.bounds[0]) and np.all(source_local < skin.mesh.bounds[1]):
             if skin.mesh.contains([source_local])[0]:
                 raise InputError("El foco se encuentra dentro de la malla del paciente.")
-        first, stats = first_hits(skin.mesh, source_local, skin.points_mm[ids])
-        inside[ids[first != ids]] = False
+        projected = (visible_faces(skin.mesh.vertices, skin.mesh.faces, skin.mesh.face_normals,
+                                   source_local, ids) if _projective_enabled() else None)
+        if projected is not None:
+            visible, stats = projected
+            inside[ids[~visible]] = False
+        else:
+            # Reference ray tracer: arbitrary geometry near the focal plane.
+            first, stats = first_hits(skin.mesh, source_local, skin.points_mm[ids])
+            inside[ids[first != ids]] = False
     # Field area belongs to a plane NORMAL to the beam, at axial depth.
     # Euclidean source-point distance would spuriously enlarge it off axis.
     area_cm2 = (float(ev.field_width_mm)*float(ev.field_height_mm)*

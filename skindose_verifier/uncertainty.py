@@ -102,8 +102,7 @@ def propagate_parameters(events: Sequence[IrradiationEvent], equipment: Equipmen
         params = dict(zip(names, values))
         cfg = deepcopy(equipment.raw)
         offset_key = "registration_shift_room_mm" if equipment.registered_frames is not None else "origin_on_table_mm"
-        origin = np.asarray(cfg["patient"].get(offset_key, [0, 0, 0]), dtype=float)
-        cfg["patient"][offset_key] = (origin + [params.get(f"patient_{axis}_mm", 0.) for axis in "xyz"]).tolist()
+        patient_shift = np.array([params.get(f"patient_{axis}_mm", 0.) for axis in "xyz"])
         # A source/isocenter frame translation: detector follows, preserving
         # collimation direction and source-reference distances. No independent
         # source motion relative to a fixed detector is implied.
@@ -138,7 +137,13 @@ def propagate_parameters(events: Sequence[IrradiationEvent], equipment: Equipmen
                            secondary_end_deg=None if e.secondary_end_deg is None else e.secondary_end_deg+params.get("secondary_deg", 0.),
                            sod_mm=e.sod_mm+params.get("sod_mm", 0.)) for e in evs]
         try:
-            result = calculate(changed, Equipment.from_dict(cfg), stage, surface=surface, detailed=False)
+            drawn = Equipment.from_dict(cfg)  # paths in raw are already absolute
+            # Apply the patient displacement after validation: a provisional
+            # CT-table registration recomputes origin_on_table_mm in from_dict,
+            # which previously discarded the sampled displacement silently.
+            origin = np.asarray(drawn.patient.get(offset_key, [0, 0, 0]), dtype=float)
+            drawn.patient[offset_key] = (origin + patient_shift).tolist()
+            result = calculate(changed, drawn, stage, surface=surface, detailed=False)
         except InputError as exc:
             raise InputError(f"Propagación interrumpida en realización {i+1}; no se descartan muestras inválidas: {exc}") from exc
         dose = result.total_gy

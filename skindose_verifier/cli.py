@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+from time import perf_counter
 
 from . import __version__
 from .config import Equipment
@@ -30,7 +31,11 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 
-def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
+def _console(message: str) -> None:
+    print(message, flush=True)
+
+
+def run(rdsr: Path, config: Path, stage: str, destination: Path, *, quiet: bool = False) -> dict:
     equipment = Equipment.load(config)
     report = read_rdsr(rdsr)
     events = report.events
@@ -43,7 +48,7 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
         (destination / "diagnostico_geometria.json").write_text(
             json.dumps(diagnostic, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     try:
-        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True),
+        calculation = calculate(events, equipment, stage, progress_callback=None if quiet else _console,
                                 diagnostic_callback=save_geometry_diagnostic)
     except InputError as exc:
         if equipment.raw.get("azurion_profile") or equipment.raw.get("allow_historical_factor_fallback") is not True:
@@ -59,8 +64,8 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
         replacement.pop("surface_factors", None)
         replacement["factors"]["bsf"] = synthetic["bsf"]
         replacement["factors"]["f_skin"] = synthetic["f_skin"]
-        equipment = Equipment.from_dict(replacement)
-        calculation = calculate(events, equipment, stage, progress_callback=lambda message: print(message, flush=True),
+        equipment = Equipment.from_dict(replacement, base_directory=Path(config).resolve().parent)
+        calculation = calculate(events, equipment, stage, progress_callback=None if quiet else _console,
                                 diagnostic_callback=save_geometry_diagnostic)
         factor_source = "historical_synthetic_whole_run"
         fallback_reason = str(exc)
@@ -84,10 +89,22 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path) -> dict:
              "accumulated_ka_r_gy": report.accumulated_ka_r_gy,
              "accumulated_kap_gy_m2": report.accumulated_kap_gy_m2,
              "rdsr_warnings": report.warnings, "runtime": runtime_provenance()}
-    return {"files": save_results(calculation, destination, audit=audit),
+    export_started = perf_counter()
+    files = save_results(calculation, destination, audit=audit)
+    performance = calculation.summary["performance"]
+    explicit = {k: calculation.summary[k] for k in ("max_air_kerma_gy", "max_modeled_surface_dose_gy")
+                if k in calculation.summary}
+    return {"files": files,
             "quantity": calculation.summary["quantity"],
-            "psd_point_gy": calculation.summary["psd_point_gy"],
-            "status": calculation.summary["status"]}
+            "psd_point_gy": calculation.summary["psd_point_gy"], **explicit,
+            "psd_point_definition": calculation.summary["psd_point_definition"],
+            "status": calculation.summary["status"],
+            "seconds": {"total_calculation": performance["total_seconds"],
+                        "surface_preparation": performance["surface_preparation_seconds"],
+                        "projection": performance["projection_seconds"],
+                        "dosimetry": performance["dosimetry_seconds"],
+                        "metrics": performance["metrics_seconds"],
+                        "export": perf_counter()-export_started}}
 
 
 def compare_phantoms(rdsr: Path, xcat_config: Path, alternative_config: Path,
@@ -146,11 +163,13 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--stage", choices=["free_air", "calibrated_air", "skin_dose"], default="free_air")
     d.add_argument("--mesh-edge-mm", type=float, help="Subdividir aristas conservando el XCAT original")
     d.add_argument("--mesh-roi", help="Refinamiento regional: xmin,ymin,zmin,xmax,ymax,zmax, en mm de paciente")
+    d.add_argument("--quiet", action="store_true", help="No mostrar el progreso por evento")
     b = sub.add_parser("run", help="Calcular sobre un RDSR con configuración explícita")
     b.add_argument("rdsr", type=Path)
     b.add_argument("--config", type=Path, required=True)
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--stage", choices=["free_air", "calibrated_air", "skin_dose"], default="free_air")
+    b.add_argument("--quiet", action="store_true", help="No mostrar el progreso por evento")
     pc = sub.add_parser("compare-phantoms", help="Ejecutar el mismo RDSR en XCAT50 y otro fantoma")
     pc.add_argument("rdsr", type=Path)
     pc.add_argument("--xcat-config", type=Path, required=True)
@@ -242,9 +261,9 @@ def main(argv: list[str] | None = None) -> int:
                 data["patient"]["mesh_refinement_roi_mm"] = [bounds[:3], bounds[3:]]
             config.write_text(json.dumps(data, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
             rdsr = make_synthetic_rdsr(args.out/"rdsr_sintetico.dcm")
-            output = run(rdsr, config, args.stage, args.out)
+            output = run(rdsr, config, args.stage, args.out, quiet=args.quiet)
         elif args.command == "run":
-            output = run(args.rdsr, args.config, args.stage, args.out)
+            output = run(args.rdsr, args.config, args.stage, args.out, quiet=args.quiet)
         elif args.command == "compare-phantoms":
             output = compare_phantoms(args.rdsr, args.xcat_config, args.alternative_config,
                                       args.stage, args.out)

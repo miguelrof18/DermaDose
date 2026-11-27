@@ -125,7 +125,7 @@ def build_dataset(destination, *, kvps, al_families, copper, fields, anode_angle
     unmatched=[x for x in measurements if not any(all(math.isclose(float(x[k]),float(a[k]),abs_tol=1e-8) for k in ('kvp','total_al_mm','cu_mm')) for a in spectra)]
     if unmatched:raise InputError('Hay medidas HVL que no corresponden a los ejes solicitados.')
     import io
-    stream=io.StringIO(newline='');writer=csv.DictWriter(stream,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+    stream=io.StringIO(newline='');writer=csv.DictWriter(stream,fieldnames=list(rows[0]),lineterminator='\r\n')  # bytes hashed below; keep -text in git;writer.writeheader();writer.writerows(rows)
     data=stream.getvalue().encode()
     meta={'schema_version':1,'dataset_id':'DERIVED-SPEKPY-BENMAKHLOUF-EQ13','version':'1.1','interpolation_quantity':'combined_C',
       'medium':'water','formalism':'B_air_times_surface_water_air_ratio',

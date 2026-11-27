@@ -32,6 +32,10 @@ En Slicer, añade `slicer/DermaDoseSurface` a las rutas de módulos adicionales 
 
 El lector obtiene del RDSR el kerma de referencia, la geometría, la colimación y la calidad del haz por evento. El motor sitúa los haces y la superficie en un sistema común, busca la primera intersección con la piel, aplica las correcciones dosimétricas configuradas y acumula los eventos. El visor muestra el mapa acumulado y la ubicación del máximo. La colocación estimada mediante TC y RDSR depende de las hipótesis de anclaje y mesa.
 
+## Qué contiene el resultado
+
+`resultados.json` identifica la magnitud por su etapa: `max_air_kerma_gy` en `free_air` y `calibrated_air`, y `max_modeled_surface_dose_gy` en `skin_dose`, junto con `psd_point_definition` y `dose_medium`. El campo `psd_point_gy` se mantiene por compatibilidad con valor idéntico. La salida en agua no es dosis a una profundidad cutánea concreta. El bloque `performance` desglosa el tiempo por fases. `configuration_warnings` avisa de claves del JSON que el programa no utiliza.
+
 ## Estructura
 
 - `skindose_verifier/`: lector RDSR, reconstrucción, dosimetría, visor y datos requeridos.
@@ -40,4 +44,4 @@ El lector obtiene del RDSR el kerma de referencia, la geometría, la colimación
 - `docs/`: configuración y colaboración.
 - `tests/`: regresiones de lectura, geometría y cálculo.
 
-Para contribuir, crea una rama y abre un PR. Ejecuta `python -m pip install -e ".[test]"` y `python -m pytest`. Incluye en el PR el caso reproducible y el efecto esperado. Usa casos sintéticos en GitHub y conserva los estudios de pacientes en el almacenamiento autorizado por el centro.
+Para contribuir, crea una rama y abre un PR. Ejecuta `python -m pip install -e ".[test]"` y `python -m pytest`. Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md). Incluye en el PR el caso reproducible y el efecto esperado. Usa casos sintéticos en GitHub y conserva los estudios de pacientes en el almacenamiento autorizado por el centro.
