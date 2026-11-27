@@ -143,6 +143,16 @@
   (() => {
     "use strict";
     const data = JSON.parse(document.getElementById("viewer-data").textContent);
+    if (!data.doses && data.sparse_doses) {
+      // Expand the sparse per-mode maps written by interactive.py.
+      const count = data.centers_mm.length;
+      data.doses = data.sparse_doses.map(s => {
+        const values = new Array(count).fill(0);
+        s.index.forEach((k, i) => { values[k] = s.value[i]; });
+        return values;
+      });
+      delete data.sparse_doses;
+    }
     const axisNames = ["x", "y", "z"];
     const mode = document.getElementById("mode");
     const onlyDose = document.getElementById("only-dose");

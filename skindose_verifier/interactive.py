@@ -16,6 +16,29 @@ from plotly.io import to_html
 from .engine import Calculation
 
 
+def _sparse(values: np.ndarray) -> dict:
+    rounded = np.round(np.asarray(values, dtype=float), 11)
+    index = np.flatnonzero(rounded)
+    return {"index": index.tolist(), "value": rounded[index].tolist()}
+
+
+def _viewer_factor_audit(events: list[dict]) -> list[dict]:
+    """Numeric node values per sampled beam, as read by the viewer panel."""
+    audits = []
+    for event in events:
+        for audit in event.get("surface_factor_audit_per_sample") or []:
+            if not audit:
+                continue
+            nodes = []
+            for node in audit.get("source_nodes", []):
+                try:
+                    nodes.append({"k_bs": float(node["k_bs"]), "k_f": float(node["k_f"])})
+                except (KeyError, TypeError, ValueError):
+                    continue
+            audits.append({"status": audit.get("status"), "source_nodes": nodes})
+    return audits
+
+
 def save_interactive(calculation: Calculation, path: Path) -> None:
     surface = calculation.surface
     is_mesh = surface.mesh is not None
@@ -138,7 +161,9 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         "ct_lps": ct_lps,
         "vertices": np.round(coords, 3).tolist(),
         "faces": faces.tolist() if is_mesh else None,
-        "doses": [np.round(m, 11).tolist() for m in modes],
+        # Sparse per-mode encoding (non-zero faces only); the viewer expands it
+        # to dense arrays on load. Values and rounding are unchanged.
+        "sparse_doses": [_sparse(m) for m in modes],
         "modes": ["Acumulada"] + [f"Evento {i + 1} ({r['plane']})"
                                   for i, r in enumerate(calculation.summary["events"])],
         "peaks": peaks, "peak_total_gy": maximum,
@@ -152,7 +177,7 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
         "metrics": calculation.summary.get("surface_metrics"),
         "factor_metadata": calculation.summary.get("factor_metadata", {}),
         "surface_factor_dataset": calculation.summary.get("surface_factor_dataset"),
-        "surface_factor_audit": [e.get("surface_factor_audit") for e in calculation.summary.get("events", [])],
+        "surface_factor_audit": _viewer_factor_audit(calculation.summary.get("events", [])),
         "synthetic_reference": {"k_bs": 1.25, "k_f": 1.05, "identifier": "DEMO-BSF/DEMO-FSKIN"},
     }
     template = files("skindose_verifier").joinpath("data/visor_3d_template.html").read_text(encoding="utf-8")

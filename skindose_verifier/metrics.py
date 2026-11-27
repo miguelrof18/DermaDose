@@ -91,7 +91,10 @@ def _mesh_neighbourhood_psd(surface: SkinSurface, dose: np.ndarray, area_mm2: fl
     upper = upper + 32 * np.finfo(float).eps * np.maximum(np.abs(upper), 1.)
     for origin in order:
         origin = int(origin)
-        if upper[origin] < best_value or (upper[origin] <= best_value and origin > best_idx):
+        if upper[origin] < best_value:
+            # Candidates are sorted by decreasing upper bound: none can win.
+            break
+        if upper[origin] <= best_value and origin > best_idx:
             continue
         distances = {origin: 0.}
         queue = [(0., origin)]

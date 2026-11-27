@@ -25,3 +25,19 @@ def test_rays_ending_before_object_do_not_hit_beyond_target():
     mesh = trimesh.creation.icosphere(subdivisions=2, radius=10.)
     actual, _ = first_hits(mesh, np.array([0.,0.,100.]), np.array([[0.,0.,50.],[100.,100.,50.]]))
     np.testing.assert_array_equal(actual, [-1,-1])
+
+
+def test_projective_kernel_agrees_with_reference_tracer():
+    from skindose_verifier.raytrace import visible_faces
+    mesh = trimesh.creation.torus(major_radius=60., minor_radius=25.)
+    rng = np.random.default_rng(3)
+    for _ in range(4):
+        source = rng.normal(size=3)
+        source *= 500./np.linalg.norm(source)
+        rays = mesh.triangles_center-source
+        # Exclude grazing faces, where both tracers depend on their own tolerances.
+        cosine = np.einsum("ij,ij->i", mesh.face_normals, -rays)/np.linalg.norm(rays, axis=1)
+        front = np.flatnonzero(cosine > .05)
+        visible, _ = visible_faces(mesh.vertices, mesh.faces, mesh.face_normals, source, front)
+        first, _ = first_hits(mesh, source, mesh.triangles_center[front])
+        np.testing.assert_array_equal(visible, first == front)
