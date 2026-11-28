@@ -41,7 +41,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `patient.thickness_mm`, `resolution_mm` | Espesor del modelo y resolución nominal del muestreo. |
 | `patient.origin_on_table_mm` | Desplazamiento de la superficie respecto a la mesa. La malla puede tener además su propia transformación. |
 | `factors.cf` | Factor de corrección del kerma registrado. |
-| `factors.table_normal`, `table_angular` | Transmisión normal de mesa y corrección angular configurada, aplicables a rayos que atraviesan el tablero. |
+| `factors.table_normal`, `table_angular` | Transmisión normal de mesa y corrección angular configurada, aplicables a rayos que atraviesan el tablero. `table_angular` se evalúa por rayo con `table_angle_deg`, el ángulo respecto a la normal del tablero. Los perfiles de investigación usan la tabla de lámina T₀^(1/cos θ − 1) con el mismo T₀ que `table_normal` (identificador `SLAB-T0.80`, constante desde 80°). Si se cambia T₀, hay que regenerar la tabla con el mismo valor ([verificación](verificacion_rfm2024.md#transmisión-de-mesa-en-los-perfiles)). |
 | `factors.bsf`, `f_skin` | Retrodispersión y conversión a piel explícitas en la demo sintética. |
 | `value`, `provenance`, `identifier`, `relative_standard_uncertainty` | Valor del factor, procedencia, identificador e incertidumbre estándar relativa. `null` indica que no se ha declarado la incertidumbre. |
 | `tube_output.reference_distance_mm`, `yield_gy_per_mas` | Distancia y rendimiento de referencia, en Gy/mAs, para la estimación alternativa de kerma por rendimiento. |

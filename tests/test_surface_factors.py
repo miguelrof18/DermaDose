@@ -157,13 +157,18 @@ def test_final_dose_contains_exactly_one_pair_with_geometry_and_table(setup,kvp,
     dose=calculate([ev],eq,'skin_dose',detailed=False)
     np.testing.assert_allclose(dose.total_gy,air.total_gy*bs*f,rtol=2e-15)
     mask=dose.total_gy>0
-    distance2=np.sum((dose.surface.points_mm[mask]-[0,0,-700])**2,axis=1)
-    expected=ev.ka_r_gy*550**2/distance2*.8*bs*f
+    delta=dose.surface.points_mm[mask]-[0,0,-700]
+    distance2=np.sum(delta**2,axis=1)
+    # Table: T0 = 0.8 and path-length slab correction T0**(1/cos - 1) per ray.
+    theta=np.degrees(np.arccos(np.abs(delta[:,2])/np.sqrt(distance2)))
+    angular=eq.factors['table_angular'].evaluate(table_angle_deg=theta)
+    np.testing.assert_allclose(angular,.8**(1/np.cos(np.radians(theta))-1),rtol=1e-4)
+    expected=ev.ka_r_gy*550**2/distance2*.8*angular*bs*f
     np.testing.assert_allclose(dose.total_gy[mask],expected,rtol=2e-15)
     audit=dose.summary['events'][0]['surface_factor_audit_per_sample'][0]
     assert audit['table']==3 and audit['clinical_validation'] is False
     assert dose.summary['quantity']=='entrance_absorbed_dose_in_water_Gy'
-    assert 'incertidumbre de bsf' in dose.summary['uncertainty']['unquantified_components']
+    assert any('k_BS·k_f' in c for c in dose.summary['uncertainty']['unquantified_components'])
     json.dumps(dose.summary,allow_nan=False)
 
 
