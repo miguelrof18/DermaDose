@@ -1,4 +1,4 @@
-"""Changes motivated by the RFM 2024 verification (Gañán Mora et al., Rev Fis Med 2024)."""
+"""Optional linear interpolation between adjacent aluminium families of the surface-factor tables."""
 import math
 
 import numpy as np
@@ -33,7 +33,7 @@ def provider(**changes):
 
 
 def test_aluminium_interpolation_is_linear_between_adjacent_families_only():
-    ev = event(kvp=60., cu=0., al=1.8, width=300., height=300.)      # Canon case 6: 3.1 + 1.8 = 4.9 mm Al
+    ev = event(kvp=60., cu=0., al=1.8, width=300., height=300.)      # 3.1 + 1.8 = 4.9 mm Al, between the 4.1 and 5.1 mm families
     with pytest.raises(InputError, match="linear_between_families"):
         provider().evaluate_event(ev, 270.)
     pair = provider(aluminium_interpolation="linear_between_families").evaluate_event(ev, 270.)

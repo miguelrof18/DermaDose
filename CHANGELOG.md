@@ -5,16 +5,14 @@
 ### Corrección angular de la transmisión de mesa
 
 - Perfiles `azurion_benmakhlouf_spekpy`, `ejemplo/equipo_azurion`, `benmakhlouf_tabulado` y `equipo_benmakhlouf_investigacion`: `table_angular` deja de valer 1 y pasa a la tabla de lámina `SLAB-T0.80`, T(θ)/T(0) = 0,8^(1/cos θ − 1), con θ el ángulo de cada rayo respecto a la normal del tablero (0,97 a 30°, 0,91 a 45°; constante desde 80°). Es un cambio de datos: el código no cambia. Los perfiles sintéticos de autoconsistencia conservan 1.
-- Con T₀ = 0,8 fijo, en los casos oblicuos RFM 2024 la diferencia crecía +2,5 % por cada 10° (+6,3 % a 45°). Con la tabla de lámina la tendencia desaparece (−0,3 % por cada 10°) y los casos a incidencia normal no cambian ([detalle](docs/verificacion_rfm2024.md#transmisión-de-mesa-en-los-perfiles)).
-- Informe de verificación y cifra de 0.8.0 actualizados al código vigente (área del Canon referida al detector): media +3,0 %, desviación típica 3,3 %, cuatro casos fuera de ±6,5 % y ninguno fuera de ±13 %.
+- Con T₀ = 0,8 fijo y sin corrección angular, la dosis calculada en haces oblicuos crecía con el ángulo respecto a medidas en maniquí (unos +6 % a 45°). Con la tabla de lámina esa tendencia desaparece y los haces a incidencia normal no cambian. El estudio está en la memoria.
 
 ## 0.8.0 · noviembre de 2026
 
-### Verificación con el conjunto RFM 2024
+### Factores de superficie y mesa del Azurion
 
-- Verificación con la metodología de Gañán Mora et al. (Rev Fis Med 2024;25(2):25–34) sobre sus 27 RDSR ([informe y modelo](docs/verificacion_rfm2024.md)). Todos los casos quedan dentro de ±13 %. La cifra publicada en 0.8.0 (media +2,9 %, tres casos fuera de ±6,5 %) correspondía al área del Canon referida a 1000 mm; con el código vigente, ver 0.8.1.
-- `surface_factors.aluminium_interpolation = linear_between_families`: interpolación lineal auditada entre familias de Al adyacentes, sin extrapolación. Antes, un Al total no tabulado detenía el cálculo (caso 6 del Canon, 1,8 mm Al).
-- Perfiles Azurion: la columna lateral de `S` pasa de `null` a +1 (hacia la cabecera). Lo establecen los desplazamientos de mesa de los casos 16–17. Los casos 13–15, 18–19 y 24–27 confirman los signos longitudinal y de altura con ganancia unitaria (±1 cm).
+- `surface_factors.aluminium_interpolation = linear_between_families`: interpolación lineal auditada entre familias de Al adyacentes, sin extrapolación. Antes, un Al total no tabulado detenía el cálculo (por ejemplo, 3,1 + 1,8 mm Al).
+- Perfiles Azurion: la columna lateral de `S` pasa de `null` a +1 (hacia la cabecera). Lo establecen desplazamientos de mesa conocidos en RDSR externos del Azurion, que confirman también los signos longitudinal y de altura con ganancia unitaria (±1 cm).
 
 ## 0.7.0 · noviembre de 2026
 

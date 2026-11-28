@@ -49,13 +49,13 @@ Opciones del lanzador relacionadas: `--espesor-colchoneta-mm`, `--distancia-homb
 
 ## Lecturas de mesa del Azurion
 
-La declaración de conformidad DICOM del Azurion lista las tres lecturas en mm, sin convenio de signo, origen ni eje. La configuración de Radimetrics de la sala (hoja «Calibración Radimetrics», D57–D61) da los ejes. Los RDSR del conjunto de verificación RFM 2024 (Gañán Mora et al., Rev Fis Med 2024;25(2):25–34; ver [verificacion_rfm2024.md](verificacion_rfm2024.md)) fijan los signos:
+La declaración de conformidad DICOM del Azurion lista las tres lecturas en mm, sin convenio de signo, origen ni eje. La configuración de Radimetrics de la sala (hoja «Calibración Radimetrics», D57–D61) da los ejes. Los signos se fijaron con RDSR externos del Azurion en los que la mesa se desplazó una distancia conocida; el detalle está en la memoria.
 
 | Lectura | Movimiento físico | Columna de `S` en el perfil | Evidencia |
 |---|---|---|---|
-| Longitudinal (113751) | Izquierda | (1, 0, 0) | Radimetrics D59. En los casos 13–15 y 18–19, la mesa se desplaza hacia el lado del tubo para centrar la cámara (−79 mm a 30°, −152 mm a 45°, +44 mm a −15°, +94 mm a −30°). |
-| Lateral (113752) | Cabecera | (0, 0, 1) | Casos 16–17: con 15° y 30° craneales la lectura baja 41 y 90 mm, y el centro del campo se mueve 42 y 90 mm hacia los pies. |
-| Altura (113753) | Arriba | (0, −1, 0) | Radimetrics D61. En los casos 24–27, la mesa subida 11 cm lee 111 mm más. DICOM define el sentido contrario (hacia el suelo). |
+| Longitudinal (113751) | Izquierda | (1, 0, 0) | Radimetrics D59 y desplazamientos de mesa en haces angulados a izquierda y derecha. |
+| Lateral (113752) | Cabecera | (0, 0, 1) | Desplazamientos de mesa en haces craneales: la lectura baja cuando el centro del campo se mueve hacia los pies. |
+| Altura (113753) | Arriba | (0, −1, 0) | Radimetrics D61 y una subida de mesa de 11 cm que lee 111 mm más. DICOM define el sentido contrario (hacia el suelo). |
 
 En Philips, la lectura «longitudinal» mueve izquierda–derecha y la «lateral» cabeza–pies, al contrario que sus nombres. La geometría heredada anterior aplicaba el convenio contrario y se ha retirado de los perfiles Azurion.
 
