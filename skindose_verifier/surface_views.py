@@ -17,6 +17,35 @@ ISODOSE_PERCENT = (25.0, 50.0, 75.0)
 ISODOSE_STYLE = (("#1d3fb8", "#ffffff"), ("#0b0f17", "#ffffff"), ("#ffffff", "#0b0f17"))
 
 
+MIN_ISLAND_CM2 = 2.0
+
+
+def _clean_region(region: np.ndarray, valid: np.ndarray, pixel_area_cm2: float) -> np.ndarray:
+    """Region at or above an isodose level, for drawing only.
+
+    Pinholes left by mesh folds and islands smaller than MIN_ISLAND_CM2 are
+    removed so each curve follows the field edge instead of every fold.
+    """
+    from scipy import ndimage
+    min_pixels = max(1, int(round(MIN_ISLAND_CM2/pixel_area_cm2)))
+    region = ndimage.binary_closing(region, structure=np.ones((3, 3)), iterations=2) & valid
+    labels, count = ndimage.label(region)
+    if count:
+        sizes = ndimage.sum(region, labels, index=np.arange(1, count + 1))
+        region = np.isin(labels, 1 + np.flatnonzero(sizes >= min_pixels))
+    holes = ~region & valid
+    labels, count = ndimage.label(holes)
+    if count:
+        sizes = ndimage.sum(holes, labels, index=np.arange(1, count + 1))
+        region |= np.isin(labels, 1 + np.flatnonzero(sizes < min_pixels))
+    return region
+
+
+def _smooth_mask(region: np.ndarray) -> np.ndarray:
+    from scipy import ndimage
+    return ndimage.gaussian_filter(region.astype(float), sigma=1.2)
+
+
 @dataclass
 class View:
     name: str
@@ -132,22 +161,39 @@ def save_surface_views(path, vertices, faces, face_dose_gy, face_normals, *, ct_
         rgba[..., :3] = np.clip(rgb*shade[..., None], 0, 1)
         rgba[~valid] = (1, 1, 1, 0)
         ax.imshow(rgba, origin="lower", extent=view.extent, interpolation="nearest")
+        peak_face = int(np.argmax(dose))
+        peak_xy = None
+        if peak > 0 and np.any(face == peak_face):
+            r, c = np.argwhere(face == peak_face)[0]
+            peak_xy = np.array([view.extent[0] + (c + .5)*(view.extent[1]-view.extent[0])/face.shape[1],
+                                view.extent[2] + (r + .5)*(view.extent[3]-view.extent[2])/face.shape[0]])
         if levels and np.nanmax(pixel_dose) >= levels[0]:
             height, width = face.shape
             xs = np.linspace(view.extent[0], view.extent[1], width, endpoint=False) + (view.extent[1]-view.extent[0])/width/2
             ys = np.linspace(view.extent[2], view.extent[3], height, endpoint=False) + (view.extent[3]-view.extent[2])/height/2
-            field = np.where(valid, np.nan_to_num(pixel_dose), np.nan)
-            for level, (line, halo) in zip(levels, ISODOSE_STYLE):
-                contour = ax.contour(xs, ys, field, levels=[level], colors=[line], linewidths=1.6)
+            dose_px = np.where(valid, np.nan_to_num(pixel_dose), 0.)
+            pixel_area_cm2 = ((view.extent[1]-view.extent[0])/width)*((view.extent[3]-view.extent[2])/height)/100
+            for level, percent, (line, halo) in zip(levels, ISODOSE_PERCENT, ISODOSE_STYLE):
+                region = _clean_region(dose_px >= level, valid, pixel_area_cm2)
+                if not region.any():
+                    continue
+                contour = ax.contour(xs, ys, _smooth_mask(region), levels=[.5], colors=[line],
+                                     linewidths=1.3)
                 for artist in getattr(contour, "collections", [contour]):
-                    artist.set_path_effects([patheffects.Stroke(linewidth=3.6, foreground=halo),
+                    artist.set_path_effects([patheffects.Stroke(linewidth=2.6, foreground=halo, alpha=.85),
                                              patheffects.Normal()])
-        peak_face = int(np.argmax(dose))
-        if peak > 0 and np.any(face == peak_face):
-            r, c = np.argwhere(face == peak_face)[0]
-            x = view.extent[0] + (c + .5)*(view.extent[1]-view.extent[0])/face.shape[1]
-            y = view.extent[2] + (r + .5)*(view.extent[3]-view.extent[2])/face.shape[0]
-            ax.plot([x], [y], marker="o", ms=7, mfc="white", mec="#0b0f17", mew=1.6)
+                columns = np.flatnonzero(region.any(axis=0))
+                if columns.size*(view.extent[1]-view.extent[0])/width < 60:
+                    continue  # too narrow for a readable label (seen edge-on)
+                labels = ax.clabel(contour, fmt={.5: f"{percent:g} %"}, fontsize=7.5, inline=True,
+                                   inline_spacing=2, colors=[line], manual=False)
+                for label in list(labels):
+                    if peak_xy is not None and np.hypot(*(np.asarray(label.get_position()) - peak_xy)) < 18:
+                        label.remove()
+                        continue
+                    label.set_path_effects([patheffects.withStroke(linewidth=2.2, foreground=halo)])
+        if peak_xy is not None:
+            ax.plot([peak_xy[0]], [peak_xy[1]], marker="o", ms=7, mfc="white", mec="#0b0f17", mew=1.6)
         ax.set_title(view.name, fontsize=11)
         ax.set_xticks([])
         ax.set_aspect("equal")
@@ -159,8 +205,8 @@ def save_surface_views(path, vertices, faces, face_dose_gy, face_normals, *, ct_
             ax.set_ylabel("z craneal TC [mm]" if ct_lps else "y craneal [mm]")
         else:
             ax.set_yticks([])
-    handles = [Line2D([], [], color=line, lw=1.6,
-                      path_effects=[patheffects.Stroke(linewidth=3.6, foreground=halo), patheffects.Normal()],
+    handles = [Line2D([], [], color=line, lw=1.3,
+                      path_effects=[patheffects.Stroke(linewidth=2.6, foreground=halo), patheffects.Normal()],
                       label=f"{p:g} % ({level*1000:.0f} mGy)")
                for p, level, (line, halo) in zip(ISODOSE_PERCENT, levels, ISODOSE_STYLE)]
     handles.append(Line2D([], [], ls="", marker="o", ms=7, mfc="white", mec="#0b0f17", mew=1.6,

@@ -14,6 +14,7 @@
 ### Isodosis visibles sobre la malla
 
 - `mapa_3d.png` con malla: vistas ortogonales posterior, anterior y laterales con oclusión real (z-buffer) e isodosis del 25, 50 y 75 % del máximo. Antes, con más de 200 000 caras, era una nube de puntos muestreados sin oclusión y la piel anterior tapaba los campos de la espalda.
+- Las curvas del mapa estático ignoran los huecos de los pliegues de la malla y las islas de menos de 2 cm², se suavizan ligeramente y llevan la etiqueta del nivel cuando hay sitio. Es solo el trazado: el mapa de color sigue mostrando la dosis de cada cara.
 - Visor interactivo: las curvas de isodosis se separan de la piel 1–2 mm a lo largo de la normal, para que la superficie no las tape a trozos. Cada curva lleva además un contorno de contraste para leerse sobre toda la paleta.
 - Solo cambia la representación: la dosis calculada es la misma.
 
