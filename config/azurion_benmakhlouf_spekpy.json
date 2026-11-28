@@ -15,19 +15,58 @@
       "positive_primary_detector": "left",
       "positive_secondary_detector": "cranial",
       "radimetrics": {
-        "offsets_mm": {"lateral": 508, "longitudinal": -70.5, "height": -732},
-        "lateral_measurement_mm": {"ruler": 202.5, "image": 694, "beam": 1000},
-        "longitudinal_measurement_mm": {"ruler": 17.5, "image": 88},
-        "height_measurement_mm": {"ruler": 155, "image": 887},
-        "other_readings_mm": {"shoulder_to_head": 400, "anchura_del_colchon": 65, "floor_to_table_at_origin": 895},
+        "offsets_mm": {
+          "lateral": 508,
+          "longitudinal": -70.5,
+          "height": -732
+        },
+        "lateral_measurement_mm": {
+          "ruler": 202.5,
+          "image": 694,
+          "beam": 1000
+        },
+        "longitudinal_measurement_mm": {
+          "ruler": 17.5,
+          "image": 88
+        },
+        "height_measurement_mm": {
+          "ruler": 155,
+          "image": 887
+        },
+        "other_readings_mm": {
+          "shoulder_to_head": 400,
+          "anchura_del_colchon": 65,
+          "floor_to_table_at_origin": 895
+        },
         "provenance": "B6:G10, D53:D61 y C95:C97. Los offsets usan la convención del asistente Philips de Radimetrics. Las capturas ilustran sus valores por defecto."
       },
-      "motion_matrix_i_per_mm": [[1, 0, 0], [0, 0, -1], [0, null, 0]],
-      "motion_note": "Columnas DCM longitudinal, lateral, altura. D59 indica izquierda y D61 arriba. D58 indica el eje craneal/caudal sin elegir sentido. Ganancia unitaria nominal en mm/mm. Verificar con movimientos aislados.",
+      "motion_matrix_i_per_mm": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          -1
+        ],
+        [
+          0,
+          1,
+          0
+        ]
+      ],
+      "motion_note": "Columnas: lecturas longitudinal, lateral y altura (DCM 113751–113753). Filas: desplazamiento en I (x izquierda, y abajo, z cabecera) por mm de lectura. Longitudinal y altura: valores nominales de Radimetrics (D59, D61). Lateral: +1 hacia la cabecera, verificado con el conjunto RFM 2024 (casos 13–19: desplazamientos de mesa para centrar la cámara en haces angulados; ganancia unitaria dentro de ±1 cm). Las tres columnas coinciden con la definición DICOM salvo la altura, que en el Azurion crece hacia arriba (casos 24–27). Confirmar la ganancia con python -m skindose_verifier.table_calibration y las tomas 4–6 de «Calibración geométrica».",
       "reference": {
         "readings_long_lat_height_mm": null,
         "marker_table_mm": null,
         "marker_isocenter_mm": null
+      },
+      "motion_matrix_status": {
+        "longitudinal (DCM 113751)": "nominal_radimetrics_D59_left_unit_gain_sign_verified_rfm2024_cases_13_19",
+        "lateral (DCM 113752)": "sign_verified_rfm2024_cases_16_17_cranial_unit_gain_within_1cm",
+        "altura (DCM 113753)": "nominal_radimetrics_D61_up_unit_gain_sign_verified_rfm2024_cases_24_27"
       }
     },
     "source_to_isocenter_mm": 810,
@@ -42,32 +81,7 @@
       0,
       0
     ],
-    "table_coordinates": "legacy",
-    "table_origin_mm": [
-      0,
-      0,
-      0
-    ],
-    "table_matrix": [
-      [
-        1,
-        0,
-        0
-      ],
-      [
-        0,
-        1,
-        0
-      ],
-      [
-        0,
-        0,
-        1
-      ]
-    ],
-    "table_plane_z_mm": -125,
-    "table_half_width_mm": 300,
-    "table_half_length_mm": 600
+    "table_coordinates": "legacy"
   },
   "factors": {
     "cf": {
@@ -121,8 +135,7 @@
     "geometry_characterized": false,
     "calibration_characterized": false,
     "invalid_distance_policy": "error",
-    "reference_table_from_first_event": true,
-    "notes": "Research profile: first event sets the provisional table origin.",
+    "notes": "Research profile. Patient placement follows C -> T -> I (docs/sistemas_de_referencia.md); unmeasured links are estimated by the launcher and recorded in the effective configuration.",
     "tube_model": "MRC 200 0407"
   },
   "tube_characterization": {

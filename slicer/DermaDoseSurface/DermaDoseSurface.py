@@ -644,6 +644,7 @@ def make_anchor_registration(ras, fields):
     return {"anchor_ct_lps_mm": [-ras[0], -ras[1], ras[2]],
             "anchor_table_mm": [lateral, -height, -distance],
             "rotation_table_from_ct": np.eye(3).tolist(),
+            "anchor_definition": "posterior_shoulder_midline",
             "orientation_basis": "operator_confirmed_aligned_head_first_supine"}
 
 

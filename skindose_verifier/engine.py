@@ -296,7 +296,7 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         equipment = replace(equipment, raw=deepcopy(equipment.raw))
         events = prepare_events(events, equipment)
     registration_pose = None
-    if "ct_registration" in equipment.patient and "xcat_anchor_native_mm" not in equipment.patient:
+    if "ct_registration" in equipment.patient:
         from .reference_frames import check_registration_pose
         registration_pose = check_registration_pose(equipment.patient["ct_registration"], events)
     # Validate and normalize before loading a potentially multi-million-face STL.
@@ -317,7 +317,9 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
     if surface.mesh is not None:
         progress("Comprobando intersección geométrica preliminar de los haces...")
         preflight = geometry_preflight(events, equipment, surface.mesh.bounds)
-        preflight["room_reference_estimate"] = equipment.geometry.get("table_room_reference_estimate")
+        if equipment.registered_frames is not None:
+            preflight["placement_evidence"] = {k: equipment.registered_frames.evidence.get(k) for k in (
+                "ct_to_table_status", "room_reference_status", "origin_reference_i_mm", "readings_reference_mm")}
         if diagnostic_callback is not None:
             diagnostic_callback(preflight)
         progress(f"Haces con posible intersección: {preflight['possible_overlap_events']}/{len(events)}.")
@@ -496,21 +498,31 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         summary["geometry_preflight"] = {k: v for k, v in preflight.items() if k != "events"}
     if "table_calibration" in equipment.geometry:
         summary["table_calibration"] = equipment.geometry["table_calibration"]
-        summary["table_placement"] = "marker_reference" if equipment.registered_frames else "legacy_placement"
+        summary["table_placement"] = "legacy_placement"
     if equipment.registered_frames is not None:
-        summary["ct_registration"] = equipment.registered_frames.evidence
+        evidence = equipment.registered_frames.evidence
+        summary["ct_registration"] = evidence
         summary["patient_coordinate_system"] = "CT_LPS_mm"
-    if equipment.registered_frames is None and "ct_table_registration" in equipment.patient:
-        summary["table_placement"] = "ct_table_explicit_room_provisional"
-        summary["ct_table_registration"] = equipment.patient["ct_table_registration"]
-        summary["assumptions"].append("Registro TC–tablero explícito; posición absoluta tablero–angiógrafo provisional.")
+        room = evidence.get("room_reference_status", "")
+        summary["table_placement"] = "marker_reference" if room == "measured_marker" else "estimated_reference"
+        summary["placement_chain"] = {
+            "frames": "C (TC, LPS) -> T (tablero, borde de cabecera) -> I (isocentro)",
+            "ct_to_table": evidence.get("ct_to_table_status"),
+            "table_to_isocenter": room,
+            "motion_matrix_unknown_readings": evidence.get("motion_matrix_unknown_readings"),
+            "M_T_from_C": evidence.get("M_T_from_C"),
+            "t0_origin_table_in_isocenter_mm": evidence.get("origin_reference_i_mm"),
+            "m0_readings_long_lat_height_mm": evidence.get("readings_reference_mm")}
+        registration = equipment.patient.get("ct_registration", {})
+        if isinstance(registration, dict) and registration.get("anchor_ct_lps_mm") is not None:
+            summary["registration_anchor_patient_mm"] = registration["anchor_ct_lps_mm"]
+        estimated = [name for name, status in (("TC → tablero", evidence.get("ct_to_table_status")),
+                                               ("tablero → isocentro", room)) if str(status).startswith("estimated")]
+        if estimated:
+            summary["assumptions"].append("Eslabones de colocación estimados, no medidos: " + ", ".join(estimated)
+                                          + ". Ver placement_chain y ct_registration.")
     if registration_pose is not None:
         summary["intervention_pose"] = registration_pose
-    if "xcat_anchor_native_mm" in equipment.patient:
-        patient = equipment.patient
-        native = np.asarray(patient["xcat_anchor_native_mm"])
-        summary["xcat_anchor_surface_mm"] = (np.asarray(patient["mesh_axes_matrix"]) @ native
-                                              + patient["mesh_origin_mm"]).tolist()
     summary["performance"] = {"total_seconds": time.perf_counter()-started, "surface_preparation_seconds": surface_seconds,
                               "projection_seconds": projection_seconds, "dosimetry_seconds": dosimetry_seconds,
                               "metrics_seconds": time.perf_counter()-metrics_started,

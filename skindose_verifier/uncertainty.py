@@ -114,12 +114,16 @@ def propagate_parameters(events: Sequence[IrradiationEvent], equipment: Equipmen
                 plane["isocenter_mm"] = (np.asarray(plane.get("isocenter_mm", base_iso))+delta_source).tolist()
             g["isocenter_mm"] = (base_iso+delta_source).tolist()
             if equipment.registered_frames is not None:
-                # Express the fixed physical marker in the perturbed isocentre.
+                # Keep the board fixed in the room: express t0 in the perturbed isocentre.
                 from .reference_frames import ROOM_FROM_I
                 ref = g["table_calibration"]["reference"]
-                marker = equipment.registered_frames.reference_origin_i + np.asarray(ref["marker_table_mm"])
-                ref.pop("calibrated_views", None)
-                ref["marker_isocenter_mm"] = (marker - ROOM_FROM_I.T @ delta_source).tolist()
+                shift_i = ROOM_FROM_I.T @ delta_source
+                if ref.get("origin_isocenter_mm") is not None:
+                    ref["origin_isocenter_mm"] = (np.asarray(ref["origin_isocenter_mm"], dtype=float) - shift_i).tolist()
+                else:
+                    marker = equipment.registered_frames.reference_origin_i + np.asarray(ref["marker_table_mm"])
+                    ref.pop("calibrated_views", None)
+                    ref["marker_isocenter_mm"] = (marker - shift_i).tolist()
         for name, factor_names in mapping.items():
             if name not in params:
                 continue

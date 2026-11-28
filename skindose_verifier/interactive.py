@@ -129,12 +129,12 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
                                   marker=dict(size=4, color=color), line=dict(width=3, color=color),
                                   textposition="top center", hoverinfo="skip", visible=False))
     ct_lps = calculation.summary.get("patient_coordinate_system") == "CT_LPS_mm"
-    anchor = calculation.summary.get("xcat_anchor_surface_mm")
+    anchor = calculation.summary.get("registration_anchor_patient_mm")
     if anchor is not None:
         fig.add_trace(go.Scatter3d(x=[anchor[0]], y=[anchor[1]], z=[anchor[2]], mode="markers",
                                    marker=dict(size=6, color="#00d5ff", symbol="diamond"),
-                                   hovertemplate="Anclaje posterior de hombros XCAT<extra></extra>",
-                                   name="Anclaje de hombros"))
+                                   hovertemplate="Anclaje del registro TC–tablero<extra></extra>",
+                                   name="Anclaje del registro"))
         # The registered surface keeps LPS axes. The provisional surface uses
         # the engine axes, where the head points towards positive Y.
         longitudinal_axis = 2 if ct_lps else 1
@@ -147,7 +147,7 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
             x=labels[:, 0], y=labels[:, 1], z=labels[:, 2],
             mode="text", text=["Pies", "Cabeza · cabecera"],
             textfont=dict(color="#00d5ff", size=14), hoverinfo="skip",
-            name="Orientación del XCAT",
+            name="Orientación de la malla",
         ))
     camera = (dict(eye=dict(x=.35, y=2.25, z=.20), up=dict(x=0, y=0, z=1)) if ct_lps else
               dict(eye=dict(x=.35, y=.20, z=-2.25), up=dict(x=0, y=1, z=0)))

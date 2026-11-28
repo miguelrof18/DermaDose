@@ -34,6 +34,12 @@ def read(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def estimated_reference(origin=(0, 125, 500), readings=M0):
+    """Room reference given directly as O_T in I, as written by the launcher."""
+    return {"readings_long_lat_height_mm": list(readings), "origin_isocenter_mm": list(origin),
+            "status": "estimated_target_at_isocenter", "estimate": {"method": "test"}}
+
+
 def write(path, data):
     path.write_text(json.dumps(data), encoding="utf-8")
     return path
@@ -155,15 +161,23 @@ def test_measured_board_and_missing_references(tmp_path):
     assert eq.geometry["table_calibration"]["radimetrics"]["offsets_mm"] == {
         "lateral": 508, "longitudinal": -70.5, "height": -732}
     data["patient"]["ct_registration"] = registration
-    provisional = Equipment.from_dict(data)
-    assert provisional.registered_frames is None
-    assert provisional.patient["ct_table_registration"]["ct_to_table_status"] == "explicit"
+    # A CT registration never falls back to the legacy room model.
+    with pytest.raises(InputError, match="referencia tablero–isocentro"):
+        Equipment.from_dict(data)
     table = read(TABLE)
     table["reference"] = {"readings_long_lat_height_mm": M0, "marker_table_mm": [0, 0, 0],
                           "marker_isocenter_mm": [0, 0, 0]}
     data["geometry"]["table_calibration"] = table
-    with pytest.raises(InputError, match="motion_matrix"):
-        Equipment.from_dict(data)
+    # The distributed profile carries the lateral sign verified with the RFM 2024 set (head = +1).
+    assert table["motion_matrix_i_per_mm"] == [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
+    # A profile with an unknown column is accepted until that reading moves.
+    table["motion_matrix_i_per_mm"] = [[1, 0, 0], [0, 0, -1], [0, None, 0]]
+    partial = Equipment.from_dict(data)
+    assert partial.registered_frames.evidence["motion_matrix_unknown_readings"] == ["lateral (DCM 113752)"]
+    moved = normalize(read_rdsr(path).events[1], partial)
+    with pytest.raises(InputError, match="lateral"):
+        table_shift(moved, partial)
+    np.testing.assert_allclose(table_shift(normalize(read_rdsr(path).events[0], partial), partial), [0, 0, 0])
     table["motion_matrix_i_per_mm"] = S
     eq = Equipment.from_dict(data)
     only_iso = read_rdsr(make_synthetic_rdsr(tmp_path / "solo_iso.dcm")).events[0]
@@ -242,53 +256,58 @@ def test_launcher_exports_registered_lps_map(tmp_path):
 
 
 @pytest.mark.parametrize("axes", ["RAS", "LPS"])
-def test_provisional_room_preserves_ct_table_anchor(tmp_path, axes):
+def test_estimated_room_reference_keeps_the_same_chain(tmp_path, axes):
+    from skindose_verifier.placement import estimate_room_reference
     data, path = case(tmp_path, axes=axes)
-    data["geometry"]["table_calibration"]["reference"] = {
-        "readings_long_lat_height_mm": None, "marker_table_mm": None, "marker_isocenter_mm": None}
     registration = data["patient"]["ct_registration"]
+    events = read_rdsr(path).events
+    target = np.array([20., 100., -360.])
+    reference = estimate_room_reference(registration, target, events)
+    assert reference["readings_long_lat_height_mm"] == M0
+    data["geometry"]["table_calibration"]["reference"] = reference
     eq = Equipment.from_dict(data)
-    assert eq.registered_frames is None
-    patient = eq.patient
-    assert patient["ct_registration"] == registration
-    evidence = patient["ct_table_registration"]
-    assert evidence["table_to_isocenter_status"] == "provisional_legacy_geometry"
-    ct = np.asarray(registration["anchor_ct_lps_mm"])
-    native = RAS_TO_LPS @ ct if axes == "RAS" else ct
-    surface_point = np.asarray(patient["mesh_axes_matrix"]) @ native + patient["mesh_origin_mm"]
-    expected_t = np.asarray(registration["anchor_table_mm"])
-    for event in read_rdsr(path).events:
+    assert eq.registered_frames.evidence["room_reference_status"] == "estimated_target_at_isocenter"
+    # Same matrices as the measured case: only t0 changes, from the marker to the estimate.
+    for event in events:
         ev = normalize(event, eq)
-        shift = table_shift(ev, eq)
-        rotation, translation = patient_pose(eq, shift)
-        head_edge = shift + [0, eq.geometry["table_half_length_mm"], eq.geometry["table_plane_z_mm"]]
-        np.testing.assert_allclose(rotation @ surface_point + translation,
-                                   head_edge + ROOM_FROM_I @ expected_t)
-    # Reloading the resolved config must not apply the registration twice.
+        view = beam_view(ev, eq)
+        expected_t = np.asarray(registration["anchor_table_mm"]) + target - registration["anchor_ct_lps_mm"]
+        t_k = -expected_t + np.asarray(S) @ (np.array([ev.table_mm[1], ev.table_mm[0], ev.table_mm[2]]) - M0)
+        np.testing.assert_allclose(np.asarray(view["M_I_from_T"])[:3, 3], t_k, atol=1e-9)
+        np.testing.assert_allclose(np.asarray(view["M_T_from_C"])[:3, 3], np.asarray(registration["anchor_table_mm"])
+                                   - registration["anchor_ct_lps_mm"])
+    first = normalize(events[0], eq)
+    np.testing.assert_allclose(np.asarray(beam_view(first, eq)["M_I_from_C"]) @ [*target, 1], [0, 0, 0, 1], atol=1e-9)
+    # Reloading the effective configuration reproduces the same frames.
     reloaded = Equipment.from_dict(eq.raw)
-    np.testing.assert_allclose(reloaded.patient["mesh_axes_matrix"], patient["mesh_axes_matrix"])
-    np.testing.assert_allclose(reloaded.patient["mesh_origin_mm"], patient["mesh_origin_mm"])
-    data["patient"]["ct_registration"]["mesh_sha256"] = "invalid"
-    with pytest.raises(InputError, match="otra malla"):
-        Equipment.from_dict(data)
+    np.testing.assert_allclose(reloaded.registered_frames.reference_origin_i, eq.registered_frames.reference_origin_i)
+    with pytest.raises(InputError, match="medida .* o estimada"):
+        Equipment.from_dict({**data, "geometry": {**data["geometry"], "table_calibration": {
+            **data["geometry"]["table_calibration"], "reference": {**reference, "marker_table_mm": [0, 0, 0]}}}})
 
 
-def test_launcher_preserves_registration_without_room_reference(tmp_path):
+def test_launcher_estimates_only_the_missing_room_reference(tmp_path):
     data, _ = case(tmp_path)
     data["geometry"]["table_calibration"]["reference"] = {}
     write(tmp_path / "registro_tc.json", data["patient"].pop("ct_registration"))
     write(tmp_path / "equipo.json", data)
-    assert launch([str(tmp_path), "--prepare-only"]) == 0
+    # Estimates must be allowed explicitly outside a research profile.
+    assert launch([str(tmp_path), "--prepare-only"]) == 2
+    assert launch([str(tmp_path), "--prepare-only", "--permitir-estimaciones"]) == 0
     audit = read(tmp_path / "resultados" / "seleccion_entrada.json")
-    assert audit["registration_status"] == "ct_table_explicit_room_provisional"
+    assert audit["registration_status"] == "estimated"
+    assert audit["placement"]["ct_to_table_status"] == "explicit"
+    assert audit["placement"]["estimated_links"] == ["t0, m0"]
     effective = Equipment.load(tmp_path / "resultados" / "configuracion_efectiva.json")
-    assert effective.patient["ct_table_registration"]["ct_to_table_status"] == "explicit"
-    assert effective.registered_frames is None
+    evidence = effective.registered_frames.evidence
+    assert evidence["ct_to_table_status"] == "explicit"
+    assert evidence["room_reference_status"] == "estimated_target_at_isocenter"
+    assert effective.patient["ct_registration"]["anchor_table_mm"] == [0, -35, -280]
 
 
 def test_mixed_frame_uids_require_coherent_geometry(tmp_path):
     data, _ = case(tmp_path)
-    data["geometry"]["table_calibration"]["reference"] = {}
+    data["geometry"]["table_calibration"]["reference"] = estimated_reference()
     meta_path = Path(data["patient"]["mesh_path"]).with_suffix(".json")
     meta = read(meta_path)
     ct = {"mixed_frames": True, "frame_of_reference_uids": ["2.25.101", "2.25.102", "2.25.103"],
@@ -305,17 +324,17 @@ def test_mixed_frame_uids_require_coherent_geometry(tmp_path):
     ct["volume_dimensions_ijk"] = [30, 20, 3]
     write(meta_path, meta)
     eq = Equipment.from_dict(data)
-    audit = eq.patient["ct_table_registration"]
+    audit = eq.registered_frames.evidence
     assert audit["frame_of_reference_status"] == "uid_ambiguous_slice_grid_consistent"
     assert audit["ct_slice_geometry"]["slice_count"] == 3
     assert audit["ct_acquisition_position"] == "FFS"
-    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["ct_slice_geometry"]["pixel_spacing_checked"]
+    assert Equipment.from_dict(eq.raw).registered_frames.evidence["ct_slice_geometry"]["pixel_spacing_checked"]
     ct.pop("volume_dimensions_ijk")
     for entry in ct["dicom_image_geometry"]:
         for key in ("pixel_spacing_mm", "rows", "columns"):
             entry.pop(key)
     write(meta_path, meta)
-    assert not Equipment.from_dict(data).patient["ct_table_registration"]["ct_slice_geometry"]["pixel_spacing_checked"]
+    assert not Equipment.from_dict(data).registered_frames.evidence["ct_slice_geometry"]["pixel_spacing_checked"]
     ct["dicom_image_geometry"][1]["image_position_patient_mm"][0] = 5
     write(meta_path, meta)
     with pytest.raises(InputError, match="rejilla afín"):
@@ -359,31 +378,32 @@ def test_slicer_frame_metadata_distinguishes_missing_from_distinct():
     assert module.ct_geometry(np.eye(4), [h, other])["mixed_frames"]
 
 
-def test_room_translation_moves_board_and_patient_together(tmp_path):
+def test_room_origin_moves_board_and_patient_together(tmp_path):
     from skindose_verifier.geometry import geometry_preflight
     data, path = case(tmp_path)
-    data["geometry"]["table_calibration"]["reference"] = {}
+    data["geometry"]["table_calibration"]["reference"] = estimated_reference()
     eq = Equipment.from_dict(data)
     ev = normalize(read_rdsr(path).events[0], eq)
     base_shift = table_shift(ev, eq)
     _, base_patient = patient_pose(eq, base_shift)
-    offset = np.array([125., -950., 0.])
-    data["geometry"]["table_room_offset_mm"] = offset.tolist()
+    offset = np.array([125., -50., 300.])
+    data["geometry"]["table_calibration"]["reference"] = estimated_reference(origin=np.add([0, 125, 500], offset))
     moved = Equipment.from_dict(data)
     new_shift = table_shift(ev, moved)
     _, new_patient = patient_pose(moved, new_shift)
-    np.testing.assert_allclose(new_shift - base_shift, offset)
-    np.testing.assert_allclose(new_patient - base_patient, offset)
-    assert moved.patient["ct_table_registration"]["M_T_from_C"] == eq.patient["ct_table_registration"]["M_T_from_C"]
+    np.testing.assert_allclose(new_shift - base_shift, ROOM_FROM_I @ offset)
+    np.testing.assert_allclose(new_patient - base_patient, ROOM_FROM_I @ offset)
+    assert moved.registered_frames.evidence["M_T_from_C"] == eq.registered_frames.evidence["M_T_from_C"]
     skin = sample_patient(moved.patient)
-    data["geometry"]["table_room_offset_mm"] = [100000, 0, 0]
+    data["geometry"]["table_calibration"]["reference"] = estimated_reference(origin=[100000, 0, 0])
     far = Equipment.from_dict(data)
-    result = geometry_preflight([ev], far, skin.mesh.bounds)
-    assert result["possible_overlap_events"] == 0
+    assert geometry_preflight([ev], far, skin.mesh.bounds)["possible_overlap_events"] == 0
 
 
 def test_first_event_zero_uses_configured_reading_system(tmp_path):
+    # Legacy synthetic model only: without a CT registration.
     data, path = case(tmp_path)
+    data["patient"].pop("ct_registration")
     data["geometry"]["table_calibration"]["reference"] = {}
     data["azurion_profile"] = {"name": "philips_azurion", "allow_research_assumptions": True,
                                "reference_table_from_first_event": True}
@@ -395,23 +415,30 @@ def test_first_event_zero_uses_configured_reading_system(tmp_path):
     np.testing.assert_allclose(table_shift(event, eq), [0., 0., 0.])
 
 
-def test_automatic_room_estimate_without_additional_marker(tmp_path):
-    from skindose_verifier.ct_placement import estimate_room_reference
+def test_automatic_ct_registration_and_room_reference(tmp_path):
+    from skindose_verifier.placement import (estimate_ct_registration, estimate_room_reference,
+                                             mesh_vertices_lps, pose_rotation, select_target)
     from skindose_verifier.geometry import geometry_preflight
     data, path = case(tmp_path)
-    data["geometry"]["table_calibration"]["reference"] = {}
-    eq = Equipment.from_dict(data)
-    mesh_path = Path(eq.patient["mesh_path"])
+    registration = data["patient"].pop("ct_registration")
+    mesh_path = Path(data["patient"]["mesh_path"])
     metadata = read(mesh_path.with_suffix(".json"))
-    before = eq.patient["ct_table_registration"]["M_T_from_C"]
-    events = [normalize(e, eq) for e in read_rdsr(path).events]
-    def unexpected_prompt(message):
-        pytest.fail(message)
-    result = estimate_room_reference(mesh_path, metadata, path, events, eq,
-                                     interactive=True, input_fn=unexpected_prompt)
-    assert result["target_source"] == "mesh_bounds_center_geometric_only"
-    assert eq.patient["ct_table_registration"]["M_T_from_C"] == before
-    assert result["offset_room_mm"][2] == 0
+    vertices = mesh_vertices_lps(trimesh.load_mesh(mesh_path, process=False).vertices, metadata["coordinate_system"])
+    events = read_rdsr(path).events
+    rotation, pose = pose_rotation(events)
+    target, info = select_target(vertices, metadata)
+    assert info["target_source"] == "mesh_bounds_center_geometric_only"
+    np.testing.assert_allclose(target, [20, 100, -360])
+    estimated = estimate_ct_registration(vertices, target, rotation, mattress_mm=35, target_distance_from_head_mm=500,
+                                         mesh_sha256=registration["mesh_sha256"], target_info=info, pose_info=pose)
+    # The back of the box (y = 110 in LPS) rests on the mattress, the target over the midline.
+    np.testing.assert_allclose(estimated["anchor_ct_lps_mm"], [20, 110, -360])
+    np.testing.assert_allclose(estimated["anchor_table_mm"], [0, -35, -500])
+    data["patient"]["ct_registration"] = estimated
+    data["geometry"]["table_calibration"]["reference"] = estimate_room_reference(estimated, target, events)
+    eq = Equipment.from_dict(data)
+    assert eq.registered_frames.evidence["ct_to_table_status"] == "estimated_automatic"
+    first = normalize(events[0], eq)
+    np.testing.assert_allclose(np.asarray(beam_view(first, eq)["M_I_from_C"]) @ [*target, 1], [0, 0, 0, 1], atol=1e-9)
     skin = sample_patient(eq.patient)
-    assert geometry_preflight(events, eq, skin.mesh.bounds)["possible_overlap_events"] > 0
-    assert Equipment.from_dict(eq.raw).patient["ct_table_registration"]["M_T_from_C"] == before
+    assert geometry_preflight([normalize(e, eq) for e in events], eq, skin.mesh.bounds)["possible_overlap_events"] > 0

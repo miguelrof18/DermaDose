@@ -89,7 +89,8 @@ class EventSurfaceFactors:
         self.dataset = dataset
         allowed = {'provider', 'dataset_directory', 'inherent_al_mm', 'target', 'field_shape_policy',
                    'out_of_domain', 'incident_kerma_basis', 'quality_basis', 'provenance',
-                   'allow_water_phantom_approximation', 'aluminium_policy', 'expected_anode_angle_deg'}
+                   'allow_water_phantom_approximation', 'aluminium_policy', 'aluminium_interpolation',
+                   'expected_anode_angle_deg'}
         if set(spec)-allowed:
             raise InputError(f'Opciones de surface_factors desconocidas: {sorted(set(spec)-allowed)}.')
         if spec.get('target') != 'W':
@@ -98,7 +99,10 @@ class EventSurfaceFactors:
             al = float(spec['inherent_al_mm'])
         except (KeyError, TypeError, ValueError) as exc:
             raise InputError('Declarar inherent_al_mm caracterizado; no se deduce del RDSR.') from exc
-        if (al,) not in dataset.tables.get('clinical', {}):
+        self.aluminium_interpolation = spec.get('aluminium_interpolation', 'none')
+        if self.aluminium_interpolation not in ('none', 'linear_between_families'):
+            raise InputError('aluminium_interpolation inválida; usar none o linear_between_families.')
+        if self._al_bracket(al) is None:
             raise InputError('Familia de filtración Al no tabulada; no se extrapola.')
         if 'expected_anode_angle_deg' in spec:
             angle = float(spec['expected_anode_angle_deg'])
@@ -120,6 +124,42 @@ class EventSurfaceFactors:
         if spec.get('allow_water_phantom_approximation') is not True:
             raise InputError('Declarar allow_water_phantom_approximation=true para trasladar el fantoma al mapa.')
 
+    def _families(self):
+        return sorted(k[0] for k in self.dataset.tables.get('clinical', {}))
+
+    def _al_bracket(self, al):
+        """Tabulated family, or the two adjacent families when interpolation is enabled."""
+        families = self._families()
+        exact = next((a for a in families if math.isclose(a, al, abs_tol=1e-8, rel_tol=0)), None)
+        if exact is not None:
+            return ((exact, 1.),)
+        if self.aluminium_interpolation != 'linear_between_families':
+            return None
+        lower = [a for a in families if a < al]
+        upper = [a for a in families if a > al]
+        if not lower or not upper:
+            return None  # never extrapolate beyond the tabulated Al range
+        a0, a1 = lower[-1], upper[0]
+        w = (al - a0)/(a1 - a0)
+        return ((a0, 1. - w), (a1, w))
+
+    def _evaluate_al(self, al, **coordinates):
+        bracket = self._al_bracket(al)
+        if bracket is None:
+            raise InputError(f'Al = {al:g} mm no tabulado; no se extrapola.')
+        results = [(self.dataset.evaluate('clinical', inherent_al_mm=a, **coordinates), w) for a, w in bracket]
+        if len(results) == 1:
+            return results[0][0]
+        (r0, w0), (r1, w1) = results
+        # Same filter material: total Al is a physical axis; linear weights, audited.
+        return FactorPair(w0*np.asarray(r0.k_bs) + w1*np.asarray(r1.k_bs),
+                          w0*np.asarray(r0.k_f) + w1*np.asarray(r1.k_f),
+                          {**r0.audit, 'inherent_al_mm': al,
+                           'aluminium_interpolation': {'method': 'linear_between_families', 'requested_al_mm': al,
+                                                       'families_mm': [a for a, _ in bracket],
+                                                       'weights': [w for _, w in bracket]},
+                           'source_nodes': r0.audit.get('source_nodes', []) + r1.audit.get('source_nodes', [])})
+
     def evaluate_event(self, event, field_area_cm2):
         added_al = [part for part in event.original.get('filter_stack', [])
                     if (part['material_scheme'], part['material_code']) in ALUMINIUM_FILTERS
@@ -129,10 +169,11 @@ class EventSurfaceFactors:
             if event.quality.get('filtration_mm_cu') == 'missing_filter_information' or event.filtration_mm_cu is None:
                 raise InputError(f'Evento {event.uid}: filtración desconocida; no se supone cero.')
             selected_al += sum(float(part['selected_mm']) for part in added_al)
-            families = [k[0] for k in self.dataset.tables.get('clinical', {})]
-            selected_al = next((a for a in families if math.isclose(a, selected_al, abs_tol=1e-8, rel_tol=0)), selected_al)
-            if (selected_al,) not in self.dataset.tables.get('clinical', {}):
-                raise InputError(f'Evento {event.uid}: Al fijo + añadido = {selected_al:g} mm no tabulado; no se extrapola.')
+            if self._al_bracket(selected_al) is None:
+                hint = ('' if self.aluminium_interpolation == 'linear_between_families' else
+                        ' Declare aluminium_interpolation=linear_between_families para interpolar entre familias.')
+                raise InputError(f'Evento {event.uid}: Al fijo + añadido = {selected_al:g} mm no tabulado; '
+                                 f'no se extrapola.{hint}')
         if added_al and self.aluminium_policy == 'reject_additional':
             raise InputError(f'Evento {event.uid}: el RDSR declara filtración adicional de Al; '
                              'no se puede equiparar a la familia de Al inherente de Benmakhlouf.')
@@ -146,13 +187,14 @@ class EventSurfaceFactors:
         if area.size == 1:
             area = float(area.reshape(-1)[0])
         try:
-            result = self.dataset.evaluate('clinical', inherent_al_mm=selected_al, kvp=event.kvp,
+            result = self._evaluate_al(selected_al, kvp=event.kvp,
                 added_cu_mm=event.filtration_mm_cu, field_side_cm=np.sqrt(area))
         except InputError as exc:
             raise InputError(f'Evento {event.uid}: {exc}') from exc
         return FactorPair(result.k_bs, result.k_f, {**result.audit,
             'event_uid':event.uid, 'configuration':self.spec,
-            'aluminium_mapping': {'policy': self.aluminium_policy, 'fixed_al_mm': self.al,
+            'aluminium_mapping': {'policy': self.aluminium_policy, 'interpolation': self.aluminium_interpolation,
+                                  'fixed_al_mm': self.al,
                                   'event_added_al_mm': sum(float(p['selected_mm']) for p in added_al),
                                   'selected_table_al_mm': selected_al},
             'field_mapping':'square_side_at_local_axial_depth' if square else 'equal_area_square_at_local_axial_depth',

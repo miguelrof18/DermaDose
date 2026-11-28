@@ -56,6 +56,7 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `surface_factors.dataset_directory` | Carpeta de la tabla derivada y su metadato. La ruta relativa se interpreta desde el JSON de equipo. |
 | `surface_factors.inherent_al_mm`, `target` | Filtración fija efectiva en mm Al equivalentes y material del blanco. En el perfil Azurion, el valor representa la filtración efectiva ajustada a la HVL medida. |
 | `surface_factors.aluminium_policy` | Regla para combinar el aluminio fijo con el aluminio registrado por evento. |
+| `surface_factors.aluminium_interpolation` | `none` (por defecto) o `linear_between_families`. Con la segunda, un aluminio total entre dos familias tabuladas se interpola linealmente; fuera del intervalo tabulado se sigue deteniendo el cálculo. La auditoría registra las familias y los pesos. |
 | `surface_factors.expected_anode_angle_deg` | Ángulo de ánodo exigido para la tabla seleccionada. |
 | `surface_factors.field_shape_policy`, `out_of_domain` | Regla para representar la forma del campo y comportamiento si los parámetros quedan fuera del dominio tabulado. `equal_area` usa un cuadrado de área equivalente. |
 | `surface_factors.incident_kerma_basis`, `quality_basis` | Definición del kerma incidente y aproximación de calidad de haz usada para consultar la tabla. |
@@ -63,7 +64,9 @@ Para usar las dimensiones medidas del tablero de Hemodinámica 1 y completar la 
 | `azurion_profile.name`, `tube_model` | Identifican las reglas Philips y el conjunto de tubo asociado. |
 | `azurion_profile.allow_research_assumptions` | Permite las hipótesis del perfil de investigación. |
 | `azurion_profile.fixed_filtration_characterized`, `geometry_characterized`, `calibration_characterized` | Declaran si se han caracterizado la filtración fija, la geometría y la calibración del equipo. |
-| `azurion_profile.reference_table_from_first_event` | Usa la posición de mesa del primer evento como origen provisional del caso. |
+| `azurion_profile.reference_table_from_first_event` | Solo para el modelo sintético sin registro TC: usa la posición de mesa del primer evento como origen. Con malla registrada, la referencia de sala se mide o se estima según [Sistemas de referencia](sistemas_de_referencia.md). |
+| `table_calibration.reference.origin_isocenter_mm`, `status`, `estimate` | Referencia de sala estimada: posición de O_T en I para las lecturas `readings_long_lat_height_mm`, con método e hipótesis. La escribe el lanzador si falta el marcador. |
+| `table_calibration.motion_matrix_i_per_mm`, `motion_matrix_status` | Matriz S (columnas: lecturas longitudinal, lateral y altura). `null` marca una lectura sin caracterizar. |
 | `tube_characterization.model`, `fixed_effective_al_mm`, `filtration_basis` | Identidad del tubo, aluminio fijo efectivo y base de ese valor. Deben ser coherentes con la tabla espectral seleccionada. |
 
 Mantén los parámetros de sala en el perfil de equipo y la transformación específica del paciente en los datos del caso. Antes de interpretar la colocación como representativa de una intervención, comprueba con un fantoma la lateralidad, los signos angulares y los desplazamientos de mesa.
