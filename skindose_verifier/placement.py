@@ -164,7 +164,7 @@ def estimate_ct_registration(vertices_lps, target_lps, rotation, *, mattress_mm:
     }
 
 
-def choose_reference_event(events, reference="first"):
+def choose_reference_event(events, reference="kerma_weighted"):
     """Event whose table position defines m_0 for an estimated room reference."""
     usable = [(i, e) for i, e in enumerate(events, 1)
               if rdsr_readings(e) is not None and e.ka_r_gy is not None and e.ka_r_gy > 0]
@@ -172,19 +172,30 @@ def choose_reference_event(events, reference="first"):
         raise InputError("Ningún evento tiene las tres lecturas de mesa (DCM 113751–113753) y kerma positivo.")
     if reference == "first":
         return usable[0]
+    if reference == "kerma_weighted":
+        # Working position: kerma-weighted median of each reading; the event
+        # closest to it (ties: larger kerma) defines m_0.
+        readings = np.array([rdsr_readings(e) for _, e in usable])
+        weights = np.array([e.ka_r_gy for _, e in usable], dtype=float)
+        order = np.argsort(readings, axis=0)
+        median = np.array([readings[order[np.searchsorted(np.cumsum(weights[order[:, j]]), weights.sum() / 2), j], j]
+                           for j in range(3)])
+        distance = np.linalg.norm(readings - median, axis=1)
+        best = min(range(len(usable)), key=lambda k: (distance[k], -weights[k]))
+        return usable[best]
     if reference == "max_kerma":
         return max(usable, key=lambda item: item[1].ka_r_gy)
     try:
         index = int(reference)
     except (TypeError, ValueError) as exc:
-        raise InputError("Evento de referencia: 'first', 'max_kerma' o un número de evento.") from exc
+        raise InputError("Evento de referencia: 'kerma_weighted', 'first', 'max_kerma' o un número de evento.") from exc
     for i, event in usable:
         if i == index:
             return i, event
     raise InputError(f"El evento {index} no tiene lecturas de mesa completas o kerma positivo.")
 
 
-def estimate_room_reference(registration: dict, target_lps, events, *, reference="first",
+def estimate_room_reference(registration: dict, target_lps, events, *, reference="kerma_weighted",
                             target_info: dict | None = None) -> dict:
     """t_0, m_0 such that the target is at the isocentre in the reference event.
 
@@ -213,7 +224,8 @@ def estimate_room_reference(registration: dict, target_lps, events, *, reference
             "board_top_below_isocenter_mm": board_top_below_iso,
             "board_head_edge_from_isocenter_mm": float(t0[2]),
             "warnings": warnings,
-            "hypotheses": ["Técnica isocéntrica: el punto diana estaba en el isocentro en el evento de referencia.",
+            "hypotheses": ["Técnica isocéntrica: el punto diana estaba en el isocentro en el evento de referencia "
+                            "(por defecto, la posición de trabajo: mediana de las lecturas ponderada por Ka,r).",
                            "Tablero nivelado y sin giro (R_I<-T = Id).",
                            "Los demás eventos se desplazan con S (m_k - m_0); no es una calibración de sala."]},
     }

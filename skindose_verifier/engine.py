@@ -516,6 +516,10 @@ def calculate(events: Sequence[IrradiationEvent], equipment: Equipment, stage: s
         registration = equipment.patient.get("ct_registration", {})
         if isinstance(registration, dict) and registration.get("anchor_ct_lps_mm") is not None:
             summary["registration_anchor_patient_mm"] = registration["anchor_ct_lps_mm"]
+            summary["registration_anchor_definition"] = registration.get("anchor_definition")
+        room_estimate = evidence.get("room_reference_estimate") or {}
+        if room_estimate.get("target_ct_lps_mm") is not None:
+            summary["placement_target_patient_mm"] = room_estimate["target_ct_lps_mm"]
         estimated = [name for name, status in (("TC → tablero", evidence.get("ct_to_table_status")),
                                                ("tablero → isocentro", room)) if str(status).startswith("estimated")]
         if estimated:

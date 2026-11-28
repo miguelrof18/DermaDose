@@ -34,3 +34,20 @@ def test_pre_0_7_azurion_profile_in_case_folder_is_rejected(tmp_path):
     (tmp_path / "caso.dcm").write_bytes(b"")
     with pytest.raises(ExampleError, match="anterior a DermaDose 0.7.0"):
         prepare_example(tmp_path, mesh="xcat")
+
+
+def test_kerma_weighted_reference_is_the_working_position():
+    from types import SimpleNamespace
+    from skindose_verifier.placement import choose_reference_event
+
+    def event(long_, lat, height, ka):
+        reading = lambda v: [{"value": v}]
+        return SimpleNamespace(original={"table_long": reading(long_), "table_lat": reading(lat),
+                                         "table_height": reading(height)},
+                               table_system="isocenter", table_mm=None, ka_r_gy=ka, uid=str(ka))
+    # Low-dose scout 85 mm away, then the working position with most of the kerma.
+    events = [event(-13, 859, 843, .0001), event(-58, 941, 882, .02), event(-64, 942, 882, .03),
+              event(-40, 909, 862, .004)]
+    assert choose_reference_event(events, "first")[0] == 1
+    assert choose_reference_event(events, "kerma_weighted")[0] == 3
+    assert choose_reference_event(events)[0] == 3

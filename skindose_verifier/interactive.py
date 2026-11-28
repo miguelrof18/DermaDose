@@ -130,10 +130,23 @@ def save_interactive(calculation: Calculation, path: Path) -> None:
                                   textposition="top center", hoverinfo="skip", visible=False))
     ct_lps = calculation.summary.get("patient_coordinate_system") == "CT_LPS_mm"
     anchor = calculation.summary.get("registration_anchor_patient_mm")
+    target = calculation.summary.get("placement_target_patient_mm")
+    if target is not None:
+        fig.add_trace(go.Scatter3d(x=[target[0]], y=[target[1]], z=[target[2]], mode="markers",
+                                   marker=dict(size=5, color="#ff6bd6", symbol="cross"),
+                                   hovertemplate=("Punto diana: isocentro en la posición de trabajo "
+                                                  "(estimado)<extra></extra>"),
+                                   name="Punto diana"))
     if anchor is not None:
+        definition = calculation.summary.get("registration_anchor_definition")
+        anchor_text = {
+            "posterior_shoulder_midline": "Anclaje TC–tablero: hombros, línea media posterior (piel)",
+            "support_surface_below_target": ("Apoyo en la colchoneta bajo el punto diana (registro estimado; "
+                                             "no es un anclaje de hombros)"),
+        }.get(definition, "Anclaje del registro TC–tablero")
         fig.add_trace(go.Scatter3d(x=[anchor[0]], y=[anchor[1]], z=[anchor[2]], mode="markers",
                                    marker=dict(size=6, color="#00d5ff", symbol="diamond"),
-                                   hovertemplate="Anclaje del registro TC–tablero<extra></extra>",
+                                   hovertemplate=anchor_text + "<extra></extra>",
                                    name="Anclaje del registro"))
         # The registered surface keeps LPS axes. The provisional surface uses
         # the engine axes, where the head points towards positive Y.

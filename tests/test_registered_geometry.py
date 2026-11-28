@@ -262,7 +262,7 @@ def test_estimated_room_reference_keeps_the_same_chain(tmp_path, axes):
     registration = data["patient"]["ct_registration"]
     events = read_rdsr(path).events
     target = np.array([20., 100., -360.])
-    reference = estimate_room_reference(registration, target, events)
+    reference = estimate_room_reference(registration, target, events, reference="first")
     assert reference["readings_long_lat_height_mm"] == M0
     data["geometry"]["table_calibration"]["reference"] = reference
     eq = Equipment.from_dict(data)
@@ -435,7 +435,7 @@ def test_automatic_ct_registration_and_room_reference(tmp_path):
     np.testing.assert_allclose(estimated["anchor_ct_lps_mm"], [20, 110, -360])
     np.testing.assert_allclose(estimated["anchor_table_mm"], [0, -35, -500])
     data["patient"]["ct_registration"] = estimated
-    data["geometry"]["table_calibration"]["reference"] = estimate_room_reference(estimated, target, events)
+    data["geometry"]["table_calibration"]["reference"] = estimate_room_reference(estimated, target, events, reference="first")
     eq = Equipment.from_dict(data)
     assert eq.registered_frames.evidence["ct_to_table_status"] == "estimated_automatic"
     first = normalize(events[0], eq)
