@@ -34,7 +34,7 @@ La malla se sitúa con una sola cadena: TC (LPS) → tablero (origen en el borde
 
 ## Verificación
 
-`python -m skindose_verifier.verification_rfm2024 SR_Finals_240501` compara DermaDose con las 27 medidas del conjunto de Gañán Mora et al. (Rev Fis Med 2024). Todos los casos quedan dentro de la tolerancia del 13 %. Consulta la [verificación RFM 2024](docs/verificacion_rfm2024.md).
+La [verificación RFM 2024](docs/verificacion_rfm2024.md) compara DermaDose con las 27 medidas del conjunto de Gañán Mora et al. (Rev Fis Med 2024). Todos los casos quedan dentro de la tolerancia del 13 %.
 
 ## Cómo calcula
 

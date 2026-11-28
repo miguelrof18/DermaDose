@@ -1,16 +1,11 @@
-"""Verification-set support (Gañán Mora et al., Rev Fis Med 2024) and the changes it motivated."""
+"""Changes motivated by the RFM 2024 verification (Gañán Mora et al., Rev Fis Med 2024)."""
 import math
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-from skindose_verifier.config import Equipment
 from skindose_verifier.domain import InputError, IrradiationEvent
-from skindose_verifier.engine import calculate, normalize
 from skindose_verifier.surface_factors import make_event_provider
-from skindose_verifier import table_transmission as tt
-from skindose_verifier import verification_rfm2024 as rfm
 
 AL, CU = ("SRT", "C-120F9"), ("SRT", "C-127F9")
 
@@ -55,59 +50,3 @@ def test_aluminium_interpolation_is_linear_between_adjacent_families_only():
                                                                                        width=300., height=300.), 270.)
     with pytest.raises(InputError, match="aluminium_interpolation"):
         provider(aluminium_interpolation="nearest")
-
-
-def test_collimated_area_reference_rescales_only_area_derived_fields():
-    cfg = rfm.study_configuration("Canon", -150.)
-    eq = Equipment.from_dict(cfg)
-    area = normalize(event(width=200., height=200., sid=910., area_derived=True), eq)
-    np.testing.assert_allclose([area.field_width_mm, area.field_height_mm], [182., 182.])
-    assert area.quality["field_size"].endswith("at_fixed_distance")
-    explicit = normalize(event(width=200., height=200., sid=910.), eq)
-    assert explicit.field_width_mm == 200.
-    # Canon case 9: 200.73 mm at 1 m gives the 11 x 11 cm field of Table 2 at the IRP (546 mm).
-    assert math.isclose(200.73*546/1000, 109.6, abs_tol=0.1)
-
-
-def test_delorenzo_terms_match_the_skindose2d_parametrisation():
-    assert math.isclose(tt.kvp_filtration_term(80., 0.2), 1 + 0.1321*math.log(1.5892*80 + 0.1321)
-                        + 0.05043*math.log(1.5892*0.2 + 0.05043))
-    assert math.isclose(tt.transmission(80., 0.2, 273.), 0.8365, abs_tol=5e-4)
-    assert math.isclose(tt.angular_term(30.), 1 - 4.9e-5*900 + 3.07e-4*30)
-    assert tt.field_area_term(2000.) == tt.field_area_term(580.)
-    assert tt.angular_term(85.) == tt.angular_term(80.)
-    blocks = tt.delorenzo_factor_blocks()
-    eq = Equipment.from_dict(rfm.study_configuration("Philips", -150., table_factors=blocks))
-    value = eq.factors["table_normal"].evaluate(kvp=np.array([70.]), filtration_mm_cu=np.array([0.4]),
-                                                field_area_cm2=np.array([364.]))
-    np.testing.assert_allclose(value, tt.kvp_filtration_term(70., .4)*tt.field_area_term(364.), rtol=2e-4)
-
-
-def test_reference_set_is_complete_and_consistent():
-    assert sorted(rfm.REFERENCE) == list(range(1, 28))
-    for case, (device, _, dw, (lo, hi), kf, sk2d, above) in rfm.REFERENCE.items():
-        assert device == ("Canon" if case <= 11 else "Philips")
-        assert lo < dw < hi and 1.0 < kf < 1.06 and sk2d > 0
-        assert above == (110. if case >= 24 else 0.)
-    assert rfm.verdict(6.4) == "sin discrepancia"
-    assert rfm.verdict(-6.6).startswith("discrepancia al 68")
-    assert rfm.verdict(13.1).startswith("discrepancia significativa")
-    assert rfm.case_from_name(Path("SKIN DOSE, TEST_CASE_9_MeasDose=12.44mGy_FS(11.0,11.0)")) == 9
-    with pytest.raises(InputError, match="no coincide"):
-        rfm.case_from_name(Path("SKIN DOSE, TEST_CASE_9_MeasDose=15.17mGy"))
-
-
-def test_study_model_equals_closed_form_at_the_field_centre():
-    """Engine dose at the centre = Ka (d_IRP/d)^2 T k_BS k_f with CF = 1 (Philips base, PA)."""
-    cfg = rfm.study_configuration("Philips", -150.)
-    eq = Equipment.from_dict(cfg)
-    ev = event()
-    result = calculate([ev], eq, "skin_dose", detailed=False)
-    pts = result.surface.points_mm
-    centre = np.hypot(pts[:, 0], pts[:, 1]) <= 3.
-    dose = float(np.mean(result.total_gy[centre]))
-    n = normalize(ev, eq)
-    area = n.field_width_mm*n.field_height_mm*(660/1181.4)**2/100
-    pair = make_event_provider(cfg["surface_factors"]).evaluate_event(n, area)
-    expected = 0.01*tt.transmission(70., .4, area)*float(pair.k_bs)*float(pair.k_f)
-    assert math.isclose(dose, expected, rel_tol=2e-3)

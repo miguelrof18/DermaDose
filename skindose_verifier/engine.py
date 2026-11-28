@@ -128,21 +128,6 @@ def normalize(ev: IrradiationEvent, equipment: Equipment) -> IrradiationEvent:
         if getattr(ev, field) is None:
             updates[field] = float(g[cfg])
             q[field] = "defaulted_from_equipment_configuration"
-    area_reference = g.get("collimated_area_reference_mm")
-    if area_reference is not None and ev.quality.get("field_size") == "square_equivalent_from_collimated_field_area":
-        # Some vendors (Canon Infinix in the RFM 2024 set) report the collimated
-        # area at a fixed distance from the focus, not at the current detector.
-        reference = float(area_reference)
-        if not math.isfinite(reference) or reference <= 0:
-            raise InputError("collimated_area_reference_mm debe ser una distancia positiva.")
-        if (ev.field_reference or g["field_reference"]) != "detector":
-            raise InputError("collimated_area_reference_mm solo se aplica a campos referidos al detector.")
-        sid = float(updates.get("sid_mm", ev.sid_mm))
-        scale = sid/reference
-        updates["field_width_mm"] = float(ev.field_width_mm)*scale
-        updates["field_height_mm"] = float(ev.field_height_mm)*scale
-        q["field_size"] = "square_equivalent_from_collimated_field_area_at_fixed_distance"
-        q["collimated_area_reference_mm"] = reference
     system = g["table_coordinates"]
     if ev.table_system != system:
         keys = ("table_x_iso", "table_y_iso", "table_z_iso") if system == "isocenter" else (
