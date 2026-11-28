@@ -168,7 +168,7 @@ def test_measured_board_and_missing_references(tmp_path):
     table["reference"] = {"readings_long_lat_height_mm": M0, "marker_table_mm": [0, 0, 0],
                           "marker_isocenter_mm": [0, 0, 0]}
     data["geometry"]["table_calibration"] = table
-    # The distributed profile carries the lateral sign verified with the RFM 2024 set (head = +1).
+    # The distributed profile carries a characterized lateral sign (head = +1).
     assert table["motion_matrix_i_per_mm"] == [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
     # A profile with an unknown column is accepted until that reading moves.
     table["motion_matrix_i_per_mm"] = [[1, 0, 0], [0, 0, -1], [0, None, 0]]
