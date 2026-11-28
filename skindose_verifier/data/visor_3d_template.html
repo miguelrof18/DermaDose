@@ -167,8 +167,28 @@
     const isodoseToggle = document.getElementById("show-isodose");
     const isodoseLevelsInput = document.getElementById("isodose-levels");
     const isodoseStatus = document.getElementById("isodose-status");
-    const isodoseColors = ["#f7f5ff", "#4de5e1", "#ffcc70", "#ff6685", "#ad87ff", "#a8ef7a", "#ff9c45", "#ffffff"];
+    // Each level is a dark or white line over a contrasting halo, so it reads
+    // over green, yellow, orange and red alike.
+    const isodoseColors = ["#1d3fb8", "#0b0f17", "#ffffff", "#c026d3", "#0e7490", "#ffffff", "#7c2d12", "#0b0f17"];
+    const isodoseHalos = ["#ffffff", "#ffffff", "#0b0f17", "#ffffff", "#ffffff", "#c026d3", "#ffffff", "#ffe34d"];
     const isodoseTraceCount = isodoseColors.length;
+    // Curves are lifted off the skin along the vertex normal: drawn exactly on
+    // the surface, the mesh hides them in patches (depth-buffer ties).
+    const ISODOSE_LIFT_HALO_MM = 1.0, ISODOSE_LIFT_LINE_MM = 1.8;
+    let vertexNormals = null;
+    function getVertexNormals() {
+      if (vertexNormals) return vertexNormals;
+      const n = new Float64Array(3*data.vertices.length);
+      faceIndices.forEach((face, index) => {
+        const w = data.area_mm2[index], f = data.normals[index];
+        for (const v of face) { n[3*v] += w*f[0]; n[3*v+1] += w*f[1]; n[3*v+2] += w*f[2]; }
+      });
+      for (let v = 0; v < data.vertices.length; v++) {
+        const length = Math.hypot(n[3*v], n[3*v+1], n[3*v+2]) || 1;
+        n[3*v] /= length; n[3*v+1] /= length; n[3*v+2] /= length;
+      }
+      return vertexNormals = n;
+    }
     let isodoseTraceIndices = [];
     let isodoseLayerPromise = null;
     let isodoseCacheKey = "";
@@ -398,7 +418,8 @@
       return [pointAt(first), pointAt(last)];
     }
     function contourSegments(level, vertexDose, activeCuts) {
-      const x = [], y = [], z = [];
+      const x = [], y = [], z = [], nx = [], ny = [], nz = [];
+      const vn = getVertexNormals();
       const edges = [[0,1],[1,2],[2,0]];
       for (const face of faceIndices) {
         const hits = [];
@@ -408,25 +429,39 @@
           const t = (level-va)/(vb-va);
           const pa = data.vertices[face[ia]], pb = data.vertices[face[ib]];
           const point = pa.map((value, axis) => value+t*(pb[axis]-value));
+          const normal = [0,1,2].map(axis => vn[3*face[ia]+axis]+t*(vn[3*face[ib]+axis]-vn[3*face[ia]+axis]));
+          const length = Math.hypot(...normal) || 1;
+          point.normal = normal.map(value => value/length);
           if (!hits.some(other => Math.hypot(...point.map((v,axis)=>v-other[axis])) < 1e-7)) hits.push(point);
         }
         if (hits.length !== 2) continue;
         const clipped = clipContourSegment(hits[0], hits[1], activeCuts);
         if (!clipped || Math.hypot(...clipped[0].map((v,axis)=>v-clipped[1][axis])) < 1e-7) continue;
-        for (const point of clipped) { x.push(point[0]); y.push(point[1]); z.push(point[2]); }
-        x.push(null); y.push(null); z.push(null);
+        const normal = hits[0].normal.map((value, axis) => value+hits[1].normal[axis]);
+        const length = Math.hypot(...normal) || 1;
+        for (const point of clipped) {
+          x.push(point[0]); y.push(point[1]); z.push(point[2]);
+          nx.push(normal[0]/length); ny.push(normal[1]/length); nz.push(normal[2]/length);
+        }
+        x.push(null); y.push(null); z.push(null); nx.push(0); ny.push(0); nz.push(0);
       }
-      return {x,y,z};
+      const lift = mm => ({x:x.map((v,i)=>v===null?null:v+mm*nx[i]),
+                           y:y.map((v,i)=>v===null?null:v+mm*ny[i]),
+                           z:z.map((v,i)=>v===null?null:v+mm*nz[i])});
+      return {halo:lift(ISODOSE_LIFT_HALO_MM), line:lift(ISODOSE_LIFT_LINE_MM)};
     }
     function ensureIsodoseLayer() {
       if (!faceIndices) return Promise.resolve();
       if (isodoseTraceIndices.length) return Promise.resolve();
       if (isodoseLayerPromise) return isodoseLayerPromise;
-      const traces = isodoseColors.map((color,index) => ({
-        type:"scatter3d", mode:"lines", name:"Isodosis " + (index+1),
-        x:[], y:[], z:[], visible:false, showlegend:false, hoverinfo:"skip",
-        line:{color,width:3}
-      }));
+      // Two traces per level: halo (even index) and line (odd index).
+      const traces = isodoseColors.flatMap((color,index) => [
+        {type:"scatter3d", mode:"lines", name:"Isodosis " + (index+1) + " (contorno)",
+         x:[], y:[], z:[], visible:false, showlegend:false, hoverinfo:"skip",
+         line:{color:isodoseHalos[index],width:9}},
+        {type:"scatter3d", mode:"lines", name:"Isodosis " + (index+1),
+         x:[], y:[], z:[], visible:false, showlegend:false, hoverinfo:"skip",
+         line:{color,width:4}}]);
       isodoseLayerPromise = Plotly.addTraces(graph,traces).then(() => {
         const first = graph.data.length-traces.length;
         isodoseTraceIndices = Array.from({length:traces.length},(_,i)=>first+i);
@@ -441,7 +476,7 @@
     function renderIsodose() {
       if (!isodoseTraceIndices.length) return;
       if (!isodoseToggle.checked) {
-        Plotly.restyle(graph,{visible:isodoseColors.map(()=>false)},isodoseTraceIndices);
+        Plotly.restyle(graph,{visible:isodoseTraceIndices.map(()=>false)},isodoseTraceIndices);
         return;
       }
       const chosen = Number(mode.value), percentages = [...new Set(isodoseLevelsInput.value
@@ -449,13 +484,13 @@
         .sort((a,b)=>a-b).slice(0,isodoseTraceCount);
       if (!percentages.length) {
         isodoseStatus.textContent = "Escribe niveles entre 0 y 100, separados por comas (por ejemplo: 25, 50, 75).";
-        Plotly.restyle(graph,{visible:isodoseColors.map(()=>false)},isodoseTraceIndices);
+        Plotly.restyle(graph,{visible:isodoseTraceIndices.map(()=>false)},isodoseTraceIndices);
         return;
       }
       const vertexDose = vertexValues(chosen);
       const peak = vertexDose.reduce((maximum,value)=>Math.max(maximum,value),0);
       if (!(peak > 0)) {
-        Plotly.restyle(graph,{visible:isodoseColors.map(()=>false)},isodoseTraceIndices);
+        Plotly.restyle(graph,{visible:isodoseTraceIndices.map(()=>false)},isodoseTraceIndices);
         isodoseStatus.textContent = "El modo seleccionado no contiene dosis positiva.";
         return;
       }
@@ -463,16 +498,18 @@
       const key = [chosen,percentages.join(","),activeCuts.map(c=>`${c.axis}:${c.value}:${c.side}`).join("|")].join("/");
       if (key !== isodoseCacheKey) {
         const segments = percentages.map(percent=>contourSegments(peak*percent/100,vertexDose,activeCuts));
+        const part = i => segments[i>>1]?.[i%2 ? "line" : "halo"];
+        const count = 2*isodoseTraceCount;
         isodoseCache = {
-          x:Array.from({length:isodoseTraceCount},(_,i)=>segments[i]?.x||[]),
-          y:Array.from({length:isodoseTraceCount},(_,i)=>segments[i]?.y||[]),
-          z:Array.from({length:isodoseTraceCount},(_,i)=>segments[i]?.z||[]),
-          visible:Array.from({length:isodoseTraceCount},(_,i)=>i<percentages.length)
+          x:Array.from({length:count},(_,i)=>part(i)?.x||[]),
+          y:Array.from({length:count},(_,i)=>part(i)?.y||[]),
+          z:Array.from({length:count},(_,i)=>part(i)?.z||[]),
+          visible:Array.from({length:count},(_,i)=>(i>>1)<percentages.length)
         };
         isodoseCacheKey = key;
       }
       Plotly.restyle(graph,isodoseCache,isodoseTraceIndices);
-      const labels = percentages.map((value,index)=>`<span style="color:${isodoseColors[index]}">● ${value}%</span>`).join(" &nbsp; ");
+      const labels = percentages.map((value,index)=>`<span style="color:${isodoseColors[index]};text-shadow:0 0 2px ${isodoseHalos[index]},0 0 2px ${isodoseHalos[index]}">● ${value}%</span>`).join(" &nbsp; ");
       isodoseStatus.innerHTML = `Niveles del máximo interpolado del modo seleccionado: ${labels}`;
     }
     function inspectPoint(index) {
