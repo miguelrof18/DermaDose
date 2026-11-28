@@ -641,6 +641,9 @@ def make_anchor_registration(ras, fields):
         raise ValueError("Introduzca las tres medidas del tablero en mm, incluido el cero si corresponde.") from exc
     if not np.isfinite([*ras, lateral, height, distance]).all() or min(height, distance) < 0:
         raise ValueError("Compruebe las medidas: la altura y la distancia deben ser positivas o cero.")
+    if distance < 150:
+        raise ValueError(f"Distancia cabecera–hombros de {distance:g} mm: con la cabeza sobre la mesa se esperan "
+                         "al menos 150 mm (típico, 300–450 mm). Las medidas van en mm: 40 cm son 400 mm.")
     return {"anchor_ct_lps_mm": [-ras[0], -ras[1], ras[2]],
             "anchor_table_mm": [lateral, -height, -distance],
             "rotation_table_from_ct": np.eye(3).tolist(),

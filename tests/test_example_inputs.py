@@ -51,3 +51,12 @@ def test_kerma_weighted_reference_is_the_working_position():
     assert choose_reference_event(events, "first")[0] == 1
     assert choose_reference_event(events, "kerma_weighted")[0] == 3
     assert choose_reference_event(events)[0] == 3
+
+
+def test_shoulder_anchor_a_few_centimetres_from_the_head_edge_is_rejected():
+    from skindose_verifier.reference_frames import check_shoulder_anchor_distance
+    registration = {"anchor_table_mm": [0., -39., -40.], "anchor_definition": "posterior_shoulder_midline"}
+    with pytest.raises(InputError, match="40 cm son 400 mm"):
+        check_shoulder_anchor_distance(registration)
+    registration["anchor_table_mm"] = [0., -39., -400.]
+    check_shoulder_anchor_distance(registration)
