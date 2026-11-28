@@ -320,8 +320,26 @@ def check_registration_pose(registration, events):
     return pose
 
 
+MIN_SHOULDER_TO_HEAD_EDGE_MM = 150.
+
+
+def check_shoulder_anchor_distance(registration) -> None:
+    """A shoulder anchor a few centimetres from the head edge leaves the head off the board."""
+    shoulder = (registration.get("anchor_definition") == "posterior_shoulder_midline"
+                or registration.get("orientation_basis") == "operator_confirmed_aligned_head_first_supine")
+    a_table = registration.get("anchor_table_mm")
+    if shoulder and a_table is not None and len(a_table) == 3:
+        distance = -float(a_table[2])
+        if distance < MIN_SHOULDER_TO_HEAD_EDGE_MM:
+            raise InputError(
+                f"registro_tc.json sitúa los hombros a {distance:g} mm del borde de cabecera del tablero; con la "
+                f"cabeza sobre la mesa se esperan al menos {MIN_SHOULDER_TO_HEAD_EDGE_MM:g} mm (típico, 300–450 mm). "
+                "Las medidas del tablero van en mm: 40 cm son 400 mm.")
+
+
 def resolve_registration_pose(registration, events, *, interactive=False, input_fn=input):
     registration = dict(registration)
+    check_shoulder_anchor_distance(registration)
     pose = intervention_pose(events)
     try:
         check_registration_pose(registration, events)

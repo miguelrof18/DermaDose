@@ -90,11 +90,11 @@ def run(rdsr: Path, config: Path, stage: str, destination: Path, *, quiet: bool 
              "accumulated_kap_gy_m2": report.accumulated_kap_gy_m2,
              "rdsr_warnings": report.warnings, "runtime": runtime_provenance()}
     export_started = perf_counter()
-    files = save_results(calculation, destination, audit=audit)
+    outputs = save_results(calculation, destination, audit=audit)
     performance = calculation.summary["performance"]
     explicit = {k: calculation.summary[k] for k in ("max_air_kerma_gy", "max_modeled_surface_dose_gy")
                 if k in calculation.summary}
-    return {"files": files,
+    return {"files": outputs,
             "quantity": calculation.summary["quantity"],
             "psd_point_gy": calculation.summary["psd_point_gy"], **explicit,
             "psd_point_definition": calculation.summary["psd_point_definition"],

@@ -86,6 +86,12 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             configs.append(explicit)
     config_path = choose(configs, 'configuración de equipo', local(config), interactive, input_fn)
     data = deepcopy(read_json(config_path))
+    if ('reference_table_from_first_event' in data.get('azurion_profile', {})
+            and 'table_calibration' not in data.get('geometry', {}) and table_calibration is None):
+        # Azurion profiles before 0.7.0 placed the table from the first event.
+        raise ExampleError(f'{config_path.name} es un perfil Azurion anterior a DermaDose 0.7.0 (referencia de mesa '
+                           'desde el primer evento). Use equipo_azurion.json o config/azurion_benmakhlouf_spekpy.json '
+                           'del repositorio y retire la copia antigua de la carpeta del caso.')
     dicom = choose([p for p in entries if p.suffix.lower()=='.dcm'], 'RDSR (.dcm)', local(rdsr), interactive, input_fn)
     candidates = [p for p in entries if p.suffix.lower()=='.stl']
     if interactive and mesh is None:
@@ -167,7 +173,7 @@ def _mesh_vertices_lps(mesh_path, metadata):
 
 
 def place_patient(data, audit, events, *, interactive=False, input_fn=input, pad_mm=None,
-                  shoulder_distance_mm=None, reference_event='first', allow_estimates=None):
+                  shoulder_distance_mm=None, reference_event='kerma_weighted', allow_estimates=None):
     """Resolve M_T<-C and the room reference (t_0, m_0) into ``data``; return the placement audit."""
     from .placement import (CHEST_BELOW_SHOULDERS_MM, estimate_ct_registration, estimate_room_reference,
                             pose_rotation, select_target)
@@ -280,8 +286,9 @@ def main(argv=None):
         parser.add_argument('--'+name)
     parser.add_argument('--espesor-colchoneta-mm', type=float, help='Espesor efectivo de la colchoneta bajo carga')
     parser.add_argument('--distancia-hombros-mm', type=float, help='Distancia de la cabecera del tablero al plano de hombros')
-    parser.add_argument('--evento-referencia', default='first',
-                        help="Evento para estimar t0/m0 si no hay marcador: first, max_kerma o su número")
+    parser.add_argument('--evento-referencia', default='kerma_weighted',
+                        help="Evento para estimar t0/m0 si no hay marcador: kerma_weighted (posición de trabajo, "
+                             "por defecto), first, max_kerma o su número")
     parser.add_argument('--permitir-estimaciones', action='store_true',
                         help='Admitir estimaciones de colocación aunque el perfil no lo declare')
     parser.add_argument('--mesa', type=Path, help='Perfil JSON de la mesa de la sala')

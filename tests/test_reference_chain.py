@@ -107,7 +107,7 @@ def test_prone_pose_rests_the_anterior_surface():
 def test_room_reference_puts_the_target_at_the_isocentre():
     registration = {"anchor_ct_lps_mm": A_C, "anchor_table_mm": A_T, "rotation_table_from_ct": np.eye(3).tolist()}
     events = [event(M0, "a", ka=0.), event(M1, "b", ka=1.), event([300, 35, 185], "c", ka=5.)]
-    reference = estimate_room_reference(registration, P_C, events)
+    reference = estimate_room_reference(registration, P_C, events, reference="first")
     assert reference["estimate"]["reference_event_uid"] == "b"          # first event with kerma
     assert reference["readings_long_lat_height_mm"] == M1
     np.testing.assert_allclose(reference["origin_isocenter_mm"], [0, 35, 500])

@@ -45,7 +45,7 @@ El punto diana se elige en este orden:
 
 El lanzador (`python -m skindose_verifier.example_runner CASO`) aplica esta tabla. Solo estima si el perfil declara `azurion_profile.allow_research_assumptions` o si se usa `--permitir-estimaciones`. `configuracion_efectiva.json` guarda los valores usados, de modo que el mismo cálculo se repite sin volver a estimar. En `resultados.json`, `placement_chain` resume la cadena y `ct_registration` contiene la evidencia completa.
 
-Opciones del lanzador relacionadas: `--espesor-colchoneta-mm`, `--distancia-hombros-mm`, `--evento-referencia first|max_kerma|N`, `--registro-tc` y `--mesa`.
+Opciones del lanzador relacionadas: `--espesor-colchoneta-mm`, `--distancia-hombros-mm`, `--evento-referencia kerma_weighted|first|max_kerma|N` (por defecto `kerma_weighted`: el evento más próximo a la mediana de las lecturas de mesa ponderada por Ka,r, es decir, la posición de trabajo), `--registro-tc` y `--mesa`.
 
 ## Lecturas de mesa del Azurion
 
