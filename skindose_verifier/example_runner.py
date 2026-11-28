@@ -86,6 +86,12 @@ def prepare_example(folder, *, config=None, rdsr=None, mesh=None,
             configs.append(explicit)
     config_path = choose(configs, 'configuración de equipo', local(config), interactive, input_fn)
     data = deepcopy(read_json(config_path))
+    if ('reference_table_from_first_event' in data.get('azurion_profile', {})
+            and 'table_calibration' not in data.get('geometry', {}) and table_calibration is None):
+        # Azurion profiles before 0.7.0 placed the table from the first event.
+        raise ExampleError(f'{config_path.name} es un perfil Azurion anterior a DermaDose 0.7.0 (referencia de mesa '
+                           'desde el primer evento). Use equipo_azurion.json o config/azurion_benmakhlouf_spekpy.json '
+                           'del repositorio y retire la copia antigua de la carpeta del caso.')
     dicom = choose([p for p in entries if p.suffix.lower()=='.dcm'], 'RDSR (.dcm)', local(rdsr), interactive, input_fn)
     candidates = [p for p in entries if p.suffix.lower()=='.stl']
     if interactive and mesh is None:

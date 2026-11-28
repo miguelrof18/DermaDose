@@ -105,7 +105,19 @@ def select_target(vertices_lps, metadata: dict, regions=(), registration: dict |
         rotation, translation = transform[:3, :3], transform[:3, 3]
         anchor_t = rotation @ np.asarray(registration["anchor_ct_lps_mm"], dtype=float) + translation
         level = anchor_t[2] - CHEST_BELOW_SHOULDERS_MM
-        section = _slab(vertices_lps @ rotation.T + translation, level, 10.)
+        surface_t = vertices_lps @ rotation.T + translation
+        try:
+            section = _slab(surface_t, level, 10.)
+        except InputError:
+            low, high = surface_t[:, 2].min(), surface_t[:, 2].max()
+            raise InputError(
+                "El anclaje de hombros del registro TC–tablero no es coherente con la malla: el nivel cardíaco "
+                f"estimado ({CHEST_BELOW_SHOULDERS_MM:g} mm caudal al anclaje) queda fuera de ella. Anclaje en el TC "
+                f"(LPS): z = {float(registration['anchor_ct_lps_mm'][2]):.0f} mm; la malla ocupa "
+                f"{high - low:.0f} mm, de {high - anchor_t[2]:.0f} mm craneal a {anchor_t[2] - low:.0f} mm caudal al "
+                "anclaje. Compruebe en DermaDose Surface que el punto está en la línea media posterior de los hombros "
+                "(no en el extremo caudal del TC, frecuente en estudios con pies primero) y la distancia "
+                "cabecera–hombros del tablero, o retire registro_tc.json para usar la colocación estimada.") from None
         target_t = np.array([anchor_t[0], (section[:, 1].min() + section[:, 1].max()) / 2, level])
         target = rotation.T @ (target_t - translation)
         return target, {"target_source": f"cardiac_level_proxy_{CHEST_BELOW_SHOULDERS_MM:g}mm_caudal_to_shoulders",
