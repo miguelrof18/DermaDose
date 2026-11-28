@@ -38,7 +38,7 @@ def _results_overview(report: dict) -> str:
         "## Qué archivo abrir",
         "",
         "- **mapa_3d_interactivo.html:** explora dónde se acumula la dosis sobre la superficie.",
-        "- **mapa_2d.png y mapa_3d.png:** imágenes del mapa para una revisión rápida.",
+        "- **mapa_2d.png y mapa_3d.png:** imágenes del mapa para una revisión rápida; con malla, mapa_3d.png muestra las vistas posterior, anterior y laterales con isodosis del 25, 50 y 75 % del máximo.",
         "- **eventos.csv:** kerma de referencia, dosis máxima y puntos irradiados por evento.",
         "- **histograma_dosis_area.png y .csv:** superficie que recibe al menos cada nivel de dosis.",
         "- **resultados.json:** métricas detalladas, hipótesis y trazabilidad del cálculo.",
@@ -79,7 +79,6 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.colors import Normalize, ListedColormap, LinearSegmentedColormap
-    from matplotlib.cm import ScalarMappable
     dose_palette = LinearSegmentedColormap.from_list(
         "dermadose", [(0.00, "#2ca25f"), (0.33, "#ffe34d"),
                       (0.67, "#fb8c00"), (1.00, "#d7191c")])
@@ -118,38 +117,30 @@ def save_results(calculation: Calculation, directory: str | Path, *, audit: dict
     fig.savefig(map_path, dpi=150)
     plt.close(fig)
     # Three-dimensional spatial depiction uses the same dose values/point order.
-    fig = plt.figure(figsize=(8, 7))
-    ax3 = fig.add_subplot(111, projection="3d")
-    points = calculation.surface.points_mm
-    norm = Normalize(vmin=0, vmax=max(1e-12, float(np.max(calculation.total_gy))))
-    if calculation.surface.mesh is not None and len(calculation.surface.mesh.faces) <= 200_000:
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-        mesh = calculation.surface.mesh
-        collection = Poly3DCollection(np.asarray(mesh.vertices)[mesh.faces],
-                                      facecolors=palette(norm(calculation.total_gy)),
-                                      edgecolors="none", linewidths=0)
-        ax3.add_collection3d(collection)
-        ax3.auto_scale_xyz(*mesh.bounds.T)
-        ax3.set_box_aspect(np.ptp(np.asarray(mesh.vertices), axis=0))
-        ax3.view_init(elev=10 if ct_lps else -65, azim=90)
-        sc = ScalarMappable(norm=norm, cmap=palette)
-    else:
-        stride = max(1, len(points)//15000)
-        selected = np.arange(0, len(points), stride)
-        if calculation.surface.mesh is not None:
-            selected = np.unique(np.r_[selected, int(np.argmax(calculation.total_gy))])
-            ax3.set_title("Vista muestreada; dosis calculada sobre la malla completa", fontsize=10)
-        sc = ax3.scatter(points[selected, 0], points[selected, 1], points[selected, 2],
-                         c=calculation.total_gy[selected], s=4, cmap=palette, norm=norm)
-    ax3.set_xlabel("x [mm]")
-    ax3.set_ylabel("y posterior TC [mm]" if ct_lps else "y [mm]")
-    ax3.set_zlabel("z craneal TC [mm]" if ct_lps else "z [mm]")
-    fig.colorbar(sc, ax=ax3, label="Gy", shrink=.7)
-    fig.suptitle("Distribución de dosis, geometría de investigación")
-    fig.tight_layout()
     map3_path = directory/"mapa_3d.png"
-    fig.savefig(map3_path, dpi=150)
-    plt.close(fig)
+    if calculation.surface.mesh is not None:
+        # Orthographic views with a depth buffer: the near skin hides the far
+        # skin, so posterior fields are not covered by the anterior surface.
+        from .surface_views import save_surface_views
+        save_surface_views(map3_path, calculation.surface.mesh.vertices, calculation.surface.mesh.faces,
+                           calculation.total_gy, calculation.surface.normals, ct_lps=ct_lps,
+                           palette=dose_palette, no_dose_rgb=tuple(shades[0][:3]),
+                           title="Dosis en piel acumulada · vistas de la malla (INVESTIGACIÓN)")
+    else:
+        fig = plt.figure(figsize=(8, 7))
+        ax3 = fig.add_subplot(111, projection="3d")
+        points = calculation.surface.points_mm
+        norm = Normalize(vmin=0, vmax=max(1e-12, float(np.max(calculation.total_gy))))
+        sc = ax3.scatter(points[:, 0], points[:, 1], points[:, 2],
+                         c=calculation.total_gy, s=4, cmap=palette, norm=norm)
+        ax3.set_xlabel("x [mm]")
+        ax3.set_ylabel("y [mm]")
+        ax3.set_zlabel("z [mm]")
+        fig.colorbar(sc, ax=ax3, label="Gy", shrink=.7)
+        fig.suptitle("Distribución de dosis, geometría de investigación")
+        fig.tight_layout()
+        fig.savefig(map3_path, dpi=150)
+        plt.close(fig)
     from .interactive import save_interactive
     histogram = calculation.summary["surface_metrics"]["cumulative_dose_area_histogram"]
     dah_path = directory/"histograma_dosis_area.csv"

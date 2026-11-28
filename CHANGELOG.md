@@ -1,5 +1,22 @@
 # Cambios
 
+## Sin publicar
+
+### Ejemplo, referencia de mesa y anclaje
+
+- El evento de referencia de la mesa pasa a ser `kerma_weighted`: el evento más cercano a la mediana de las lecturas de mesa ponderada por Ka,r, es decir, la posición de trabajo. Antes era el primer evento. `--evento-referencia first|max_kerma|N` sigue disponible.
+- Errores claros cuando:
+  - el perfil Azurion es anterior a 0.7.0;
+  - el anclaje de hombros no es coherente con la malla;
+  - la distancia hombros–cabecera es menor de 150 mm (por ejemplo, 40 escrito en cm); en este caso también se rechaza al exportar desde DermaDose Surface.
+- El visor 3D distingue el punto diana del anclaje del registro.
+
+### Isodosis visibles sobre la malla
+
+- `mapa_3d.png` con malla: vistas ortogonales posterior, anterior y laterales con oclusión real (z-buffer) e isodosis del 25, 50 y 75 % del máximo. Antes, con más de 200 000 caras, era una nube de puntos muestreados sin oclusión y la piel anterior tapaba los campos de la espalda.
+- Visor interactivo: las curvas de isodosis se separan de la piel 1–2 mm a lo largo de la normal, para que la superficie no las tape a trozos. Cada curva lleva además un contorno de contraste para leerse sobre toda la paleta.
+- Solo cambia la representación: la dosis calculada es la misma.
+
 ## 0.8.1 · noviembre de 2026
 
 ### Corrección angular de la transmisión de mesa
